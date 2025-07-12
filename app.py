@@ -1,38 +1,34 @@
-from flask import Flask, request
+from flask import Flask, request, jsonify
 
 app = Flask(__name__)
 
-def processar_mensagem(mensagem):
-    mensagem = mensagem.lower()
+@app.route("/", methods=["GET"])
+def home():
+    return "Chatbot Sullato online com Flask!"
 
-    if "bom dia" in mensagem or "boa tarde" in mensagem or "boa noite" in mensagem or "oi" in mensagem:
-        return "Olá! Seja bem-vindo à Sullato Micros e Vans 🚐. Como posso te ajudar hoje?"
+@app.route("/webhook", methods=["GET", "POST"])
+def webhook():
+    if request.method == "GET":
+        token = request.args.get("hub.verify_token")
+        challenge = request.args.get("hub.challenge")
+        if token == "sullatotoken123":
+            return challenge
+        return "Token inválido", 403
 
-    elif "compra" in mensagem:
-        return "Ótimo! Está procurando um veículo de passageiro ou de carga?"
+    if request.method == "POST":
+        data = request.get_json()
+        print("📥 RECEBIDO DA META:")
+        print("➡️ JSON recebido:", data)
 
-    elif "passageiro" in mensagem:
-        return "Legal! Quer algo convencional, escolar ou executivo?"
+        try:
+            entry = data['entry'][0]
+            message = entry['changes'][0]['value']['messages'][0]['text']['body']
+            sender = entry['changes'][0]['value']['messages'][0]['from']
+            print(f"✉️ Nova mensagem de {sender}: {message}")
+        except Exception as e:
+            print("⚠️ Erro ao interpretar mensagem:", e)
 
-    elif "carga" in mensagem:
-        return "Beleza. Você busca um furgão, baú ou carroceria?"
-
-    elif "baú" in mensagem or "carroceria" in mensagem:
-        return "Temos opções incríveis prontas pra te atender. Quer ver os modelos disponíveis?"
-
-    else:
-        return "Desculpe, não entendi muito bem. Pode repetir de outra forma, por favor?"
-
-@app.route("/")
-def index():
-    return "Chatbot Sullato está online!"
-
-@app.route("/responder", methods=["POST"])
-def responder():
-    dados = request.get_json()
-    mensagem = dados.get("mensagem", "")
-    resposta = processar_mensagem(mensagem)
-    return {"resposta": resposta}
+        return jsonify({"status": "mensagem recebida"}), 200
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(host="0.0.0.0", port=10000)
