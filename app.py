@@ -45,14 +45,23 @@ def responder_para_whatsapp(numero, mensagem):
         "Authorization": f"Bearer {ACCESS_TOKEN}",
         "Content-Type": "application/json"
     }
+
     payload = {
         "messaging_product": "whatsapp",
         "to": numero,
         "type": "text",
-        "text": {"body": mensagem}
+        "text": {
+            "body": mensagem
+        }
     }
+
     response = requests.post(url, json=payload, headers=headers)
     print("Resposta da API:", response.status_code, response.text)
+
+    if response.status_code != 200:
+        print("❌ Erro ao enviar mensagem para o WhatsApp.")
+    else:
+        print("✅ Mensagem enviada com sucesso para o WhatsApp.")
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=10000)
