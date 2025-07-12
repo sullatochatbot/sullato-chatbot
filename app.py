@@ -4,8 +4,7 @@ import requests
 app = Flask(__name__)
 
 VERIFY_TOKEN = "sullatotoken123"
-TOKEN_META = "EAAxfFUMZAvBQBPNDsJ2obmCUPcVkOePuSpLGRP2JtAhhgPxjWHA7digp2kiDMsPiEFrgMdkOufOZBaTQHFryNZBU44WrUjhiaK53DPPcuX3WqlpSIxPJyPIinmhIyIFbZA2Nm2Hhvs3YFKstBEoakMZCnNhP8bgpKDn2x9iZApOYIYdRZBVM00IB33qjJg1zAZDZD"
-ID_WABA = "1300357505048528"
+ACCESS_TOKEN = "EAAxfFUMZAvBQBPNDsJ2obmCUPcVkOePuSpLGRP2JtAhhgPxjWHA7digp2kiDMsPiEFrgMdkOufOZBaTQHFryNZBU44WrUjhiaK53DPPcuX3WqlpSIxPJyPIinmhIyIFbZA2Nm2Hhvs3YFKstBEoakMZCnNhP8bgpKDn2x9iZApOYIYdRZBVM00IB33qjJg1zAZDZD"
 
 @app.route("/", methods=["GET"])
 def home():
@@ -18,46 +17,42 @@ def webhook():
         challenge = request.args.get("hub.challenge")
         if token == VERIFY_TOKEN:
             return challenge
-        return "Token inválido", 403
+        return "Token inválido"
 
-    elif request.method == "POST":
+    if request.method == "POST":
         data = request.get_json()
         print("Mensagem recebida:", data)
 
         try:
             entry = data["entry"][0]
             changes = entry["changes"][0]
-            value = changes["value"]
+            message = changes["value"]["messages"][0]
+            phone_number = message["from"]
+            msg_text = message["text"]["body"]
 
-            if "messages" in value:
-                message = value["messages"][0]
-                number = message["from"]
-                text = message["text"]["body"]
+            print(f">> De: {phone_number} | Mensagem: {msg_text}")
 
-                print(f"Número: {number} - Mensagem: {text}")
-                enviar_resposta(number, "Olá! A Sullato agradece o seu contato. Em que posso te ajudar?")
+            responder_para_whatsapp(phone_number, "Olá, a Sullato agradece o seu contato. Em que posso te ajudar?")
+
         except Exception as e:
             print("Erro ao processar mensagem:", e)
 
-        return "Evento recebido", 200
+        return "OK", 200
 
-def enviar_resposta(telefone, mensagem):
-    url = f"https://graph.facebook.com/v19.0/{ID_WABA}/messages"
+def responder_para_whatsapp(numero, mensagem):
+    url = "https://graph.facebook.com/v19.0/940545704/messages"
     headers = {
-        "Authorization": f"Bearer {TOKEN_META}",
+        "Authorization": f"Bearer {ACCESS_TOKEN}",
         "Content-Type": "application/json"
     }
     payload = {
         "messaging_product": "whatsapp",
-        "to": telefone,
+        "to": numero,
         "type": "text",
-        "text": {
-            "body": mensagem
-        }
+        "text": {"body": mensagem}
     }
-
-    resposta = requests.post(url, headers=headers, json=payload)
-    print("Resposta enviada:", resposta.status_code, resposta.text)
+    response = requests.post(url, json=payload, headers=headers)
+    print("Resposta da API:", response.status_code, response.text)
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=10000)
