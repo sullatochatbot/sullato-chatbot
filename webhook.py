@@ -1,94 +1,71 @@
-from flask import Flask, request, jsonify
+import os
+import json
 import requests
+from flask import Flask, request
+from responder import responder
 
 app = Flask(__name__)
 
-VERIFY_TOKEN = "sullato_token"
-ACCESS_TOKEN = "EACPL2cB7rI8BO5CCdMuogHJc02LDTOvZAR5y3Y3n74GrOQdxFTrNFxVnV5VG5NPFhO8BlQH5gFZBXoJCOdb6qCFv4ZAJax27vdCBekwmuZBsSO96jOqlVEiorrylZCAqeAStWDIocXeSfmkC2Ry7f6IMNlspgrBp58NBPWpqGs8ZAZBLzixNHGX3tWEYgLKl1erHZA0L2iOZC6DVVRAiRZCv0fPNkFmxvYChCQOGUo0SWpmEHnZCsCmZAKdtlfZC5kpMZD"
-PHONE_NUMBER_ID = "684523561413203"
+# Token permanente gerado na Meta
+ACCESS_TOKEN = "EAAxfFUMZAvBQBPNDsJ2obmCUPcVkOePuSpLGRP2JtAhhgPxjWHA7digp2kiDMsPiEFrgMdkOufOZBaTQHFryNZBU44WrUjhiaK53DPPcuX3WqlpSIxPJyPIinmhIyIFbZA2Nm2Hhvs3YFKstBEoakMZCnNhP8bgpKDn2x9iZApOYIYdRZBVM00IB33qjJg1zAZDZD"
+VERIFY_TOKEN = "sullato_token_verificacao"
 
-@app.route('/webhook', methods=['GET'])
-def verify():
-    if request.args.get("hub.mode") == "subscribe" and request.args.get("hub.verify_token") == VERIFY_TOKEN:
-        return request.args.get("hub.challenge"), 200
-    return "Erro de verificação", 403
-
-@app.route('/webhook', methods=['POST'])
+@app.route('/webhook', methods=['GET', 'POST'])
 def webhook():
-    data = request.get_json()
-    print("🔔 Mensagem recebida:", data)
+    if request.method == 'GET':
+        # Verificação do webhook pela Meta
+        verify_token = request.args.get('hub.verify_token')
+        challenge = request.args.get('hub.challenge')
+        if verify_token == VERIFY_TOKEN:
+            return challenge, 200
+        return "Token de verificação inválido", 403
 
-    try:
-        entry = data["entry"][0]
-        changes = entry["changes"][0]
-        value = changes["value"]
-        messages = value.get("messages")
-        
-        if messages:
-            msg = messages[0]
-            sender = msg["from"]
-            message_text = msg["text"]["body"]
+    elif request.method == 'POST':
+        try:
+            payload = request.get_json()
+            print("🔔 Mensagem recebida:", json.dumps(payload, indent=2))
 
-            print(f"📩 De: {sender} | 📥 Texto: {message_text}")
+            entry = payload.get("entry", [])[0]
+            changes = entry.get("changes", [])[0]
+            value = changes.get("value", {})
+            messages = value.get("messages", [])
 
-            reply_text = "Olá! 👋 Aqui é a Sullato Micros e Vans. Como posso te ajudar?"
+            if messages:
+                phone_number_id = value["metadata"]["phone_number_id"]
+                from_number = messages[0]["from"]
+                mensagem = messages[0]["text"]["body"]
 
-            url = f"https://graph.facebook.com/v18.0/{PHONE_NUMBER_ID}/messages"
-            headers = {
-                "Authorization": f"Bearer {ACCESS_TOKEN}",
-                "Content-Type": "application/json"
-            }
-            payload = {
-                "messaging_product": "whatsapp",
-                "to": sender,
-                "type": "text",
-                "text": {
-                    "body": reply_text
-                }
-            }
+                # Gera a resposta com base no conteúdo recebido
+                resposta = responder(mensagem)
 
-            response = requests.post(url, headers=headers, json=payload)
-            print("✅ Resposta enviada:", response.status_code, response.text)
+                # Envia a resposta de volta para o cliente no WhatsApp
+                enviar_resposta(phone_number_id, from_number, resposta)
 
-    except Exception as e:
-        print("❌ Erro ao processar a mensagem:", e)
+        except Exception as e:
+            print(f"❌ Erro ao processar mensagem: {e}")
 
-    return "ok", 200
+        return "EVENT_RECEIVED", 200
 
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=10000)
-from flask import Flask, request, jsonify
-import sys
+def enviar_resposta(phone_number_id, to, mensagem):
+    url = f"https://graph.facebook.com/v19.0/{phone_number_id}/messages"
 
-app = Flask(__name__)
+    headers = {
+        "Authorization": f"Bearer {ACCESS_TOKEN}",
+        "Content-Type": "application/json"
+    }
 
-# Token de verificação (o mesmo que foi configurado na Meta)
-verify_token = 'sullato_token'
+    payload = {
+        "messaging_product": "whatsapp",
+        "to": to,
+        "type": "text",
+        "text": {
+            "body": mensagem
+        }
+    }
 
-# Token de acesso fixo (válido por 2 meses)
-access_token = 'EACPL2cB7rI8BOZB2l1B0z2pVmxgTqaYBPZB6XMqjZBMZCHwgnQwEzwZAsvhg94mdjgYBbSoAvszr4taTYGMv0tF60oTSccioP6Rg5gdxSKZCg1WoXQIARyZBytIaE8yunUrZBsZAoZBgHZAl6lXiuJWCCaR8ZBwVhV4YbFD0dNkfRVMsg5NgZCdZAHZAMpfMOlQtB7klMzAJANpzizQqrEZD'
+    response = requests.post(url, headers=headers, json=payload)
 
-@app.route('/webhook', methods=['GET'])
-def verificar_webhook():
-    if request.args.get('hub.mode') == 'subscribe' and request.args.get('hub.verify_token') == verify_token:
-        return request.args.get('hub.challenge')
-    return 'Token de verificação inválido', 403
-
-@app.route('/webhook', methods=['POST'])
-def receber_mensagem():
-    data = request.get_json()
-    print("Mensagem recebida:", file=sys.stderr)
-    print(data, file=sys.stderr)
-
-    try:
-        mensagem = data['entry'][0]['changes'][0]['value']['messages'][0]
-        texto = mensagem['text']['body']
-        numero = mensagem['from']
-        print(f"Mensagem de {numero}: {texto}", file=sys.stderr)
-    except Exception as e:
-        print(f"Nenhuma mensagem processada: {e}", file=sys.stderr)
-
-    return jsonify(status="recebido"), 200
+    print("📤 Resposta enviada:", response.status_code, response.text)
 
 if __name__ == '__main__':
-    app.run(port=5000, debug=True)
+    app.run(port=5000)
