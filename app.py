@@ -1,3 +1,7 @@
+from flask import Flask, request
+
+app = Flask(__name__)
+
 def processar_mensagem(mensagem):
     mensagem = mensagem.lower()
 
@@ -18,3 +22,17 @@ def processar_mensagem(mensagem):
 
     else:
         return "Desculpe, não entendi muito bem. Pode repetir de outra forma, por favor?"
+
+@app.route("/")
+def index():
+    return "Chatbot Sullato está online!"
+
+@app.route("/responder", methods=["POST"])
+def responder():
+    dados = request.get_json()
+    mensagem = dados.get("mensagem", "")
+    resposta = processar_mensagem(mensagem)
+    return {"resposta": resposta}
+
+if __name__ == "__main__":
+    app.run(debug=True)
