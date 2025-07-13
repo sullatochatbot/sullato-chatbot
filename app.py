@@ -17,6 +17,10 @@ def webhook():
     if request.method == "GET":
         token = request.args.get("hub.verify_token")
         challenge = request.args.get("hub.challenge")
+
+        print(f"🔐 Token recebido: {token}")
+        print(f"✅ Token esperado: {VERIFY_TOKEN}")
+
         if token == VERIFY_TOKEN:
             return challenge, 200
         return "Token inválido", 403
