@@ -15,18 +15,20 @@ def home():
 @app.route("/webhook", methods=["GET", "POST"])
 def webhook():
     if request.method == "GET":
+        mode = request.args.get("hub.mode")
         token = request.args.get("hub.verify_token")
         challenge = request.args.get("hub.challenge")
 
+        print(f"🔐 Modo recebido: {mode}")
         print(f"🔐 Token recebido: {token}")
         print(f"✅ Token esperado: {VERIFY_TOKEN}")
 
-        if token == VERIFY_TOKEN:
+        if mode == "subscribe" and token == VERIFY_TOKEN:
             return challenge, 200
+
         return "Token inválido", 403
 
     if request.method == "POST":
         payload = request.get_json()
         print("📩 Payload recebido:\n", json.dumps(payload, indent=2))
         return "EVENT_RECEIVED", 200
-
