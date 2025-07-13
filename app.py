@@ -4,8 +4,10 @@ import json
 
 app = Flask(__name__)
 
+# Tokens
 VERIFY_TOKEN = "sullato_verifica_teste123"
-ACCESS_TOKEN = "EAAxfFUMZAvBQBPNDsJ2obmCUPcVkOePusLhGRP2JtAhhgPxjWHAd7igp2k1D...ZD"  # (substitua pelo seu token real completo)
+ACCESS_TOKEN = "EAAxfFUMZAvBQBPNDsJ2obmCUPcVkOePusLhGRP2JtAhhgPxjWHA7digp2kiDMsPiEFrgMdkOufOZBaTQHFryNZBU44WrUjhiaK53DPPcuX3WqlpSIxPJyPIinmhIyIFbZA2Nm2Hhvs3YFKstBEoakMZCnNhP8bgpKDn2x9iZApOYIYdRZBVM00IB33qjJg1zAZDZD"
+PHONE_NUMBER_ID = "681607758375737"  # ID correto da Meta
 
 @app.route("/", methods=["GET"])
 def home():
@@ -17,7 +19,6 @@ def webhook():
         token = request.args.get("hub.verify_token")
         challenge = request.args.get("hub.challenge")
 
-        # 🔍 Logs para diagnóstico do erro de token
         print("📥 Requisição GET recebida da Meta")
         print("🔐 Token recebido:", repr(token))
         print("✅ Token esperado:", repr(VERIFY_TOKEN))
@@ -49,7 +50,7 @@ def webhook():
         return "OK", 200
 
 def responder_para_whatsapp(numero, mensagem):
-    url = "https://graph.facebook.com/v19.0/9409545704/messages"
+    url = f"https://graph.facebook.com/v19.0/{PHONE_NUMBER_ID}/messages"
     headers = {
         "Authorization": f"Bearer {ACCESS_TOKEN}",
         "Content-Type": "application/json"
@@ -65,3 +66,4 @@ def responder_para_whatsapp(numero, mensagem):
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=10000)
+
