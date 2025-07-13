@@ -1,12 +1,9 @@
 from flask import Flask, request
 import requests
 import json
-
 app = Flask(__name__)
-
-VERIFY_TOKEN = "sullato_token_verificacao"
+VERIFY_TOKEN = "sullato_verifica_teste123"
 ACCESS_TOKEN = "EAAxfFUMZAvBQBPNDsJ2obmCUPcVkOePusLhGRP2JtAhhgPxjWHAd7igp2k1D...ZD"  # (mantenha o token completo que você já usava)
-
 @app.route("/", methods=["GET"])
 def home():
     return "Sullato Chatbot online"
