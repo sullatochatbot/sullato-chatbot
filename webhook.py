@@ -11,10 +11,9 @@ ACCESS_TOKEN = "EAAxfFUMZAvBQBPNDsJ2obmCUPcVkOePuSpLGRP2JtAhhgPxjWHA7digp2kiDMsP
 def verificar():
     token = request.args.get("hub.verify_token")
     challenge = request.args.get("hub.challenge")
-    if token == VERIFY_TOKEN:
-        return challenge, 200
-    return "Token de verificação inválido.", 403
-
+   if token == VERIFY_TOKEN:
+    return challenge, 200, {'Content-Type': 'text/plain'}
+return "Token de verificação inválido.", 403
 @app.route("/webhook", methods=["POST"])
 def receber_mensagem():
     payload = request.get_json()
