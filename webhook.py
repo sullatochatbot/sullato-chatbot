@@ -12,7 +12,7 @@ def verificar():
     token = request.args.get("hub.verify_token")
     challenge = request.args.get("hub.challenge")
     if token == VERIFY_TOKEN:
-        return challenge
+        return challenge, 200
     return "Token de verificação inválido.", 403
 
 @app.route("/webhook", methods=["POST"])
