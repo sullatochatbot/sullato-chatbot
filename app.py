@@ -62,4 +62,5 @@ def responder_para_whatsapp(numero, mensagem):
     print("Resposta da API:", response.status_code, response.text)
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=10000)
+    app.run(host="0.0.0.0", port=10000, debug=True)
+
