@@ -4,7 +4,7 @@ import json
 
 app = Flask(__name__)
 
-VERIFY_TOKEN = "sullato_verifica_teste123"
+VERIFY_TOKEN = "sullato_token_verificacao"
 ACCESS_TOKEN = "EAAxfFUMZAvBQBPNDsJ2obmCUPcVkOePuSpLGRP2JtAhhgPxjWHA7digp2kiDMsPiEFrgMdkOufOZBaTQHFryNZBU44WrUjhiaK53DPPcuX3WqlpSIxPJyPIinmhIyIFbZA2Nm2Hhvs3YFKstBEoakMZCnNhP8bgpKDn2x9iZApOYIYdRZBVM00IB33qjJg1zAZDZD"
 PHONE_NUMBER_ID = "681607758375737"
 
