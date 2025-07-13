@@ -3,7 +3,7 @@ import requests
 
 app = Flask(__name__)
 
-VERIFY_TOKEN = "sullatotoken123"
+VERIFY_TOKEN = "sullato_token_verificacao"
 ACCESS_TOKEN = "EAAxfFUMZAvBQBPNDsJ2obmCUPcVkOePuSpLGRP2JtAhhgPxjWHA7digp2kiDMsPiEFrgMdkOufOZBaTQHFryNZBU44WrUjhiaK53DPPcuX3WqlpSIxPJyPIinmhIyIFbZA2Nm2Hhvs3YFKstBEoakMZCnNhP8bgpKDn2x9iZApOYIYdRZBVM00IB33qjJg1zAZDZD"
 
 @app.route("/", methods=["GET"])
