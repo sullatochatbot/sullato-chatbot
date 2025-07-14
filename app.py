@@ -3,7 +3,8 @@ import requests
 import json
 import os
 
-raise Exception("🛑 Este é o app.py que está sendo executado")
+import sys
+sys.exit("🛑 Encerrando app.py para confirmar execução no Render")
 
 app = Flask(__name__)
 
