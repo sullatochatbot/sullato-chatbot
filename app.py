@@ -25,6 +25,12 @@ def verify():
     token = request.args.get("hub.verify_token")
     challenge = request.args.get("hub.challenge")
 
+    # Prints de debug para inspecionar o problema
+    print("📌 Token recebido via GET:", repr(token))
+    print("📌 Token carregado do arquivo:", repr(VERIFY_TOKEN))
+    print("📌 Tipo do token recebido:", type(token))
+    print("📌 Tipo do token do arquivo:", type(VERIFY_TOKEN))
+
     if mode == "subscribe" and token == VERIFY_TOKEN:
         print("✅ Webhook verificado com sucesso!")
         return challenge, 200
