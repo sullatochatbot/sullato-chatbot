@@ -2,10 +2,7 @@ from flask import Flask, request
 import requests
 import json
 import os
-
 import sys
-import sys
-# sys.exit("🔴 Encerrando app.py para confirmar execução no Render")
 
 app = Flask(__name__)
 
