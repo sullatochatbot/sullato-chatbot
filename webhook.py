@@ -5,23 +5,34 @@ import json
 app = Flask(__name__)
 
 VERIFY_TOKEN = "sullato_token_verificacao"
-ACCESS_TOKEN = "EAAxfFUMZAvBQBPNDsJ2obmCUPcVkOePuSpLGRP2JtAhhgPxjWHA7digp2kiDMsPiEFrgMdkOufOZBaTQHFryNZBU44WrUjhiaK53DPPcuX3WqlpSIxPJyPIinmhIyIFbZA2Nm2Hhvs3YFKstBEoakMZCnNhP8bgpKDn2x9iZApOYIYdRZBVM00IB33qjJg1zAZDZD"
+ACCESS_TOKEN = "EAAxfFUMZAvBQBPECCWr33FyZBQZBcrfHZBsQxmaYV5Jff0WXS7bSiCBiGgIW8whQDas90wD8xEd3ZAjPqo6nCBEBheK6QOqD7M8sdBrI8MEX04cHMENW7nb0zrvcGmDWsURoOoyK2op2UmZBTCRODkRWUw24ujPWvU1c0p3YcGS0pTHpQ8FukQK09M1Ddj85bHMwZDZD"
+PHONE_NUMBER_ID = "681607758375737"
 
-@app.route('/webhook', methods=['GET', 'POST'])
+@app.route("/", methods=["GET"])
+def home():
+    return "Webhook ativo"
+
+@app.route("/webhook", methods=["GET", "POST"])
 def webhook():
-    if request.method == 'GET':
-        # Verificação do webhook pela Meta
-        verify_token = request.args.get('hub.verify_token')
-        challenge = request.args.get('hub.challenge')
-        if verify_token == VERIFY_TOKEN:
+    if request.method == "GET":
+        mode = request.args.get("hub.mode")
+        token = request.args.get("hub.verify_token")
+        challenge = request.args.get("hub.challenge")
+
+        print(f"🔐 Modo recebido: {mode}")
+        print(f"🔐 Token recebido: {token}")
+        print(f"✅ Token esperado: {VERIFY_TOKEN}")
+
+        if mode == "subscribe" and token == VERIFY_TOKEN:
             return challenge, 200
-        return "Token de verificação inválido", 403
 
-    elif request.method == 'POST':
+        return "Token inválido", 403
+
+    if request.method == "POST":
+        payload = request.get_json()
+        print("📩 Payload recebido:\n", json.dumps(payload, indent=2))
+
         try:
-            payload = request.get_json()
-            print("🔔 Mensagem recebida:", json.dumps(payload, indent=2))
-
             entry = payload.get("entry", [])[0]
             changes = entry.get("changes", [])[0]
             value = changes.get("value", {})
@@ -29,23 +40,18 @@ def webhook():
 
             if messages:
                 phone_number_id = value["metadata"]["phone_number_id"]
-                from_number = messages[0]["from"]
-                mensagem = messages[0]["text"]["body"]
+                from_user = messages[0]["from"]
+                text = messages[0]["text"]["body"]
+                print(f"📨 Mensagem recebida de {from_user}: {text}")
 
-                # Gera a resposta com base no conteúdo recebido
-                resposta = responder(mensagem)
-
-                # Envia a resposta de volta para o cliente no WhatsApp
-                enviar_resposta(phone_number_id, from_number, resposta)
-
+                enviar_resposta(phone_number_id, from_user, "Olá! A Sullato agradece o seu contato.")
         except Exception as e:
             print(f"❌ Erro ao processar mensagem: {e}")
 
         return "EVENT_RECEIVED", 200
 
 def enviar_resposta(phone_number_id, to, mensagem):
-    url = f"https://graph.facebook.com/v19.0/{phone_number_id}/messages"
-
+    url = f"https://graph.facebook.com/v18.0/{phone_number_id}/messages"
     headers = {
         "Authorization": f"Bearer {ACCESS_TOKEN}",
         "Content-Type": "application/json"
@@ -54,13 +60,11 @@ def enviar_resposta(phone_number_id, to, mensagem):
         "messaging_product": "whatsapp",
         "to": to,
         "type": "text",
-        "text": { "body": texto }
+        "text": {"body": mensagem}
     }
 
     response = requests.post(url, headers=headers, json=payload)
-
     print("📤 Resposta enviada:", response.status_code, response.text)
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
-
