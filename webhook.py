@@ -1,22 +1,24 @@
 from flask import Flask, request
 import requests
 import json
+import os
 
 app = Flask(__name__)
 
-# === Lê o token de verificação salvo no arquivo ===
-with open("VERIFY_TOKEN.txt", "r") as f:
+# === Caminho absoluto do diretório atual ===
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+# === Leitura dos arquivos .txt ===
+with open(os.path.join(BASE_DIR, "VERIFY_TOKEN.txt"), "r") as f:
     VERIFY_TOKEN = f.read().strip()
 
-# === Lê o token de acesso permanente salvo no arquivo ===
-with open("ACCESS_TOKEN.txt", "r") as f:
+with open(os.path.join(BASE_DIR, "ACCESS_TOKEN.txt"), "r") as f:
     ACCESS_TOKEN = f.read().strip()
 
-# === Lê o ID do número de telefone salvo no arquivo ===
-with open("PHONE_NUMBER_ID.txt", "r") as f:
+with open(os.path.join(BASE_DIR, "PHONE_NUMBER_ID.txt"), "r") as f:
     PHONE_NUMBER_ID = f.read().strip()
 
-# === Verificação do webhook ===
+# === Verificação do Webhook (GET) ===
 @app.route("/webhook", methods=["GET"])
 def verify():
     mode = request.args.get("hub.mode")
@@ -30,7 +32,7 @@ def verify():
         print("❌ Token de verificação inválido!")
         return "Token inválido", 403
 
-# === Recebendo mensagens ===
+# === Recebimento de Mensagens (POST) ===
 @app.route("/webhook", methods=["POST"])
 def webhook():
     data = request.get_json()
@@ -50,7 +52,7 @@ def webhook():
 
     return "ok", 200
 
-# === Função para enviar resposta automática ===
+# === Envio de Mensagem de Resposta ===
 def send_message(phone_number, text):
     url = f"https://graph.facebook.com/v18.0/{PHONE_NUMBER_ID}/messages"
     headers = {
@@ -67,6 +69,6 @@ def send_message(phone_number, text):
     response = requests.post(url, headers=headers, json=payload)
     print("📤 Resposta enviada:", response.status_code, response.text)
 
-# === Início da aplicação ===
+# === Inicialização do Servidor Flask ===
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=10000)
