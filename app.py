@@ -4,7 +4,8 @@ import json
 import os
 
 import sys
-sys.exit("🛑 Encerrando app.py para confirmar execução no Render")
+import sys
+# sys.exit("🔴 Encerrando app.py para confirmar execução no Render")
 
 app = Flask(__name__)
 
