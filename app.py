@@ -1,53 +1,74 @@
 from flask import Flask, request
 import requests
 import json
+import os
 
 app = Flask(__name__)
 
-VERIFY_TOKEN = "sullato_token_verificacao"
-ACCESS_TOKEN = "EAAxfFUMZAvBQBPECCWr33FyZBQZBcrfHZBsQxmaYV5Jff0WXS7bSiCBiGgIW8whQDas90wD8xEd3ZAjPqo6nCBEBheK6QOqD7M8sdBrI8MEX04cHMENW7nb0zrvcGmDWsURoOoyK2op2UmZBTCRODkRWUw24ujPWvU1c0p3YcGS0pTHpQ8FukQK09M1Ddj85bHMwZDZD"
-PHONE_NUMBER_ID = "681607758375737"
+# === Caminho absoluto do diretório atual ===
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-@app.route("/", methods=["GET"])
-def home():
-    return "Sullato Chatbot online"
+# === Leitura dos arquivos .txt ===
+with open(os.path.join(BASE_DIR, "VERIFY_TOKEN.txt"), "r") as f:
+    VERIFY_TOKEN = f.read().strip()
 
-@app.route("/webhook", methods=["GET", "POST"])
-def webhook():
-    if request.method == "GET":
-        mode = request.args.get("hub.mode")
-        token = request.args.get("hub.verify_token")
-        challenge = request.args.get("hub.challenge")
+with open(os.path.join(BASE_DIR, "ACCESS_TOKEN.txt"), "r") as f:
+    ACCESS_TOKEN = f.read().strip()
 
-        print(f"🔐 Modo recebido: {mode}")
-        print(f"🔐 Token recebido: {token}")
-        print(f"✅ Token esperado: {VERIFY_TOKEN}")
+with open(os.path.join(BASE_DIR, "PHONE_NUMBER_ID.txt"), "r") as f:
+    PHONE_NUMBER_ID = f.read().strip()
 
-        if mode == "subscribe" and token == VERIFY_TOKEN:
-            return challenge, 200
+# === Verificação do Webhook (GET) ===
+@app.route("/webhook", methods=["GET"])
+def verify():
+    mode = request.args.get("hub.mode")
+    token = request.args.get("hub.verify_token")
+    challenge = request.args.get("hub.challenge")
 
+    if mode == "subscribe" and token == VERIFY_TOKEN:
+        print("✅ Webhook verificado com sucesso!")
+        return challenge, 200
+    else:
+        print("❌ Token de verificação inválido!")
         return "Token inválido", 403
 
-    if request.method == "POST":
-        payload = request.get_json()
-        print("📩 Payload recebido:\n", json.dumps(payload, indent=2))
-        return "EVENT_RECEIVED", 200
+# === Recebimento de Mensagens (POST) ===
+@app.route("/webhook", methods=["POST"])
+def webhook():
+    data = request.get_json()
+    print("📩 Dados recebidos:", json.dumps(data, indent=2))
 
-def enviar_resposta(phone_number_id, to, mensagem):
-    url = f"https://graph.facebook.com/v18.0/{phone_number_id}/messages"
+    try:
+        if "messages" in data["entry"][0]["changes"][0]["value"]:
+            message_data = data["entry"][0]["changes"][0]["value"]["messages"][0]
+            phone_number = message_data["from"]
+            text = message_data["text"]["body"]
+
+            print(f"📥 Mensagem de {phone_number}: {text}")
+
+            send_message(phone_number, "Olá! A Sullato agradece o seu contato. Em que posso te ajudar?")
+    except Exception as e:
+        print("⚠️ Erro ao processar mensagem:", str(e))
+
+    return "ok", 200
+
+# === Envio de Mensagem de Resposta ===
+def send_message(phone_number, text):
+    url = f"https://graph.facebook.com/v18.0/{PHONE_NUMBER_ID}/messages"
     headers = {
         "Authorization": f"Bearer {ACCESS_TOKEN}",
         "Content-Type": "application/json"
     }
     payload = {
         "messaging_product": "whatsapp",
-        "to": to,
+        "to": phone_number,
         "type": "text",
-        "text": {"body": mensagem}
+        "text": {"body": text}
     }
 
     response = requests.post(url, headers=headers, json=payload)
     print("📤 Resposta enviada:", response.status_code, response.text)
 
+# === Inicialização do Servidor Flask ===
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000)
+    app.run(host="0.0.0.0", port=10000)
