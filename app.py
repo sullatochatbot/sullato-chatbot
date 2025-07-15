@@ -3,16 +3,14 @@ import requests
 import json
 import os
 
-from responder import gerar_resposta  # Importa o responder inteligente
+from responder import gerar_resposta
 
 app = Flask(__name__)
 
-# === Variáveis de ambiente ===
 VERIFY_TOKEN = os.environ.get("VERIFY_TOKEN")
 ACCESS_TOKEN = os.environ.get("ACCESS_TOKEN")
 PHONE_NUMBER_ID = os.environ.get("PHONE_NUMBER_ID")
 
-# === Verificação do Webhook (GET) ===
 @app.route("/webhook", methods=["GET"])
 def verify():
     mode = request.args.get("hub.mode")
@@ -24,7 +22,6 @@ def verify():
     else:
         return "Token inválido", 403
 
-# === Recebimento de mensagens (POST) ===
 @app.route("/webhook", methods=["POST"])
 def webhook():
     data = request.get_json()
@@ -41,7 +38,6 @@ def webhook():
 
                     print(f"📩 Mensagem de {phone_number}: {text}")
 
-                    # Gera resposta personalizada
                     resposta = gerar_resposta(text)
                     send_message(phone_number, resposta)
 
@@ -50,7 +46,6 @@ def webhook():
 
     return "ok", 200
 
-# === Envio de Mensagem de Resposta ===
 def send_message(phone_number, text):
     url = f"https://graph.facebook.com/v18.0/{PHONE_NUMBER_ID}/messages"
     headers = {
@@ -67,6 +62,5 @@ def send_message(phone_number, text):
     response = requests.post(url, headers=headers, json=payload)
     print("📤 Resposta enviada:", response.status_code, response.text)
 
-# === Inicialização ===
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=10000)
