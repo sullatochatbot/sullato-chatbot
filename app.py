@@ -5,7 +5,7 @@ import os
 
 app = Flask(__name__)
 
-# === Leitura das variáveis do ambiente (sem arquivos físicos) ===
+# === Variáveis de ambiente ===
 VERIFY_TOKEN = os.environ.get("VERIFY_TOKEN")
 ACCESS_TOKEN = os.environ.get("ACCESS_TOKEN")
 PHONE_NUMBER_ID = os.environ.get("PHONE_NUMBER_ID")
@@ -16,19 +16,19 @@ def verify():
     mode = request.args.get("hub.mode")
     token = request.args.get("hub.verify_token")
     challenge = request.args.get("hub.challenge")
-
+    
     if mode == "subscribe" and token == VERIFY_TOKEN:
-        print("🟢 Webhook verificado com sucesso.")
+        print("✅ Webhook verificado com sucesso")
         return challenge, 200
     else:
-        print("🔴 Falha na verificação do webhook.")
-        return "Token inválido", 403
+        print("❌ Falha na verificação do webhook")
+        return "Erro de verificação", 403
 
 # === Recebimento de mensagens (POST) ===
 @app.route("/webhook", methods=["POST"])
 def webhook():
     data = request.get_json()
-    print("📩 Dados recebidos:", json.dumps(data, indent=2))
+    print("📥 Dados recebidos:", json.dumps(data, indent=2))
 
     if data.get("object") == "whatsapp":
         entry = data.get("entry", [])[0]
@@ -42,10 +42,10 @@ def webhook():
 
             print(f"📨 Mensagem de {phone_number}: {text}")
             send_message(phone_number, "Olá! A Sullato agradece o seu contato. Em que posso te ajudar?")
-
+    
     return "ok", 200
 
-# === Envio de Mensagem de Resposta ===
+# === Envio de mensagem de resposta ===
 def send_message(phone_number, text):
     url = f"https://graph.facebook.com/v18.0/{PHONE_NUMBER_ID}/messages"
     headers = {
