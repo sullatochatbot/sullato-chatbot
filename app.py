@@ -9,6 +9,7 @@ app = Flask(__name__)
 VERIFY_TOKEN = os.getenv("VERIFY_TOKEN")
 ACCESS_TOKEN = os.getenv("ACCESS_TOKEN")
 PHONE_NUMBER_ID = os.getenv("PHONE_NUMBER_ID")
+print("🔁 O app.py foi executado com sucesso!")
 
 # === Rota para verificação do Webhook (GET) ===
 @app.route("/webhook", methods=["GET"])
