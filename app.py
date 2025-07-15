@@ -3,7 +3,7 @@ import requests
 import json
 import os
 
-# Inicialização do app Flask
+# === Inicialização do app Flask ===
 app = Flask(__name__)
 
 # === Variáveis de ambiente ===
@@ -21,15 +21,15 @@ def verify():
     if mode == "subscribe" and token == VERIFY_TOKEN:
         return challenge, 200
     else:
-        return "Erro na verificação", 403
+        return "Token inválido", 403
 
 # === Rota para receber mensagens (POST) ===
 @app.route("/webhook", methods=["POST"])
 def webhook():
     data = request.get_json()
-    print("📥 Dados recebidos:", json.dumps(data, indent=2))
+    print("📩 Dados recebidos:", json.dumps(data, indent=2))
 
-    if data.get("object") == "whatsapp":
+    if data and data.get("object") == "whatsapp":
         entry = data.get("entry", [])[0]
         changes = entry.get("changes", [])[0]
         value = changes.get("value", {})
@@ -38,10 +38,7 @@ def webhook():
         if messages:
             phone_number = messages[0]["from"]
             text = messages[0]["text"]["body"]
-
-            print(f"💬 Mensagem de {phone_number}: {text}")
-
-            send_message(phone_number, "Olá! A Sullato agradece o seu contato. Em que posso te ajudar?")
+            send_message(phone_number, text)
 
     return "ok", 200
 
@@ -52,16 +49,19 @@ def send_message(phone_number, text):
         "Authorization": f"Bearer {ACCESS_TOKEN}",
         "Content-Type": "application/json"
     }
+
     payload = {
         "messaging_product": "whatsapp",
         "to": phone_number,
         "type": "text",
-        "text": {"body": text}
+        "text": {
+            "body": text
+        }
     }
 
     response = requests.post(url, headers=headers, json=payload)
     print("📤 Resposta enviada:", response.status_code, response.text)
 
-# === Executar localmente ===
+# === Inicialização do Servidor Flask ===
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=10000)

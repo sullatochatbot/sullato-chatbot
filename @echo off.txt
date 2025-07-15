@@ -1,0 +1,6 @@
+@echo off
+cd /d C:\Projetos\ChatbotSullatoClean
+git add .
+git commit -m "Atualizações no projeto"
+git push
+pause
