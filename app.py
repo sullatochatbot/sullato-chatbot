@@ -3,28 +3,27 @@ import requests
 import json
 import os
 
+# Inicialização do app Flask
 app = Flask(__name__)
 
 # === Variáveis de ambiente ===
-VERIFY_TOKEN = os.environ.get("VERIFY_TOKEN")
-ACCESS_TOKEN = os.environ.get("ACCESS_TOKEN")
-PHONE_NUMBER_ID = os.environ.get("PHONE_NUMBER_ID")
+VERIFY_TOKEN = os.getenv("VERIFY_TOKEN")
+ACCESS_TOKEN = os.getenv("ACCESS_TOKEN")
+PHONE_NUMBER_ID = os.getenv("PHONE_NUMBER_ID")
 
-# === Verificação do Webhook (GET) ===
+# === Rota para verificação do Webhook (GET) ===
 @app.route("/webhook", methods=["GET"])
 def verify():
     mode = request.args.get("hub.mode")
     token = request.args.get("hub.verify_token")
     challenge = request.args.get("hub.challenge")
-    
+
     if mode == "subscribe" and token == VERIFY_TOKEN:
-        print("✅ Webhook verificado com sucesso")
         return challenge, 200
     else:
-        print("❌ Falha na verificação do webhook")
-        return "Erro de verificação", 403
+        return "Erro na verificação", 403
 
-# === Recebimento de mensagens (POST) ===
+# === Rota para receber mensagens (POST) ===
 @app.route("/webhook", methods=["POST"])
 def webhook():
     data = request.get_json()
@@ -40,12 +39,13 @@ def webhook():
             phone_number = messages[0]["from"]
             text = messages[0]["text"]["body"]
 
-            print(f"📨 Mensagem de {phone_number}: {text}")
+            print(f"💬 Mensagem de {phone_number}: {text}")
+
             send_message(phone_number, "Olá! A Sullato agradece o seu contato. Em que posso te ajudar?")
-    
+
     return "ok", 200
 
-# === Envio de mensagem de resposta ===
+# === Função para enviar resposta ===
 def send_message(phone_number, text):
     url = f"https://graph.facebook.com/v18.0/{PHONE_NUMBER_ID}/messages"
     headers = {
@@ -62,5 +62,6 @@ def send_message(phone_number, text):
     response = requests.post(url, headers=headers, json=payload)
     print("📤 Resposta enviada:", response.status_code, response.text)
 
+# === Executar localmente ===
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=10000)
