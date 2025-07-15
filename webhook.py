@@ -5,18 +5,10 @@ import os
 
 app = Flask(__name__)
 
-# === Caminho absoluto do diretório atual ===
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-
-# === Leitura dos arquivos .txt ===
-with open(os.path.join(BASE_DIR, "VERIFY_TOKEN.txt"), "r") as f:
-    VERIFY_TOKEN = f.read().strip()
-
-with open(os.path.join(BASE_DIR, "ACCESS_TOKEN.txt"), "r") as f:
-    ACCESS_TOKEN = f.read().strip()
-
-with open(os.path.join(BASE_DIR, "PHONE_NUMBER_ID.txt"), "r") as f:
-    PHONE_NUMBER_ID = f.read().strip()
+# === Variáveis de ambiente (Render ou local) ===
+VERIFY_TOKEN = os.getenv("VERIFY_TOKEN")
+ACCESS_TOKEN = os.getenv("ACCESS_TOKEN")
+PHONE_NUMBER_ID = os.getenv("PHONE_NUMBER_ID")
 
 # === Verificação do Webhook (GET) ===
 @app.route("/webhook", methods=["GET"])
@@ -72,3 +64,4 @@ def send_message(phone_number, text):
 # === Inicialização do Servidor Flask ===
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=10000)
+
