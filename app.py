@@ -3,8 +3,6 @@ import requests
 import json
 import os
 
-raise Exception("🛑 Este é o app.py que está sendo executado")
-
 app = Flask(__name__)
 
 # === Variáveis de ambiente ===
