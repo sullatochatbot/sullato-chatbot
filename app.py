@@ -3,9 +3,11 @@ import requests
 import json
 import os
 
+from responder import gerar_resposta  # Importa o responder inteligente
+
 app = Flask(__name__)
 
-# === Leitura das variáveis de ambiente ===
+# === Variáveis de ambiente ===
 VERIFY_TOKEN = os.environ.get("VERIFY_TOKEN")
 ACCESS_TOKEN = os.environ.get("ACCESS_TOKEN")
 PHONE_NUMBER_ID = os.environ.get("PHONE_NUMBER_ID")
@@ -18,34 +20,33 @@ def verify():
     challenge = request.args.get("hub.challenge")
 
     if mode == "subscribe" and token == VERIFY_TOKEN:
-        print("🟢 Webhook verificado com sucesso!")
         return challenge, 200
     else:
-        print("🔴 Falha na verificação do webhook.")
-        return "Unauthorized", 403
+        return "Token inválido", 403
 
-# === Recebimento de Mensagens (POST) ===
+# === Recebimento de mensagens (POST) ===
 @app.route("/webhook", methods=["POST"])
 def webhook():
     data = request.get_json()
-    print("📨 Dados recebidos:", json.dumps(data, indent=2))
 
-    if data.get("object") == "whatsapp":
-        try:
-            entry = data["entry"][0]
-            changes = entry["changes"][0]
-            value = changes["value"]
-            messages = value.get("messages")
+    try:
+        for entry in data.get("entry", []):
+            for change in entry.get("changes", []):
+                value = change.get("value", {})
+                messages = value.get("messages", [])
+                if messages:
+                    message = messages[0]
+                    phone_number = message["from"]
+                    text = message["text"]["body"]
 
-            if messages:
-                message = messages[0]
-                phone_number = message["from"]
-                text = message["text"]["body"]
+                    print(f"📩 Mensagem de {phone_number}: {text}")
 
-                print(f"📲 Mensagem de {phone_number}: {text}")
-                send_message(phone_number, "Olá! A Sullato agradece o seu contato. Em que posso te ajudar?")
-        except Exception as e:
-            print("⚠️ Erro ao processar mensagem:", str(e))
+                    # Gera resposta personalizada
+                    resposta = gerar_resposta(text)
+                    send_message(phone_number, resposta)
+
+    except Exception as e:
+        print("⚠️ Erro ao processar mensagem:", str(e))
 
     return "ok", 200
 
@@ -66,6 +67,6 @@ def send_message(phone_number, text):
     response = requests.post(url, headers=headers, json=payload)
     print("📤 Resposta enviada:", response.status_code, response.text)
 
-# === Execução local ===
+# === Inicialização ===
 if __name__ == "__main__":
-    app.run(port=5000, debug=True)
+    app.run(host="0.0.0.0", port=10000)
