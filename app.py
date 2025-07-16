@@ -2,6 +2,8 @@ from flask import Flask, request
 import requests
 import json
 import os
+from dotenv import load_dotenv
+load_dotenv(dotenv_path="/etc/secrets/.env")
 
 app = Flask(__name__)
 
