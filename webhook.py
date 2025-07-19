@@ -18,7 +18,7 @@ def verify():
 
     print("🔍 Recebido do Meta:", token)
 
-    # TEMPORÁRIO: token direto no código
+    # Comparação com token direto (sem ler arquivo)
     if mode == "subscribe" and token == "sullato_token_verificacao":
         print("✅ Token verificado diretamente no código")
         return challenge, 200
