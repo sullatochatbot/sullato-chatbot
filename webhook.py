@@ -1,15 +1,15 @@
 from flask import Flask, request
 import requests
 import json
-import os
 
 app = Flask(__name__)
 
-# === Variáveis de ambiente (Render ou local) ===
-VERIFY_TOKEN = open("VERIFY_TOKEN.txt").read().strip()
-ACCESS_TOKEN = open("ACCESS_TOKEN.txt").read().strip()
-PHONE_NUMBER_ID = open("PHONE_NUMBER_ID.txt").read().strip()
+# === Variáveis fixas ===
+VERIFY_TOKEN = "sullato_token_verificacao"
+ACCESS_TOKEN = "EAAT6yhis6b8BPETCp493TtGZC5bA7YIf1osyqt65SoMBsCZAwASZAi8Yt4bfUmZBLjMxGtfVF0YFUjFY8Wzn1YYZAvzHEZCwoXQZCffXc8KLgWoDTHmOHHfjZBHafbTsZAY2aWZAjlsTg5rgT7NoiR6qrciAFOb5AnzUnZCNDjLWhLPOozB9gPJaY4FXD45JnrFApNoZBAZDZD"
+PHONE_NUMBER_ID = "1300357505048528"
 
+# === Verificação do Webhook (GET) ===
 @app.route("/webhook", methods=["GET"])
 def verify():
     mode = request.args.get("hub.mode")
@@ -18,9 +18,8 @@ def verify():
 
     print("🔍 Recebido do Meta:", token)
 
-    # Comparação com token direto (sem ler arquivo)
-    if mode == "subscribe" and token == "sullato_token_verificacao":
-        print("✅ Token verificado diretamente no código")
+    if mode == "subscribe" and token == VERIFY_TOKEN:
+        print("✅ Token verificado com sucesso!")
         return challenge, 200
     else:
         print("❌ Token de verificação inválido")
@@ -66,4 +65,3 @@ def send_message(phone_number, text):
 # === Inicialização do Servidor Flask ===
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=10000)
-
