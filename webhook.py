@@ -6,9 +6,9 @@ import os
 app = Flask(__name__)
 
 # === Variáveis de ambiente (Render ou local) ===
-VERIFY_TOKEN = os.getenv("VERIFY_TOKEN")
-ACCESS_TOKEN = os.getenv("ACCESS_TOKEN")
-PHONE_NUMBER_ID = os.getenv("PHONE_NUMBER_ID")
+VERIFY_TOKEN = open("VERIFY_TOKEN.txt").read().strip()
+ACCESS_TOKEN = open("ACCESS_TOKEN.txt").read().strip()
+PHONE_NUMBER_ID = open("PHONE_NUMBER_ID.txt").read().strip()
 
 # === Verificação do Webhook (GET) ===
 @app.route("/webhook", methods=["GET"])
