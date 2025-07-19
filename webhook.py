@@ -17,8 +17,8 @@ def verify():
     token = request.args.get("hub.verify_token")
     challenge = request.args.get("hub.challenge")
 
-    print("🔍 Recebido do Meta:", token)
-    print("📁 Token esperado:", VERIFY_TOKEN)
+    print("📥 Recebido do Meta:", mode)
+    print("🔐 Token esperado:", VERIFY_TOKEN)
 
     if mode == "subscribe" and token == VERIFY_TOKEN:
         print("✅ Webhook verificado com sucesso!")
@@ -26,7 +26,8 @@ def verify():
     else:
         print("❌ Token de verificação inválido")
         return "Token inválido", 403
-
+    
+# === Verificação do Webhook (POST) ===
 @app.route("/webhook", methods=["POST"])
 def webhook():
     data = request.get_json()
@@ -42,13 +43,13 @@ def webhook():
             phone_number = message_data.get("from")
             text = message_data.get("text", {}).get("body")
 
-            print(f"📥 Mensagem recebida de: {phone_number}")
-            print(f"📝 Texto: {text}")
+            print(f"📥 Mensagem de {phone_number}: {text}")
 
             if phone_number and text:
+                print("🚀 Enviando resposta para:", phone_number)
                 send_message(phone_number, "Olá! A Sullato agradece o seu contato. Em que posso te ajudar?")
             else:
-                print("⚠️ Dados incompletos para enviar resposta.")
+                print("⚠️ Dados incompletos.")
         else:
             print("⚠️ Nenhuma mensagem encontrada.")
     except Exception as e:
