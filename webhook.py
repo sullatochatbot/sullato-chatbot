@@ -10,12 +10,18 @@ VERIFY_TOKEN = open("VERIFY_TOKEN.txt").read().strip()
 ACCESS_TOKEN = open("ACCESS_TOKEN.txt").read().strip()
 PHONE_NUMBER_ID = open("PHONE_NUMBER_ID.txt").read().strip()
 
-# === Verificação do Webhook (GET) ===
 @app.route("/webhook", methods=["GET"])
 def verify():
     mode = request.args.get("hub.mode")
     token = request.args.get("hub.verify_token")
     challenge = request.args.get("hub.challenge")
+
+    print("🔍 Recebido pelo Meta:")
+    print("  hub.mode =", mode)
+    print("  hub.verify_token =", token)
+    print("  hub.challenge =", challenge)
+
+    print("📂 VERIFY_TOKEN carregado do arquivo:", VERIFY_TOKEN)
 
     if mode == "subscribe" and token == VERIFY_TOKEN:
         print("✅ Webhook verificado com sucesso!")
