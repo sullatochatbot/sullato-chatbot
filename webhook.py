@@ -16,18 +16,14 @@ def verify():
     token = request.args.get("hub.verify_token")
     challenge = request.args.get("hub.challenge")
 
-    print("🔍 Recebido pelo Meta:")
-    print("  hub.mode =", mode)
-    print("  hub.verify_token =", token)
-    print("  hub.challenge =", challenge)
+    print("🔍 Recebido do Meta:", token)
 
-    print("📂 VERIFY_TOKEN carregado do arquivo:", VERIFY_TOKEN)
-
-    if mode == "subscribe" and token == VERIFY_TOKEN:
-        print("✅ Webhook verificado com sucesso!")
+    # TEMPORÁRIO: token direto no código
+    if mode == "subscribe" and token == "sullato_token_verificacao":
+        print("✅ Token verificado diretamente no código")
         return challenge, 200
     else:
-        print("❌ Token de verificação inválido!")
+        print("❌ Token de verificação inválido")
         return "Token inválido", 403
 
 # === Recebimento de Mensagens (POST) ===
