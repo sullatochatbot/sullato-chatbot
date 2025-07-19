@@ -1,2 +1,3 @@
-web: python webhook.py
+web: python src/webhook.py
+
 
