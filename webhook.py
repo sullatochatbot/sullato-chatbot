@@ -17,9 +17,10 @@ def verify():
     challenge = request.args.get("hub.challenge")
 
     print("🔍 Recebido do Meta:", token)
+    print("📁 Token esperado:", VERIFY_TOKEN)
 
     if mode == "subscribe" and token == VERIFY_TOKEN:
-        print("✅ Token verificado com sucesso!")
+        print("✅ Webhook verificado com sucesso!")
         return challenge, 200
     else:
         print("❌ Token de verificação inválido")
