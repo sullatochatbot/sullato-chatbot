@@ -1,3 +1,4 @@
+# versão 1.0.9 - rebuild forçado em 19/jul às 17h22
 from flask import Flask, request
 import requests
 import json
