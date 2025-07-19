@@ -27,21 +27,30 @@ def verify():
         print("❌ Token de verificação inválido")
         return "Token inválido", 403
 
-# === Recebimento de Mensagens (POST) ===
 @app.route("/webhook", methods=["POST"])
 def webhook():
     data = request.get_json()
     print("📩 Dados recebidos:", json.dumps(data, indent=2))
 
     try:
-        if "messages" in data["entry"][0]["changes"][0]["value"]:
-            message_data = data["entry"][0]["changes"][0]["value"]["messages"][0]
-            phone_number = message_data["from"]
-            text = message_data["text"]["body"]
+        entry = data["entry"][0]
+        changes = entry["changes"][0]
+        value = changes["value"]
 
-            print(f"📥 Mensagem de {phone_number}: {text}")
+        if "messages" in value:
+            message_data = value["messages"][0]
+            phone_number = message_data.get("from")
+            text = message_data.get("text", {}).get("body")
 
-            send_message(phone_number, "Olá! A Sullato agradece o seu contato. Em que posso te ajudar?")
+            print(f"📥 Mensagem recebida de: {phone_number}")
+            print(f"📝 Texto: {text}")
+
+            if phone_number and text:
+                send_message(phone_number, "Olá! A Sullato agradece o seu contato. Em que posso te ajudar?")
+            else:
+                print("⚠️ Dados incompletos para enviar resposta.")
+        else:
+            print("⚠️ Nenhuma mensagem encontrada.")
     except Exception as e:
         print("⚠️ Erro ao processar mensagem:", str(e))
 
