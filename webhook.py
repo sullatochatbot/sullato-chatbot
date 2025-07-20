@@ -76,7 +76,7 @@ def send_message(phone_number, text):
         "text": {"body": text}
     }
 
-    try:
+try:
     response = requests.post(url, headers=headers, json=payload)
     print("📤 Enviando para:", url)
     print("📨 Payload:", json.dumps(payload, indent=2))
