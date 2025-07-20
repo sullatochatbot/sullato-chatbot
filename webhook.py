@@ -72,7 +72,11 @@ def send_message(phone_number, text):
     }
 
     response = requests.post(url, headers=headers, json=payload)
-    print("📤 Resposta enviada:", response.status_code, response.text)
+
+print("📤 Enviando para:", url)
+print("📨 Payload:", json.dumps(payload, indent=2))
+print("📥 Status da resposta:", response.status_code)
+print("📝 Conteúdo:", response.text)
 
 # === Inicialização do Servidor Flask ===
 if __name__ == "__main__":
