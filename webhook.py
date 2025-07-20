@@ -38,7 +38,7 @@ def webhook():
         changes = entry["changes"][0]
         value = changes["value"]
 
-                if "messages" in value:
+    if "messages" in value:
             message_data = value["messages"][0]
             print("🔍 message_data:", json.dumps(message_data, indent=2))
 
