@@ -59,7 +59,7 @@ try:
 except Exception as e:
     print("⚠️ Erro ao processar mensagem:", str(e))
 
-        return "ok", 200
+return "ok", 200
 
 # === Envio de Mensagem de Resposta ===
 def send_message(phone_number, text):
