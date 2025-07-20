@@ -63,11 +63,14 @@ def verify():
 
 # === Envio de Mensagem de Resposta ===
 def send_message(phone_number, text):
-    url = f"https://graph.facebook.com/v18.0/{PHONE_NUMBER_ID}/messages"
+    import requests
+    import json
+
     headers = {
         "Authorization": f"Bearer {ACCESS_TOKEN}",
         "Content-Type": "application/json"
     }
+
     payload = {
         "messaging_product": "whatsapp",
         "to": phone_number,
@@ -75,24 +78,17 @@ def send_message(phone_number, text):
         "text": {"body": text}
     }
 
-print("📌 URL usada:", url)
-print("📎 Token usado:", ACCESS_TOKEN[:40] + "...")
-print("📱 ID do telefone:", PHONE_NUMBER_ID)
+    url = f"https://graph.facebook.com/v17.0/{PHONE_NUMBER_ID}/messages"
 
-url = f"https://graph.facebook.com/v17.0/{PHONE_NUMBER_ID}/messages"
+    print("📌 URL usada:", url)
+    print("📎 Token usado:", ACCESS_TOKEN[:40] + "...")
+    print("📱 ID do telefone:", PHONE_NUMBER_ID)
 
-print("📌 URL usada:", url)
-print("📎 Token usado:", ACCESS_TOKEN[:40] + "...")
-print("📱 ID do telefone:", PHONE_NUMBER_ID)
-
-try:
-    response = requests.post(url, headers=headers, json=payload)
-    print("📤 Enviando para:", url)
-    print("📦 Payload:", json.dumps(payload, indent=2))
-    print("📬 Status da resposta:", response.status_code)
-    print("📨 Conteúdo:", response.text)
-except Exception as e:
-    print("❌ Erro ao enviar mensagem:", e)
-
-
-
+    try:
+        response = requests.post(url, headers=headers, json=payload)
+        print("📤 Enviando para:", url)
+        print("📦 Payload:", json.dumps(payload, indent=2))
+        print("📬 Status da resposta:", response.status_code)
+        print("📨 Conteúdo:", response.text)
+    except Exception as e:
+        print("❌ Erro ao enviar mensagem:", e)
