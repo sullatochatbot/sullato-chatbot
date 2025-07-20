@@ -85,6 +85,8 @@ def send_message(phone_number, text):
         print("📦 Payload:", json.dumps(payload, indent=2))
         print("📥 Status da resposta:", response.status_code)
         print("📄 Conteúdo:", response.text)
+    except Exception as e:
+    print("❌ Erro ao enviar mensagem:", e)
 
 
 
