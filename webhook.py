@@ -63,19 +63,19 @@ def verify():
 
 # === Envio de Mensagem de Resposta ===
 def send_message(phone_number, text):
-    try:
-        url = f"https://graph.facebook.com/v18.0/{PHONE_NUMBER_ID}/messages"
-        headers = {
-            "Authorization": f"Bearer {ACCESS_TOKEN}",
-            "Content-Type": "application/json"
-        }
-        payload = {
-            "messaging_product": "whatsapp",
-            "to": phone_number,
-            "type": "text",
-            "text": {"body": text}
-        }
+    url = f"https://graph.facebook.com/v18.0/{PHONE_NUMBER_ID}/messages"
+    headers = {
+        "Authorization": f"Bearer {ACCESS_TOKEN}",
+        "Content-Type": "application/json"
+    }
+    payload = {
+        "messaging_product": "whatsapp",
+        "to": phone_number,
+        "type": "text",
+        "text": {"body": text}
+    }
 
+    try:
         response = requests.post(url, headers=headers, json=payload)
         print("📤 Enviando para:", url)
         print("📨 Payload:", json.dumps(payload, indent=2))
@@ -84,5 +84,6 @@ def send_message(phone_number, text):
 
     except Exception as e:
         print("❌ Erro ao tentar enviar mensagem:", str(e))
+
 
 
