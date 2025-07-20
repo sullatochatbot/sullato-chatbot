@@ -28,38 +28,38 @@ def verify():
         return "Token inválido", 403
     
 # === Verificação do Webhook (POST) ===
-@app.route("/webhook", methods=["POST"])
-def webhook():
-    data = request.get_json()
-    print("📩 Dados recebidos:", json.dumps(data, indent=2))
+    @app.route("/webhook", methods=["POST"])
+    def webhook():
+        data = request.get_json()
+        print("📩 Dados recebidos:", json.dumps(data, indent=2))
 
-try:
-    entry = data["entry"][0]
-    changes = entry["changes"][0]
-    value = changes["value"]
+    try:
+        entry = data["entry"][0]
+        changes = entry["changes"][0]
+        value = changes["value"]
 
-    if "messages" in value:
-        message_data = value["messages"][0]
-        print("🔍 message_data:", json.dumps(message_data, indent=2))
+        if "messages" in value:
+            message_data = value["messages"][0]
+            print("🔍 message_data:", json.dumps(message_data, indent=2))
 
-        phone_number = message_data.get("from")
-        text_obj = message_data.get("text")
-        text = text_obj.get("body") if text_obj else None
+            phone_number = message_data.get("from")
+            text_obj = message_data.get("text")
+            text = text_obj.get("body") if text_obj else None
 
-        print(f"📨 Mensagem recebida de {phone_number}: {text}")
+            print(f"📨 Mensagem recebida de {phone_number}: {text}")
 
-        if phone_number and text:
-            print(f"📤 Enviando resposta para: {phone_number}")
-            send_message(phone_number, "Olá! A Sullato agradece o seu contato. Em que posso te ajudar?")
+            if phone_number and text:
+                print(f"📤 Enviando resposta para: {phone_number}")
+                send_message(phone_number, "Olá! A Sullato agradece o seu contato. Em que posso te ajudar?")
+            else:
+                print("⚠️ Dados incompletos: número ou texto ausente.")
         else:
-            print("⚠️ Dados incompletos: número ou texto ausente.")
-    else:
-        print("⚠️ Nenhuma mensagem encontrada no valor.")
+            print("⚠️ Nenhuma mensagem encontrada no valor.")
 
-except Exception as e:
-    print("⚠️ Erro ao processar mensagem:", str(e))
+    except Exception as e:
+        print("⚠️ Erro ao processar mensagem:", str(e))
 
-return "ok", 200
+    return "ok", 200
 
 # === Envio de Mensagem de Resposta ===
 def send_message(phone_number, text):
