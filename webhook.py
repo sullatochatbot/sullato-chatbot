@@ -75,15 +75,15 @@ def send_message(phone_number, text):
         "text": {"body": text}
     }
 
-    print("📌 URL usada:", url)
-    print("📌 Token usado:", ACCESS_TOKEN[:40] + "...")
-    print("📌 ID do telefone:", PHONE_NUMBER_ID)
-
 print("📌 URL usada:", url)
 print("📎 Token usado:", ACCESS_TOKEN[:40] + "...")
 print("📱 ID do telefone:", PHONE_NUMBER_ID)
 
 url = f"https://graph.facebook.com/v17.0/{PHONE_NUMBER_ID}/messages"
+
+print("📌 URL usada:", url)
+print("📎 Token usado:", ACCESS_TOKEN[:40] + "...")
+print("📱 ID do telefone:", PHONE_NUMBER_ID)
 
 try:
     response = requests.post(url, headers=headers, json=payload)
