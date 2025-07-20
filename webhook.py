@@ -79,6 +79,12 @@ def send_message(phone_number, text):
     print("📌 Token usado:", ACCESS_TOKEN[:40] + "...")
     print("📌 ID do telefone:", PHONE_NUMBER_ID)
 
+print("📌 URL usada:", url)
+print("📎 Token usado:", ACCESS_TOKEN[:40] + "...")
+print("📱 ID do telefone:", PHONE_NUMBER_ID)
+
+url = f"https://graph.facebook.com/v17.0/{PHONE_NUMBER_ID}/messages"
+
 try:
     response = requests.post(url, headers=headers, json=payload)
     print("📤 Enviando para:", url)
