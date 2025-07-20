@@ -38,21 +38,24 @@ def webhook():
         changes = entry["changes"][0]
         value = changes["value"]
 
-        if "messages" in value:
+                if "messages" in value:
             message_data = value["messages"][0]
-            phone_number = message_data.get("from")
-            text = message_data.get("text", {}).get("body")
+            print("🔍 message_data:", json.dumps(message_data, indent=2))
 
-            print(f"📥 Mensagem de {phone_number}: {text}")
+            phone_number = message_data.get("from")
+            text_obj = message_data.get("text")
+            text = text_obj.get("body") if text_obj else None
+
+            print(f"📨 Mensagem recebida de {phone_number}: {text}")
 
             if phone_number and text:
-                print("🚀 Enviando resposta para:", phone_number)
+                print(f"📤 Enviando resposta para: {phone_number}")
                 send_message(phone_number, "Olá! A Sullato agradece o seu contato. Em que posso te ajudar?")
             else:
-                print("⚠️ Dados incompletos.")
+                print("⚠️ Dados incompletos: número ou texto ausente.")
         else:
-            print("⚠️ Nenhuma mensagem encontrada.")
-    except Exception as e:
+            print("⚠️ Nenhuma mensagem encontrada no valor.")
+
         print("⚠️ Erro ao processar mensagem:", str(e))
 
     return "ok", 200
