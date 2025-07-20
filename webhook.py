@@ -7,7 +7,8 @@ app = Flask(__name__)
 
 # === Variáveis fixas ===
 VERIFY_TOKEN = "sullato_token_verificacao"
-ACCESS_TOKEN = "EAAT6yhis6b8BPETCp493TtGZC5bA7YIf1osyqt65SoMBsCZAwASZAi8Yt4bfUmZBLjMxGtfVF0YFUjFY8Wzn1YYZAvzHEZCwoXQZCffXc8KLgWoDTHmOHHfjZBHafbTsZAY2aWZAjlsTg5rgT7NoiR6qrciAFOb5AnzUnZCNDjLWhLPOozB9gPJaY4FXD45JnrFApNoZBAZDZD"
+ACCESS_TOKEN = "EAAT6yhis6b8BPApl6xLZCWSNzCtYDci39oc2MoDKbZBPsFDursDrRWlnZAmDkpQtvpSJdg8HYmwOM3bd7BSIwfH3bK32xh1gsZAGnnRZAgjZAmU5G97l45IbujGoA7sDX54SXCZBVsUY0Bi2xUfqgHwr9tgwvPRDwAPOxHiO6Fxe9gX2BUJLO4ZAZCNpcFFsMpIsaJCIjturMnKKbBwldhUD7kJZAM7vDhpRF5X3XHTZBHPo4FAj2cbibXWfCaTXZBEZD
+"
 PHONE_NUMBER_ID = "1300357505048528"
 
 # === Verificação do Webhook (GET) ===
@@ -78,9 +79,9 @@ def send_message(phone_number, text):
     try:
         response = requests.post(url, headers=headers, json=payload)
         print("📤 Enviando para:", url)
-        print("📨 Payload:", json.dumps(payload, indent=2))
-        print("📥 Status da resposta:", response.status_code)
-        print("📝 Conteúdo:", response.text)
+        print("📦 Payload:", json.dumps(payload, indent=2))
+        print("📬 Status da resposta:", response.status_code)
+        print("📄 Conteúdo:", response.text)
 
     except Exception as e:
         print("❌ Erro ao tentar enviar mensagem:", str(e))
