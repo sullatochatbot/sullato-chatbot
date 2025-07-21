@@ -1,12 +1,10 @@
-# versão 2.1.0 – Código final corrigido para envio de template via webhook POST
-
 from flask import Flask, request
 import requests
 import json
 
 app = Flask(__name__)
 
-# === Configurações fixas ===
+# === Configurações ===
 VERIFY_TOKEN = "sullato_token_verificacao"
 ACCESS_TOKEN = "EAAT6yhis6b8BPETCp493TtGZC5bA7YIf1osyqt65SoMBsCZAwASZAi8Yt4bfUmZBLjMxGtfVF0YFUjFY8Wzn1YYZAvzHEZCwoXQZCffXc8KLgWoDTHmOHHfjZBHafbTsZAY2aWZAjlsTg5rgT7NoiR6qrciAFOb5AnzUnZCNDjLWhLPOozB9gPJaY4FXD45JnrFApNoZBAZDZD"
 PHONE_NUMBER_ID = "684523561413203"
@@ -18,26 +16,30 @@ def verify():
     token = request.args.get("hub.verify_token")
     challenge = request.args.get("hub.challenge")
 
-    print("📥 Recebido do Meta:", mode)
-    print("🔐 Token esperado:", VERIFY_TOKEN)
+    print("📥 Verificação recebida da Meta:", mode)
+    print("🔐 Token recebido:", token)
 
     if mode == "subscribe" and token == VERIFY_TOKEN:
         print("✅ Webhook verificado com sucesso!")
         return challenge, 200
     else:
-        print("❌ Token de verificação inválido")
+        print("❌ Token inválido")
         return "Token inválido", 403
 
-# === Webhook de recebimento de mensagens (POST) ===
+# === Recebimento de mensagens (POST) ===
 @app.route("/webhook", methods=["POST"])
 def webhook():
-    data = request.get_json()
-    print("📩 Dados recebidos:", json.dumps(data, indent=2))
-
     try:
-        entry = data["entry"][0]
-        changes = entry["changes"][0]
-        value = changes["value"]
+        data = request.get_json()
+        print("📩 Dados recebidos:", json.dumps(data, indent=2))
+
+        if not data:
+            print("⚠️ Nenhum dado recebido.")
+            return "ok", 200
+
+        entry = data.get("entry", [])[0]
+        changes = entry.get("changes", [])[0]
+        value = changes.get("value", {})
 
         if "messages" in value:
             message_data = value["messages"][0]
@@ -53,23 +55,22 @@ def webhook():
                 print(f"📤 Enviando template 'boas_vindas' para: {phone_number}")
                 send_template(phone_number)
             else:
-                print("⚠️ Número de telefone não identificado.")
+                print("⚠️ Número não encontrado.")
         else:
-            print("⚠️ Nenhuma mensagem recebida.")
+            print("⚠️ Nenhuma mensagem na requisição.")
 
     except Exception as e:
-        print("❌ Erro ao processar mensagem:", str(e))
+        print("❌ Erro no processamento:", str(e))
 
     return "ok", 200
 
-# === Função para envio do template boas_vindas ===
+# === Função para envio do template 'boas_vindas' ===
 def send_template(phone_number):
     url = f"https://graph.facebook.com/v19.0/{PHONE_NUMBER_ID}/messages"
     headers = {
         "Authorization": f"Bearer {ACCESS_TOKEN}",
         "Content-Type": "application/json"
     }
-
     payload = {
         "messaging_product": "whatsapp",
         "to": phone_number,
@@ -93,19 +94,17 @@ def send_template(phone_number):
         }
     }
 
-    print("📤 Enviando TEMPLATE via API oficial da Meta")
-    print("📌 URL:", url)
-    print("📎 Token:", ACCESS_TOKEN[:40] + "...")
-    print("📱 ID do telefone:", PHONE_NUMBER_ID)
+    print("📤 Enviando TEMPLATE via API da Meta")
     print("📦 Payload:", json.dumps(payload, indent=2))
 
     try:
         response = requests.post(url, headers=headers, json=payload)
-        print("📬 Status da resposta:", response.status_code)
-        print("📨 Conteúdo:", response.text)
+        print("📬 Status:", response.status_code)
+        print("📨 Resposta:", response.text)
     except Exception as e:
         print("❌ Erro ao enviar template:", str(e))
 
-# === Inicialização do servidor Flask ===
+# === Inicializador do Flask ===
 if __name__ == "__main__":
+    print("🚀 Servidor Flask iniciado em http://0.0.0.0:5000")
     app.run(host="0.0.0.0", port=5000)
