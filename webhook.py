@@ -1,6 +1,7 @@
 from flask import Flask, request
 import requests
 import json
+import responder  # Importa nosso módulo de respostas personalizadas
 
 app = Flask(__name__)
 
@@ -51,11 +52,12 @@ def webhook():
 
             print(f"📨 Mensagem recebida de {phone_number}: {text}")
 
-            if phone_number:
-                print(f"📤 Enviando template 'boas_vindas' para: {phone_number}")
-                send_template(phone_number)
+            if phone_number and text:
+                resposta = responder.gerar_resposta(text)
+                print(f"🤖 Resposta gerada: {resposta}")
+                send_text_message(phone_number, resposta)
             else:
-                print("⚠️ Número não encontrado.")
+                print("⚠️ Número ou texto não encontrados.")
         else:
             print("⚠️ Nenhuma mensagem na requisição.")
 
@@ -64,8 +66,8 @@ def webhook():
 
     return "ok", 200
 
-# === Função para envio do template 'boas_vindas' ===
-def send_template(phone_number):
+# === Função para envio de mensagem de texto ===
+def send_text_message(phone_number, message):
     url = f"https://graph.facebook.com/v19.0/{PHONE_NUMBER_ID}/messages"
     headers = {
         "Authorization": f"Bearer {ACCESS_TOKEN}",
@@ -74,27 +76,13 @@ def send_template(phone_number):
     payload = {
         "messaging_product": "whatsapp",
         "to": phone_number,
-        "type": "template",
-        "template": {
-            "name": "boas_vindas",
-            "language": {
-                "code": "pt_BR"
-            },
-            "components": [
-                {
-                    "type": "body",
-                    "parameters": [
-                        {
-                            "type": "text",
-                            "text": "Anderson"
-                        }
-                    ]
-                }
-            ]
+        "type": "text",
+        "text": {
+            "body": message
         }
     }
 
-    print("📤 Enviando TEMPLATE via API da Meta")
+    print("📤 Enviando MENSAGEM DE TEXTO via API da Meta")
     print("📦 Payload:", json.dumps(payload, indent=2))
 
     try:
@@ -102,7 +90,7 @@ def send_template(phone_number):
         print("📬 Status:", response.status_code)
         print("📨 Resposta:", response.text)
     except Exception as e:
-        print("❌ Erro ao enviar template:", str(e))
+        print("❌ Erro ao enviar mensagem de texto:", str(e))
 
 # === Inicializador do Flask ===
 if __name__ == "__main__":
