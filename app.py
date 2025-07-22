@@ -2,10 +2,10 @@ from flask import Flask, request
 import json
 import os
 from dotenv import load_dotenv
-from responder import gerar_resposta  # Importa a função principal
+from responder import gerar_resposta
 
 # Carrega variáveis de ambiente do .env
-load_dotenv(dotenv_path="/etc/secrets/.env")
+load_dotenv(dotenv_path="/etc/secrets/.env")  # ou apenas: load_dotenv()
 
 app = Flask(__name__)
 
@@ -46,7 +46,7 @@ def webhook():
             phone_number = messages[0]["from"]
             text = messages[0]["text"]["body"]
             print(f"✅ Chamando gerar_resposta(text, phone_number)")
-            gerar_resposta(text, phone_number)  # ✅ Correção aplicada aqui
+            gerar_resposta(text, phone_number)
 
     return "ok", 200
 
