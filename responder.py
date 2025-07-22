@@ -5,7 +5,7 @@ import os
 ACCESS_TOKEN = os.getenv("ACCESS_TOKEN")
 PHONE_NUMBER_ID = os.getenv("PHONE_NUMBER_ID")
 
-# Função para enviar a mensagem para o WhatsApp do cliente
+# Função para enviar mensagem de texto comum (usada nas outras respostas)
 def enviar_mensagem(numero, mensagem):
     url = f"https://graph.facebook.com/v19.0/{PHONE_NUMBER_ID}/messages"
     headers = {
@@ -19,15 +19,35 @@ def enviar_mensagem(numero, mensagem):
         "text": {"body": mensagem}
     }
     response = requests.post(url, headers=headers, json=payload)
-    print("Resposta da Meta:", response.status_code, response.text)
+    print("Resposta da Meta (mensagem simples):", response.status_code, response.text)
 
-# Função principal do responder.py
+# Função para enviar o template "boas_vindas"
+def enviar_template_boas_vindas(numero):
+    url = f"https://graph.facebook.com/v19.0/{PHONE_NUMBER_ID}/messages"
+    headers = {
+        "Authorization": f"Bearer {ACCESS_TOKEN}",
+        "Content-Type": "application/json"
+    }
+    payload = {
+        "messaging_product": "whatsapp",
+        "to": numero,
+        "type": "template",
+        "template": {
+            "name": "boas_vindas",
+            "language": {
+                "code": "pt_BR"
+            }
+        }
+    }
+    response = requests.post(url, headers=headers, json=payload)
+    print("Resposta da Meta (template boas_vindas):", response.status_code, response.text)
+
+# Função principal de resposta
 def gerar_resposta(mensagem, numero):
     texto = mensagem.lower()
 
     if any(palavra in texto for palavra in ["oi", "olá", "bom dia", "boa tarde", "boa noite"]):
-        resposta = "👋 Olá! A *Sullato Micros e Vans* agradece o seu contato. Em que podemos te ajudar hoje?"
-        enviar_mensagem(numero, resposta)
+        enviar_template_boas_vindas(numero)
 
     elif any(palavra in texto for palavra in ["van", "vans", "veículo", "veiculos", "carro", "frota"]):
         resposta = "🚐 Temos vans escolares, de carga e executivas à pronta entrega! Deseja ver nosso catálogo completo?"
