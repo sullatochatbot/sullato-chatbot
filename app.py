@@ -2,20 +2,20 @@ from flask import Flask, request
 import json
 import os
 from dotenv import load_dotenv
-from responder import gerar_resposta  # ✅ importa a função correta
+from responder import gerar_resposta  # Importa a função principal
 
-# Carrega variáveis do ambiente
+# Carrega variáveis de ambiente do .env
 load_dotenv(dotenv_path="/etc/secrets/.env")
 
 app = Flask(__name__)
 
-# === Variáveis de ambiente ===
+# === Variáveis da API da Meta ===
 VERIFY_TOKEN = os.getenv("VERIFY_TOKEN")
 ACCESS_TOKEN = os.getenv("ACCESS_TOKEN")
 PHONE_NUMBER_ID = os.getenv("PHONE_NUMBER_ID")
 print("🔁 O app.py foi executado com sucesso!")
 
-# === Rota para verificação do Webhook (GET) ===
+# === Webhook de verificação (GET) ===
 @app.route("/webhook", methods=["GET"])
 def verify():
     mode = request.args.get("hub.mode")
@@ -30,7 +30,7 @@ def verify():
     else:
         return "Token inválido", 403
 
-# === Rota para receber mensagens (POST) ===
+# === Webhook para receber mensagens (POST) ===
 @app.route("/webhook", methods=["POST"])
 def webhook():
     data = request.get_json()
@@ -45,11 +45,11 @@ def webhook():
         if messages:
             phone_number = messages[0]["from"]
             text = messages[0]["text"]["body"]
-            print(f"✅ Chamando gerar_resposta com número {phone_number} e texto: {text}")
-            gerar_resposta(text, phone_number)
+            print(f"✅ Chamando gerar_resposta(text, phone_number)")
+            gerar_resposta(text, phone_number)  # ✅ Correção aplicada aqui
 
     return "ok", 200
 
-# === Inicialização do Servidor Flask ===
+# === Inicialização do servidor Flask ===
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=10000)
