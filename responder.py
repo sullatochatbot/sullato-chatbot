@@ -1,11 +1,10 @@
 import requests
 import os
 
-# Pegando dados de ambiente (já devem estar no .env ou no sistema)
 ACCESS_TOKEN = os.getenv("ACCESS_TOKEN")
 PHONE_NUMBER_ID = os.getenv("PHONE_NUMBER_ID")
 
-# Função para enviar mensagem de texto comum (usada nas outras respostas)
+# Envia mensagem simples
 def enviar_mensagem(numero, mensagem):
     url = f"https://graph.facebook.com/v19.0/{PHONE_NUMBER_ID}/messages"
     headers = {
@@ -19,9 +18,9 @@ def enviar_mensagem(numero, mensagem):
         "text": {"body": mensagem}
     }
     response = requests.post(url, headers=headers, json=payload)
-    print("Resposta da Meta (mensagem simples):", response.status_code, response.text)
+    print(f"[TEXTO] Para: {numero} | Status: {response.status_code} | Resposta: {response.text}")
 
-# Função para enviar o template "boas_vindas"
+# Envia o template de boas-vindas
 def enviar_template_boas_vindas(numero):
     url = f"https://graph.facebook.com/v19.0/{PHONE_NUMBER_ID}/messages"
     headers = {
@@ -34,19 +33,19 @@ def enviar_template_boas_vindas(numero):
         "type": "template",
         "template": {
             "name": "boas_vindas",
-            "language": {
-                "code": "pt_BR"
-            }
+            "language": { "code": "pt_BR" }
         }
     }
     response = requests.post(url, headers=headers, json=payload)
-    print("Resposta da Meta (template boas_vindas):", response.status_code, response.text)
+    print(f"[TEMPLATE] Para: {numero} | Status: {response.status_code} | Resposta: {response.text}")
 
-# Função principal de resposta
+# Função principal
 def gerar_resposta(mensagem, numero):
+    print(f"\nMensagem recebida: '{mensagem}' de {numero}")
     texto = mensagem.lower()
 
     if any(palavra in texto for palavra in ["oi", "olá", "bom dia", "boa tarde", "boa noite"]):
+        print("➡️ Palavra-chave: saudação ➡️ Enviando template boas_vindas")
         enviar_template_boas_vindas(numero)
 
     elif any(palavra in texto for palavra in ["van", "vans", "veículo", "veiculos", "carro", "frota"]):
