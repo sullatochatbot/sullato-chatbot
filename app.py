@@ -1,8 +1,10 @@
 from flask import Flask, request
-import requests
 import json
 import os
 from dotenv import load_dotenv
+from responder import gerar_resposta  # ✅ importa a função correta
+
+# Carrega variáveis do ambiente
 load_dotenv(dotenv_path="/etc/secrets/.env")
 
 app = Flask(__name__)
@@ -43,29 +45,10 @@ def webhook():
         if messages:
             phone_number = messages[0]["from"]
             text = messages[0]["text"]["body"]
-            send_message(phone_number, text)
+            print(f"✅ Chamando gerar_resposta com número {phone_number} e texto: {text}")
+            gerar_resposta(text, phone_number)
 
     return "ok", 200
-
-# === Função para enviar resposta ===
-def send_message(phone_number, text):
-    url = f"https://graph.facebook.com/v18.0/{PHONE_NUMBER_ID}/messages"
-    headers = {
-        "Authorization": f"Bearer {ACCESS_TOKEN}",
-        "Content-Type": "application/json"
-    }
-
-    payload = {
-        "messaging_product": "whatsapp",
-        "to": phone_number,
-        "type": "text",
-        "text": {
-            "body": text
-        }
-    }
-
-    response = requests.post(url, headers=headers, json=payload)
-    print("📤 Resposta enviada:", response.status_code, response.text)
 
 # === Inicialização do Servidor Flask ===
 if __name__ == "__main__":
