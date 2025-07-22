@@ -1,9 +1,11 @@
 import requests
 import os
 
+# === Carregando variáveis do ambiente ===
 ACCESS_TOKEN = os.getenv("ACCESS_TOKEN")
 PHONE_NUMBER_ID = os.getenv("PHONE_NUMBER_ID")
 
+# === Envio de mensagem de texto comum ===
 def enviar_mensagem(numero, mensagem):
     url = f"https://graph.facebook.com/v19.0/{PHONE_NUMBER_ID}/messages"
     headers = {
@@ -19,6 +21,7 @@ def enviar_mensagem(numero, mensagem):
     response = requests.post(url, headers=headers, json=payload)
     print(f"[TEXTO] Para: {numero} | Status: {response.status_code} | Resposta: {response.text}")
 
+# === Envio de template "boas_vindas" ===
 def enviar_template_boas_vindas(numero):
     url = f"https://graph.facebook.com/v19.0/{PHONE_NUMBER_ID}/messages"
     headers = {
@@ -36,7 +39,7 @@ def enviar_template_boas_vindas(numero):
                 {
                     "type": "body",
                     "parameters": [
-                        { "type": "text", "text": "cliente" }  # ou nome real, se quiser personalizar no futuro
+                        { "type": "text", "text": "cliente" }
                     ]
                 }
             ]
@@ -45,12 +48,13 @@ def enviar_template_boas_vindas(numero):
     response = requests.post(url, headers=headers, json=payload)
     print(f"[TEMPLATE] Para: {numero} | Status: {response.status_code} | Resposta: {response.text}")
 
+# === Função principal que interpreta a mensagem recebida ===
 def gerar_resposta(mensagem, numero):
     print(f"\n📩 Mensagem recebida: '{mensagem}' de {numero}")
     texto = mensagem.lower()
 
     if any(p in texto for p in ["oi", "olá", "bom dia", "boa tarde", "boa noite"]):
-        print("➡️ Disparando template de boas-vindas")
+        print("➡️ Palavra-chave detectada: saudação")
         enviar_template_boas_vindas(numero)
 
     elif any(p in texto for p in ["van", "vans", "veículo", "veiculos", "carro", "frota"]):
