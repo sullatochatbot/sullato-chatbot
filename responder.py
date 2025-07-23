@@ -21,33 +21,6 @@ def enviar_mensagem(numero, mensagem):
     response = requests.post(url, headers=headers, json=payload)
     print(f"[TEXTO] Para: {numero} | Status: {response.status_code} | Resposta: {response.text}")
 
-# === Envio de template "boas_vindas" ===
-def enviar_template_boas_vindas(numero):
-    url = f"https://graph.facebook.com/v19.0/{PHONE_NUMBER_ID}/messages"
-    headers = {
-        "Authorization": f"Bearer {ACCESS_TOKEN}",
-        "Content-Type": "application/json"
-    }
-    payload = {
-        "messaging_product": "whatsapp",
-        "to": numero,
-        "type": "template",
-        "template": {
-            "name": "boas_vindas",
-            "language": { "code": "pt_BR" },
-            "components": [
-                {
-                    "type": "body",
-                    "parameters": [
-                        { "type": "text", "text": "cliente" }
-                    ]
-                }
-            ]
-        }
-    }
-    response = requests.post(url, headers=headers, json=payload)
-    print(f"[TEMPLATE] Para: {numero} | Status: {response.status_code} | Resposta: {response.text}")
-
 # === Função principal que interpreta a mensagem recebida ===
 def gerar_resposta(mensagem, numero):
     print(f"\n📩 Mensagem recebida: '{mensagem}' de {numero}")
@@ -55,7 +28,8 @@ def gerar_resposta(mensagem, numero):
 
     if any(p in texto for p in ["oi", "olá", "bom dia", "boa tarde", "boa noite"]):
         print("➡️ Palavra-chave detectada: saudação")
-        enviar_template_boas_vindas(numero)
+        resposta = "Olá! Aqui é a equipe da Sullato Micros e Vans 🚐\nComo podemos te ajudar hoje?"
+        enviar_mensagem(numero, resposta)
 
     elif any(p in texto for p in ["van", "vans", "veículo", "veiculos", "carro", "frota"]):
         resposta = "🚐 Temos vans escolares, de carga e executivas à pronta entrega! Deseja ver nosso catálogo completo?"
