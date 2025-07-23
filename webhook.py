@@ -53,9 +53,7 @@ def webhook():
             print(f"📨 Mensagem recebida de {phone_number}: {text}")
 
             if phone_number and text:
-                resposta = responder.gerar_resposta(text)
-                print(f"🤖 Resposta gerada: {resposta}")
-                send_text_message(phone_number, resposta)
+                responder.gerar_resposta(text, phone_number)  # <- AQUI AGORA ESTÁ CORRETO
             else:
                 print("⚠️ Número ou texto não encontrados.")
         else:
