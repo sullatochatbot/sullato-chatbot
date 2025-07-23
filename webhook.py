@@ -1,14 +1,18 @@
 from flask import Flask, request
 import requests
 import json
-import responder  # Importa nosso módulo de respostas personalizadas
+import responder
+import os
+from dotenv import load_dotenv  # importa o dotenv
+
+load_dotenv()  # carrega variáveis do .env
 
 app = Flask(__name__)
 
 # === Configurações ===
-VERIFY_TOKEN = "sullato_token_verificacao"
-ACCESS_TOKEN = "EAAT6yhis6b8BPETCp493TtGZC5bA7YIf1osyqt65SoMBsCZAwASZAi8Yt4bfUmZBLjMxGtfVF0YFUjFY8Wzn1YYZAvzHEZCwoXQZCffXc8KLgWoDTHmOHHfjZBHafbTsZAY2aWZAjlsTg5rgT7NoiR6qrciAFOb5AnzUnZCNDjLWhLPOozB9gPJaY4FXD45JnrFApNoZBAZDZD"
-PHONE_NUMBER_ID = "684523561413203"
+VERIFY_TOKEN = os.getenv("VERIFY_TOKEN")
+ACCESS_TOKEN = os.getenv("ACCESS_TOKEN")
+PHONE_NUMBER_ID = os.getenv("PHONE_NUMBER_ID")
 
 # === Webhook de verificação (GET) ===
 @app.route("/webhook", methods=["GET"])
@@ -53,7 +57,7 @@ def webhook():
             print(f"📨 Mensagem recebida de {phone_number}: {text}")
 
             if phone_number and text:
-                responder.gerar_resposta(text, phone_number)  # <- AQUI AGORA ESTÁ CORRETO
+                responder.gerar_resposta(text, phone_number)
             else:
                 print("⚠️ Número ou texto não encontrados.")
         else:
