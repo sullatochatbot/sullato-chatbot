@@ -25,7 +25,6 @@ def enviar_mensagem(numero, texto):
 def gerar_resposta(mensagem):
     texto = mensagem.lower().strip()
 
-    # Ativação do menu principal por palavras-chave comuns
     saudacoes = ["oi", "olá", "ola", "van", "utilitário", "leve", "passeio", "carro", "interesse", "comprar", "vender", "score", "financiamento", "refinanciamento", "credito", "peças", "oficina", "sullato"]
     if any(p in texto for p in saudacoes):
         return (
@@ -40,7 +39,6 @@ def gerar_resposta(mensagem):
             "7 – Pós-venda / Garantia"
         )
 
-    # Item 1
     if texto == "1":
         return (
             "📍 *Endereços e Contatos Sullato*\n\n"
@@ -55,93 +53,91 @@ def gerar_resposta(mensagem):
             "(11) 2542-3332 / (11) 2542-3333"
         )
 
-    # Item 2
     if texto == "2":
         return "2 – Comprar Veículo\nDigite:\n- 2.1 para *veículo de passeio*\n- 2.2 para *veículo utilitário*"
     if texto == "2.1":
         return (
-            "🚗 *Compra – Veículo de Passeio*\nEntre em contato com um de nossos consultores:\n\n"
-            "👤 Alexandre – 📲 WhatsApp: https://wa.me/5511912155673\n"
-            "👤 Jeferson – 📲 WhatsApp: https://wa.me/5511941006862\n"
-            "👤 Marcela – 📲 WhatsApp: https://wa.me/5511912155673\n"
-            "👤 Pedro – 📲 WhatsApp: https://wa.me/5511952704363\n"
-            "👤 Thiago – 📲 WhatsApp: https://wa.me/5511986122905\n"
-            "👤 Vinicius – 📲 WhatsApp: https://wa.me/5511911260469"
+            "🚗 *Compra – Veículo de Passeio*\nEntre em contato com:\n\n"
+            "Alexandre – https://wa.me/5511912155673\n"
+            "Jeferson – https://wa.me/5511941006862\n"
+            "Marcela – https://wa.me/5511912155673\n"
+            "Pedro – https://wa.me/5511952704363\n"
+            "Thiago – https://wa.me/5511986122905\n"
+            "Vinicius – https://wa.me/5511911260469"
         )
     if texto == "2.2":
         return (
-            "🚐 *Compra – Veículo Utilitário*\nFale com nossos consultores:\n\n"
-            "👤 Magali – 📲 WhatsApp: https://wa.me/5511940215082\n"
-            "👤 Silvano – 📲 WhatsApp: https://wa.me/5511988598736\n"
-            "👤 Thiago – 📲 WhatsApp: https://wa.me/5511986122902"
+            "🚐 *Compra – Veículo Utilitário*\nFale com:\n\n"
+            "Magali – https://wa.me/5511940215082\n"
+            "Silvano – https://wa.me/5511988598736\n"
+            "Thiago – https://wa.me/5511986122902"
         )
 
-    # Item 3
     if texto == "3":
-        return "3 – Vender Veículo\nDigite:\n- 3.1 para *vender veículo de passeio*\n- 3.2 para *vender veículo utilitário*"
+        return "3 – Vender Veículo\nDigite:\n- 3.1 para *veículo de passeio*\n- 3.2 para *veículo utilitário*"
     if texto == "3.1":
         return (
-            "📤 *Venda – Veículo de Passeio*\nEntre em contato com:\n\n"
-            "👤 Alexandre – https://wa.me/5511912155673\n"
-            "👤 Jeferson – https://wa.me/5511941006862\n"
-            "👤 Marcela – https://wa.me/5511912155673\n"
-            "👤 Pedro – https://wa.me/5511952704363\n"
-            "👤 Thiago – https://wa.me/5511986122905\n"
-            "👤 Vinicius – https://wa.me/5511911260469"
+            "📤 *Venda – Veículo de Passeio*\nFale com:\n\n"
+            "Alexandre – https://wa.me/5511912155673\n"
+            "Jeferson – https://wa.me/5511941006862\n"
+            "Marcela – https://wa.me/5511912155673\n"
+            "Pedro – https://wa.me/5511952704363\n"
+            "Thiago – https://wa.me/5511986122905\n"
+            "Vinicius – https://wa.me/5511911260469"
         )
     if texto == "3.2":
         return (
             "📤 *Venda – Veículo Utilitário*\nFale com:\n\n"
-            "👤 Magali – https://wa.me/5511940215082\n"
-            "👤 Silvano – https://wa.me/5511988598736\n"
-            "👤 Thiago – https://wa.me/5511986122902"
+            "Magali – https://wa.me/5511940215082\n"
+            "Silvano – https://wa.me/5511988598736\n"
+            "Thiago – https://wa.me/5511986122902"
         )
 
-    # Item 4
     if texto == "4":
         return (
-            "💳 *Crédito / Financiamento*\nFale com nosso time de especialistas:\n\n"
-            "👤 Magali – https://wa.me/5511940215082\n"
-            "👤 Patricia – https://wa.me/5511940215081"
+            "💳 *Crédito / Financiamento*\nFale com:\n\n"
+            "Magali – https://wa.me/5511940215082\n"
+            "Patricia – https://wa.me/5511940215081"
         )
 
-    # Item 5
     if texto == "5":
         return (
             "🛠️ *Oficina e Peças*\nFale com:\n\n"
-            "📞 (11) 2542-3332 / (11) 2542-3333\n"
-            "👤 Érico – https://wa.me/5511940497678\n"
-            "👤 Leandro – https://wa.me/5511940443566"
+            "(11) 2542-3332 / (11) 2542-3333\n"
+            "Érico – https://wa.me/5511940497678\n"
+            "Leandro – https://wa.me/5511940443566"
         )
 
-    # Item 6
     if texto == "6":
         return (
-            "🏛️ *Vendas ao Governo*\nEntre em contato com:\n\n"
-            "👤 Lucas / Natan / Leon – (11) 2031-5081 / (11) 2030-5081\n"
+            "🏛️ *Vendas ao Governo*\nFale com:\n\n"
+            "Lucas / Natan / Leon – (11) 2031-5081 / (11) 2030-5081\n"
             "📧 vendasdireta@sullato.com.br"
         )
 
-    # Item 7
     if texto == "7":
         return "7 – Pós-venda / Garantia\nDigite:\n- 7.1 para *veículo de passeio*\n- 7.2 para *veículo utilitário*"
     if texto == "7.1":
         return (
             "🛡️ *Garantia – Veículo de Passeio*\nFale com:\n\n"
-            "👤 Alexandre – https://wa.me/5511912155673\n"
-            "👤 Jeferson – https://wa.me/5511941006862\n"
-            "👤 Marcela – https://wa.me/5511912155673\n"
-            "👤 Pedro – https://wa.me/5511952704363\n"
-            "👤 Thiago – https://wa.me/5511986122905\n"
-            "👤 Vinicius – https://wa.me/5511911260469"
+            "Alexandre – https://wa.me/5511912155673\n"
+            "Jeferson – https://wa.me/5511941006862\n"
+            "Marcela – https://wa.me/5511912155673\n"
+            "Pedro – https://wa.me/5511952704363\n"
+            "Thiago – https://wa.me/5511986122905\n"
+            "Vinicius – https://wa.me/5511911260469"
         )
     if texto == "7.2":
         return (
-            "🛡️ *Garantia – Veículo Utilitário*\nEntre em contato com:\n\n"
-            "👤 Magali – https://wa.me/5511940215082\n"
-            "👤 Silvano – https://wa.me/5511988598736\n"
-            "👤 Thiago – https://wa.me/5511986122902"
+            "🛡️ *Garantia – Veículo Utilitário*\nFale com:\n\n"
+            "Magali – https://wa.me/5511940215082\n"
+            "Silvano – https://wa.me/5511988598736\n"
+            "Thiago – https://wa.me/5511986122902"
         )
 
-    # Fallback – opção não compreendida
-    return "❌ Desculpe, não entendi. Por favor, digite um número válido entre 1 e 7, ou envie uma das palavras-chave como *comprar*, *vender*, *crédito*, *oficina*, *garantia*, *endereço* ou *governo* para continuar."
+    return "❌ Desculpe, não entendi. Por favor, digite um número válido entre 1 e 7."
+
+# 👇 ESTA PARTE É FUNDAMENTAL PARA FUNCIONAR
+def responder(numero, mensagem):
+    resposta = gerar_resposta(mensagem)
+    enviar_mensagem(numero, resposta)
