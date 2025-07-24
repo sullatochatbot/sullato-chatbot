@@ -48,9 +48,9 @@ Av. São Miguel, 4049 / 4084 – São Paulo/SP
         "2": "Digite 2.1 para *veículo de passeio* ou 2.2 para *utilitário*",
 
         "2.1": """🚗 *Compra – Veículo de Passeio*
-Alexandre: 📲 https://wa.me/5511912155673
+Alexandre: 📲 https://wa.me/5511940559880
 Jeferson: 📲 https://wa.me/5511941006862
-Marcela: 📲 https://wa.me/5511912155673
+Marcela: 📲 https://wa.me/5511912115673
 Pedro: 📲 https://wa.me/5511952704363
 Thiago: 📲 https://wa.me/5511986122905
 Vinicius: 📲 https://wa.me/5511911260469""",
@@ -63,9 +63,9 @@ Thiago: 📲 https://wa.me/5511986122902""",
         "3": "Digite 3.1 para *vender veículo de passeio* ou 3.2 para *vender utilitário*",
 
         "3.1": """🔁 *Venda – Veículo de Passeio*
-Alexandre: 📲 https://wa.me/5511912155673
+Alexandre: 📲 https://wa.me/5511940559880
 Jeferson: 📲 https://wa.me/5511941006862
-Marcela: 📲 https://wa.me/5511912155673
+Marcela: 📲 https://wa.me/5511912115673
 Pedro: 📲 https://wa.me/5511952704363
 Thiago: 📲 https://wa.me/5511986122905
 Vinicius: 📲 https://wa.me/5511911260469""",
@@ -91,9 +91,9 @@ Lucas / Natan / Leon: 📞 (11) 2031-5081 / (11) 2030-5081
         "7": "Digite 7.1 para *garantia de passeio* ou 7.2 para *garantia utilitário*",
 
         "7.1": """🛡️ *Garantia – Veículo de Passeio*
-Alexandre: 📲 https://wa.me/5511912155673
+Alexandre: 📲 https://wa.me/5511940559880
 Jeferson: 📲 https://wa.me/5511941006862
-Marcela: 📲 https://wa.me/5511912155673
+Marcela: 📲 https://wa.me/5511912115673
 Pedro: 📲 https://wa.me/5511952704363
 Thiago: 📲 https://wa.me/5511986122905
 Vinicius: 📲 https://wa.me/5511911260469""",
