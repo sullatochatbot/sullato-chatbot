@@ -58,7 +58,7 @@ Vinicius: 📲 https://wa.me/5511911260469""",
         "2.2": """🚐 *Compra – Veículo Utilitário*
 Magali: 📲 https://wa.me/5511940215082
 Silvano: 📲 https://wa.me/5511988598736
-Thiago: 📲 https://wa.me/5511986122902""",
+Thiago: 📲 https://wa.me/5511986122905""",
 
         "3": "Digite 3.1 para *vender veículo de passeio* ou 3.2 para *vender utilitário*",
 
@@ -73,7 +73,7 @@ Vinicius: 📲 https://wa.me/5511911260469""",
         "3.2": """🔁 *Venda – Veículo Utilitário*
 Magali: 📲 https://wa.me/5511940215082
 Silvano: 📲 https://wa.me/5511988598736
-Thiago: 📲 https://wa.me/5511986122902""",
+Thiago: 📲 https://wa.me/5511986122905""",
 
         "4": """💰 *Crédito / Financiamento*
 Magali: 📲 https://wa.me/5511940215082
@@ -101,7 +101,7 @@ Vinicius: 📲 https://wa.me/5511911260469""",
         "7.2": """🛡️ *Garantia – Veículo Utilitário*
 Magali: 📲 https://wa.me/5511940215082
 Silvano: 📲 https://wa.me/5511988598736
-Thiago: 📲 https://wa.me/5511986122902"""
+Thiago: 📲 https://wa.me/5511986122905"""
     }
 
     atalhos = {
