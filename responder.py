@@ -7,6 +7,7 @@ load_dotenv()
 ACCESS_TOKEN = os.getenv("ACCESS_TOKEN")
 PHONE_NUMBER_ID = os.getenv("PHONE_NUMBER_ID")
 
+
 def enviar_mensagem(numero, texto):
     url = f"https://graph.facebook.com/v18.0/{PHONE_NUMBER_ID}/messages"
     headers = {
@@ -19,203 +20,117 @@ def enviar_mensagem(numero, texto):
         "type": "text",
         "text": {"body": texto}
     }
-
     resposta = requests.post(url, headers=headers, json=payload)
     print("➡️ Resposta da Meta:", resposta.status_code, resposta.text)
+
 
 def gerar_resposta(mensagem, numero):
     texto = mensagem.lower().strip()
 
-    # MENU PRINCIPAL por número
-    if texto == "1":
-        resposta = """📍 Informações da Sullato:
+    blocos = {
+        "1": """📍 *Informações da Sullato*
 
-🌐 Site: www.sullato.com.br  
-📸 Instagram:  
-@sullatomicrosevans  
-@sullato.veiculos
+🌐 Site: [www.sullato.com.br](https://www.sullato.com.br)
 
-🏪 Lojas:  
+📸 Instagram:
+@sullatomicrosevans – [Ver perfil](https://www.instagram.com/sullatomicrosevans)  
+@sullato.veiculos – [Ver perfil](https://www.instagram.com/sullato.veiculos)
+
+🏢 Lojas:
 ➡️ Sullato Micros e Vans  
-Av. São Miguel, 7900 – SP  
+Av. São Miguel, 7900 – São Paulo/SP  
 📞 (11) 2030-5081 / (11) 2031-5081
 
 ➡️ Sullato Veículos  
-Av. São Miguel, 4049 / 4084 – SP  
-📞 (11) 2542-3332 / (11) 2542-3333"""
-        enviar_mensagem(numero, resposta)
+Av. São Miguel, 4049 / 4084 – São Paulo/SP  
+📞 (11) 2542-3332 / (11) 2542-3333""",
+
+        "2.1": """🚗 *Compra – Veículo de Passeio*
+Alexandre: 📲 https://wa.me/5511912155673
+Jeferson: 📲 https://wa.me/5511941006862
+Marcela: 📲 https://wa.me/5511912155673
+Pedro: 📲 https://wa.me/5511952704363
+Thiago: 📲 https://wa.me/5511986122905
+Vinicius: 📲 https://wa.me/5511911260469""",
+
+        "2.2": """🚐 *Compra – Veículo Utilitário*
+Magali: 📲 https://wa.me/5511940215082
+Silvano: 📲 https://wa.me/5511988598736
+Thiago: 📲 https://wa.me/5511986122902""",
+
+        "3.1": """🔁 *Venda – Veículo de Passeio*
+Alexandre: 📲 https://wa.me/5511912155673
+Jeferson: 📲 https://wa.me/5511941006862
+Marcela: 📲 https://wa.me/5511912155673
+Pedro: 📲 https://wa.me/5511952704363
+Thiago: 📲 https://wa.me/5511986122905
+Vinicius: 📲 https://wa.me/5511911260469""",
+
+        "3.2": """🔁 *Venda – Veículo Utilitário*
+Magali: 📲 https://wa.me/5511940215082
+Silvano: 📲 https://wa.me/5511988598736
+Thiago: 📲 https://wa.me/5511986122902""",
+
+        "4": """💰 *Crédito / Financiamento*
+Magali: 📲 https://wa.me/5511940215082
+Patricia: 📲 https://wa.me/5511940215081""",
+
+        "5": """🔧 *Oficina / Peças*
+Erico: 📲 https://wa.me/5511940497678
+Leandro: 📲 https://wa.me/5511940443566
+📞 Fixo: (11) 2542-3332 / (11) 2542-3333""",
+
+        "6": """🏛️ *Vendas ao Governo*
+Lucas / Natan / Leon: 📞 (11) 2031-5081 / (11) 2030-5081
+📧 vendasdireta@sullato.com.br""",
+
+        "7.1": """🛡️ *Garantia – Veículo de Passeio*
+Alexandre: 📲 https://wa.me/5511912155673
+Jeferson: 📲 https://wa.me/5511941006862
+Marcela: 📲 https://wa.me/5511912155673
+Pedro: 📲 https://wa.me/5511952704363
+Thiago: 📲 https://wa.me/5511986122905
+Vinicius: 📲 https://wa.me/5511911260469""",
+
+        "7.2": """🛡️ *Garantia – Veículo Utilitário*
+Magali: 📲 https://wa.me/5511940215082
+Silvano: 📲 https://wa.me/5511988598736
+Thiago: 📲 https://wa.me/5511986122902"""
+    }
+
+    # Mapear mensagens simples para blocos
+    atalhos = {
+        "site": "1", "endereço": "1", "instagram": "1", "loja": "1",
+        "comprar passeio": "2.1", "comprar utilitário": "2.2",
+        "vender passeio": "3.1", "vender utilitário": "3.2",
+        "credito": "4", "financiamento": "4", "score": "4",
+        "oficina": "5", "peças": "5",
+        "governo": "6", "prefeitura": "6", "ong": "6",
+        "garantia passeio": "7.1", "garantia utilitário": "7.2"
+    }
+
+    # Busca por código direto
+    if texto in blocos:
+        enviar_mensagem(numero, blocos[texto])
         return
 
-    elif texto == "2":
-        resposta = "2 – Comprar Veículo\nDigite:\n- 2.1 para *veículo de passeio*\n- 2.2 para *veículo utilitário*"
-        enviar_mensagem(numero, resposta)
-        return
-
-    elif texto == "2.1":
-        resposta = """🚗 Veículos de Passeio
-
-Entre em contato com um de nossos consultores:  
-Alexandre: (11) 91215-5673  
-Jeferson: (11) 94100-6862  
-Marcela: (11) 91215-5673  
-Pedro: (11) 95270-4363  
-Thiago: (11) 98612-2905  
-Vinicius: (11) 91126-0469"""
-        enviar_mensagem(numero, resposta)
-        return
-
-    elif texto == "2.2":
-        resposta = """🚐 Veículos Utilitários
-
-Entre em contato com um de nossos consultores:  
-Magali: (11) 94021-5082  
-Silvano: (11) 98859-8736  
-Thiago: (11) 98612-2902"""
-        enviar_mensagem(numero, resposta)
-        return
-
-    elif texto == "3":
-        resposta = "3 – Vender Veículo\nDigite:\n- 3.1 para *veículo de passeio*\n- 3.2 para *veículo utilitário*"
-        enviar_mensagem(numero, resposta)
-        return
-
-    elif texto == "3.1":
-        resposta = """🔁 Venda de Veículo de Passeio
-
-Fale com nossos consultores:  
-Alexandre: (11) 91215-5673  
-Jeferson: (11) 94100-6862  
-Marcela: (11) 91215-5673  
-Pedro: (11) 95270-4363  
-Thiago: (11) 98612-2905  
-Vinicius: (11) 91126-0469"""
-        enviar_mensagem(numero, resposta)
-        return
-
-    elif texto == "3.2":
-        resposta = """🔁 Venda de Veículo Utilitário
-
-Fale com nossos consultores:  
-Magali: (11) 94021-5082  
-Silvano: (11) 98859-8736  
-Thiago: (11) 98612-2902"""
-        enviar_mensagem(numero, resposta)
-        return
-
-    elif texto == "4":
-        resposta = """💰 Crédito / Financiamento
-
-Fale com nossos especialistas:  
-Magali: (11) 94021-5082  
-Patricia: (11) 94021-5081"""
-        enviar_mensagem(numero, resposta)
-        return
-
-    elif texto == "5":
-        resposta = """🔧 Oficina / Peças
-
-Entre em contato com nosso time:  
-📞 (11) 2542-3332 / (11) 2542-3333  
-Erico: (11) 94049-7678  
-Leandro: (11) 94044-3566"""
-        enviar_mensagem(numero, resposta)
-        return
-
-    elif texto == "6":
-        resposta = """🏛️ Vendas ao Governo
-
-Lucas, Natan ou Leon  
-📞 (11) 2031-5081 / (11) 2030-5081  
-📧 vendasdireta@sullato.com.br"""
-        enviar_mensagem(numero, resposta)
-        return
-
-    elif texto == "7":
-        resposta = "7 – Pós-venda / Garantia\nDigite:\n- 7.1 para *veículo de passeio*\n- 7.2 para *veículo utilitário*"
-        enviar_mensagem(numero, resposta)
-        return
-
-    elif texto == "7.1":
-        resposta = """🛠️ Garantia Veículo de Passeio
-
-Fale com nossos consultores:  
-Alexandre: (11) 91215-5673  
-Jeferson: (11) 94100-6862  
-Marcela: (11) 91215-5673  
-Pedro: (11) 95270-4363  
-Thiago: (11) 98612-2905  
-Vinicius: (11) 91126-0469"""
-        enviar_mensagem(numero, resposta)
-        return
-
-    elif texto == "7.2":
-        resposta = """🛠️ Garantia Veículo Utilitário
-
-Fale com nossos consultores:  
-Magali: (11) 94021-5082  
-Silvano: (11) 98859-8736  
-Thiago: (11) 98612-2902"""
-        enviar_mensagem(numero, resposta)
-        return
-
-    # Gatilhos por PALAVRAS
-    elif any(p in texto for p in ["endereço", "site", "redes sociais", "instagram", "localização", "loja"]):
-        return gerar_resposta("1", numero)
-
-    elif "comprar" in texto or "quero comprar" in texto or "interesse" in texto:
-        if "passeio" in texto:
-            return gerar_resposta("2.1", numero)
-        elif "utilitário" in texto or "van" in texto or "carga" in texto:
-            return gerar_resposta("2.2", numero)
-        else:
-            resposta = "Você quer comprar um veículo de passeio ou utilitário?"
-            enviar_mensagem(numero, resposta)
+    # Busca por atalhos compostos
+    for chave, cod in atalhos.items():
+        if all(p in texto for p in chave.split()):
+            enviar_mensagem(numero, blocos[cod])
             return
 
-    elif "vender" in texto:
-        if "passeio" in texto:
-            return gerar_resposta("3.1", numero)
-        elif "utilitário" in texto or "van" in texto:
-            return gerar_resposta("3.2", numero)
-        else:
-            resposta = "Você quer vender um veículo de passeio ou utilitário?"
-            enviar_mensagem(numero, resposta)
-            return
-
-    elif "financiamento" in texto or "refinanciamento" in texto or "credito" in texto or "score" in texto:
-        return gerar_resposta("4", numero)
-
-    elif "oficina" in texto or "peças" in texto:
-        return gerar_resposta("5", numero)
-
-    elif "governo" in texto or "prefeitura" in texto or "ong" in texto:
-        return gerar_resposta("6", numero)
-
-    elif "garantia" in texto or "pós-venda" in texto or "pos venda" in texto:
-        if "passeio" in texto:
-            return gerar_resposta("7.1", numero)
-        elif "utilitário" in texto:
-            return gerar_resposta("7.2", numero)
-        else:
-            resposta = "Você está com dúvida sobre a garantia de um veículo de passeio ou utilitário?"
-            enviar_mensagem(numero, resposta)
-            return
-
-    elif any(p in texto for p in ["oi", "olá", "bom dia", "boa tarde", "boa noite"]):
-        resposta = """Olá! 👋  
-Eu sou o atendimento virtual da Sullato.  
-Me diga com o que você precisa de ajuda:  
-🔹 Comprar  
-🔹 Vender  
-🔹 Financiamento  
-🔹 Oficina  
-🔹 Garantia  
-🔹 Endereço  
-🔹 Governo"""
-        enviar_mensagem(numero, resposta)
+    # Saudação
+    if any(p in texto for p in ["oi", "olá", "bom dia", "boa tarde", "boa noite"]):
+        menu = (
+            "Olá! 👋\nEu sou o atendimento virtual da Sullato.\n"
+            "Digite o número da opção desejada:\n"
+            "1 – Endereço e redes sociais\n2 – Comprar\n3 – Vender\n"
+            "4 – Crédito\n5 – Oficina\n6 – Governo\n7 – Garantia"
+        )
+        enviar_mensagem(numero, menu)
         return
 
-    else:
-        resposta = "Desculpe, não entendi sua mensagem. Poderia reformular ou escolher uma das opções: Comprar, Vender, Financiamento, Oficina, Garantia, Endereço ou Governo."
-        enviar_mensagem(numero, resposta)
-        return
+    # Padrão
+    msg = "Desculpe, não entendi. Digite um número de 1 a 7 ou uma palavra-chave como 'comprar', 'garantia', 'site', etc."
+    enviar_mensagem(numero, msg)
