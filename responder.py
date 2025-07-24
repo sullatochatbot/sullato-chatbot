@@ -19,80 +19,129 @@ def enviar_mensagem(numero, texto):
         "type": "text",
         "text": {"body": texto}
     }
-
     resposta = requests.post(url, headers=headers, json=payload)
-    print("\U0001F4EC Resposta da Meta:", resposta.status_code, resposta.text)
+    print("📬 Resposta da Meta:", resposta.status_code, resposta.text)
 
-def gerar_resposta(mensagem, numero):
+def gerar_resposta(mensagem):
     texto = mensagem.lower().strip()
 
-    if texto in ["1", "endereco", "endereço", "site", "instagram", "rede social"]:
-        resposta = """\U0001F4CD *Endereços e Contatos Sullato*
+    # Ativação do menu principal por palavras-chave comuns
+    saudacoes = ["oi", "olá", "ola", "van", "utilitário", "leve", "passeio", "carro", "interesse", "comprar", "vender", "score", "financiamento", "refinanciamento", "credito", "peças", "oficina", "sullato"]
+    if any(p in texto for p in saudacoes):
+        return (
+            "Olá, aqui quem responde é o atendimento virtual do Grupo Sullato.\n\n"
+            "Digite o número da opção desejada:\n"
+            "1 – Endereço das lojas, site, redes sociais\n"
+            "2 – Comprar\n"
+            "3 – Vender\n"
+            "4 – Crédito / Financiamento\n"
+            "5 – Oficina e Peças\n"
+            "6 – Vendas ao Governo\n"
+            "7 – Pós-venda / Garantia"
+        )
 
-\U0001F310 *Site:* https://www.sullato.com.br
-\U0001F4F7 *Instagram:* 
-@sullatomicrosevans – https://www.instagram.com/sullatomicrosevans
-@sullato.veiculos – https://www.instagram.com/sullato.veiculos
+    # Item 1
+    if texto == "1":
+        return (
+            "📍 *Endereços e Contatos Sullato*\n\n"
+            "🔗 *Site:* https://www.sullato.com.br\n"
+            "📸 *Instagram:*\n"
+            "@sullatomicrosevans – https://www.instagram.com/sullatomicrosevans\n"
+            "@sullato.veiculos – https://www.instagram.com/sullato.veiculos\n\n"
+            "🏢 *Lojas:*\n"
+            "Sullato Micros e Vans – Av. São Miguel, 7900 – SP\n"
+            "(11) 2030-5081 / (11) 2031-5081\n\n"
+            "Sullato Veículos – Av. São Miguel, 4049 / 4084 – SP\n"
+            "(11) 2542-3332 / (11) 2542-3333"
+        )
 
-\U0001F3EA *Lojas:*
-\u27a1️ *Sullato Micros e Vans* – Av. São Miguel, 7900 – SP  
-\u260e️ (11) 2030-5081 / (11) 2031-5081
+    # Item 2
+    if texto == "2":
+        return "2 – Comprar Veículo\nDigite:\n- 2.1 para *veículo de passeio*\n- 2.2 para *veículo utilitário*"
+    if texto == "2.1":
+        return (
+            "🚗 *Compra – Veículo de Passeio*\nEntre em contato com um de nossos consultores:\n\n"
+            "👤 Alexandre – 📲 WhatsApp: https://wa.me/5511912155673\n"
+            "👤 Jeferson – 📲 WhatsApp: https://wa.me/5511941006862\n"
+            "👤 Marcela – 📲 WhatsApp: https://wa.me/5511912155673\n"
+            "👤 Pedro – 📲 WhatsApp: https://wa.me/5511952704363\n"
+            "👤 Thiago – 📲 WhatsApp: https://wa.me/5511986122905\n"
+            "👤 Vinicius – 📲 WhatsApp: https://wa.me/5511911260469"
+        )
+    if texto == "2.2":
+        return (
+            "🚐 *Compra – Veículo Utilitário*\nFale com nossos consultores:\n\n"
+            "👤 Magali – 📲 WhatsApp: https://wa.me/5511940215082\n"
+            "👤 Silvano – 📲 WhatsApp: https://wa.me/5511988598736\n"
+            "👤 Thiago – 📲 WhatsApp: https://wa.me/5511986122902"
+        )
 
-\u27a1️ *Sullato Veículos* – Av. São Miguel, 4049 / 4084 – SP  
-\u260e️ (11) 2542-3332 / (11) 2542-3333"""
-        enviar_mensagem(numero, resposta)
-        return
+    # Item 3
+    if texto == "3":
+        return "3 – Vender Veículo\nDigite:\n- 3.1 para *vender veículo de passeio*\n- 3.2 para *vender veículo utilitário*"
+    if texto == "3.1":
+        return (
+            "📤 *Venda – Veículo de Passeio*\nEntre em contato com:\n\n"
+            "👤 Alexandre – https://wa.me/5511912155673\n"
+            "👤 Jeferson – https://wa.me/5511941006862\n"
+            "👤 Marcela – https://wa.me/5511912155673\n"
+            "👤 Pedro – https://wa.me/5511952704363\n"
+            "👤 Thiago – https://wa.me/5511986122905\n"
+            "👤 Vinicius – https://wa.me/5511911260469"
+        )
+    if texto == "3.2":
+        return (
+            "📤 *Venda – Veículo Utilitário*\nFale com:\n\n"
+            "👤 Magali – https://wa.me/5511940215082\n"
+            "👤 Silvano – https://wa.me/5511988598736\n"
+            "👤 Thiago – https://wa.me/5511986122902"
+        )
 
-    elif texto == "2":
-        resposta = """*2 – Comprar Veículo*
-Digite:
-- 2.1 para *veículo de passeio*  
-- 2.2 para *veículo utilitário*"""
-        enviar_mensagem(numero, resposta)
-        return
+    # Item 4
+    if texto == "4":
+        return (
+            "💳 *Crédito / Financiamento*\nFale com nosso time de especialistas:\n\n"
+            "👤 Magali – https://wa.me/5511940215082\n"
+            "👤 Patricia – https://wa.me/5511940215081"
+        )
 
-    elif texto == "2.1":
-        resposta = """\U0001F697 *Compra – Veículo de Passeio*
+    # Item 5
+    if texto == "5":
+        return (
+            "🛠️ *Oficina e Peças*\nFale com:\n\n"
+            "📞 (11) 2542-3332 / (11) 2542-3333\n"
+            "👤 Érico – https://wa.me/5511940497678\n"
+            "👤 Leandro – https://wa.me/5511940443566"
+        )
 
-Entre em contato com um de nossos consultores:
+    # Item 6
+    if texto == "6":
+        return (
+            "🏛️ *Vendas ao Governo*\nEntre em contato com:\n\n"
+            "👤 Lucas / Natan / Leon – (11) 2031-5081 / (11) 2030-5081\n"
+            "📧 vendasdireta@sullato.com.br"
+        )
 
-👨‍💼 *Alexandre* – [📲 WhatsApp](https://wa.me/5511912155673)
-👨‍💼 *Jeferson* – [📲 WhatsApp](https://wa.me/5511941006862)
-👩‍💼 *Marcela* – [📲 WhatsApp](https://wa.me/5511912155673)
-👨‍💼 *Pedro* – [📲 WhatsApp](https://wa.me/5511952704363)
-👨‍💼 *Thiago* – [📲 WhatsApp](https://wa.me/5511986122905)
-👨‍💼 *Vinicius* – [📲 WhatsApp](https://wa.me/5511911260469)"""
-        enviar_mensagem(numero, resposta)
-        return
+    # Item 7
+    if texto == "7":
+        return "7 – Pós-venda / Garantia\nDigite:\n- 7.1 para *veículo de passeio*\n- 7.2 para *veículo utilitário*"
+    if texto == "7.1":
+        return (
+            "🛡️ *Garantia – Veículo de Passeio*\nFale com:\n\n"
+            "👤 Alexandre – https://wa.me/5511912155673\n"
+            "👤 Jeferson – https://wa.me/5511941006862\n"
+            "👤 Marcela – https://wa.me/5511912155673\n"
+            "👤 Pedro – https://wa.me/5511952704363\n"
+            "👤 Thiago – https://wa.me/5511986122905\n"
+            "👤 Vinicius – https://wa.me/5511911260469"
+        )
+    if texto == "7.2":
+        return (
+            "🛡️ *Garantia – Veículo Utilitário*\nEntre em contato com:\n\n"
+            "👤 Magali – https://wa.me/5511940215082\n"
+            "👤 Silvano – https://wa.me/5511988598736\n"
+            "👤 Thiago – https://wa.me/5511986122902"
+        )
 
-    elif texto == "2.2":
-        resposta = """\U0001F69A *Compra – Veículo Utilitário*
-
-Fale com nossos consultores:
-
-👩‍💼 *Magali* – [📲 WhatsApp](https://wa.me/5511940215082)
-👨‍💼 *Silvano* – [📲 WhatsApp](https://wa.me/5511988598736)
-👨‍💼 *Thiago* – [📲 WhatsApp](https://wa.me/5511986122902)"""
-        enviar_mensagem(numero, resposta)
-        return
-
-    # Continuarei a partir do item 3 (venda), 4 (crédito), etc., no mesmo padrão
-    # Quando quiser, posso completar do 3 ao 7.2 com todos os contatos no mesmo estilo
-
-    elif texto in ["oi", "olá", "bom dia", "boa tarde", "boa noite"]:
-        resposta = """Olá, aqui quem responde é o atendimento virtual do Grupo Sullato.
-
-Digite o número da opção desejada:
-1 – Endereço das lojas, site, redes sociais
-2 – Comprar
-3 – Vender
-4 – Crédito / Financiamento
-5 – Oficina e Peças
-6 – Vendas ao Governo
-7 – Pós-venda / Garantia"""
-        enviar_mensagem(numero, resposta)
-        return
-
-    else:
-        resposta = "Desculpe, não entendi. Por favor, digite um número entre 1 e 7 para que eu possa te ajudar."
-        enviar_mensagem(numero, resposta)
+    # Fallback – opção não compreendida
+    return "❌ Desculpe, não entendi. Por favor, digite um número válido entre 1 e 7, ou envie uma das palavras-chave como *comprar*, *vender*, *crédito*, *oficina*, *garantia*, *endereço* ou *governo* para continuar."
