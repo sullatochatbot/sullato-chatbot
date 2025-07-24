@@ -110,7 +110,7 @@ Thiago: 📲 https://wa.me/5511986122902"""
         "vender passeio": "3.1", "vender utilitário": "3.2",
         "credito": "4", "financiamento": "4", "score": "4",
         "oficina": "5", "peças": "5",
-        "governo": "6", "prefeitura": "6", "ong": "6",
+        "venda direta": "6", "prefeitura": "6", "ong": "6",
         "garantia passeio": "7.1", "garantia utilitário": "7.2"
     }
 
@@ -123,15 +123,16 @@ Thiago: 📲 https://wa.me/5511986122902"""
             enviar_mensagem(numero, blocos[cod])
             return
 
-    if any(p in texto for p in ["oi", "olá", "bom dia", "boa tarde", "boa noite"]):
-        menu = (
-            "Olá! 👋\nEu sou o atendimento virtual da Sullato.\n"
-            "Digite o número da opção desejada:\n"
-            "1 – Endereço e redes sociais\n2 – Comprar\n3 – Vender\n"
-            "4 – Crédito\n5 – Oficina\n6 – Governo\n7 – Garantia"
-        )
-        enviar_mensagem(numero, menu)
-        return
-
-    msg = "Desculpe, não entendi. Digite um número de 1 a 7 ou uma palavra-chave como 'comprar', 'garantia', 'site', etc."
-    enviar_mensagem(numero, msg)
+    # Se for saudação ou qualquer outro texto não reconhecido, envia o menu
+    menu = (
+        "Olá! 👋\nEu sou o atendimento virtual da Sullato.\n"
+        "Digite o número da opção desejada:\n"
+        "1 – Endereço e redes sociais\n"
+        "2 – Comprar\n"
+        "3 – Vender\n"
+        "4 – Crédito\n"
+        "5 – Oficina\n"
+        "6 – Governo\n"
+        "7 – Garantia"
+    )
+    enviar_mensagem(numero, menu)
