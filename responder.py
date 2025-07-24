@@ -132,7 +132,7 @@ Thiago: 📲 https://wa.me/5511986122902"""
         "3 – Vender\n"
         "4 – Crédito\n"
         "5 – Oficina\n"
-        "6 – Governo\n"
+        "6 – venda direta\n"
         "7 – Garantia"
     )
     enviar_mensagem(numero, menu)
