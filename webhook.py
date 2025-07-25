@@ -44,7 +44,6 @@ def webhook():
             print("⚠️ Nenhum dado recebido.")
             return "ok", 200
 
-        # Estrutura simples validada
         entry = data.get("entry", [])[0]
         changes = entry.get("changes", [])[0]
         value = changes.get("value", {})
@@ -55,15 +54,18 @@ def webhook():
 
             phone_number = message_data.get("from")
 
-            # ✅ Tratamento para botões ou texto
-            tipo = message_data.get("type")
-            if tipo == "button":
-                text = message_data.get("interactive", {}).get("button_reply", {}).get("id")
-                print("🟡 Botão interativo detectado, ID recebido:", text)
-            else:
+            # === Novo tratamento para capturar qualquer tipo de mensagem (botão ou texto)
+            text = None
+            if "interactive" in message_data:
+                interactive = message_data["interactive"]
+                if "button_reply" in interactive:
+                    text = interactive["button_reply"]["id"]
+                    print("🟡 Botão clicado (ID):", text)
+
+            if not text:
                 text_obj = message_data.get("text")
                 text = text_obj.get("body") if text_obj else None
-                print("🟢 Texto comum detectado:", text)
+                print("🟢 Texto comum:", text)
 
             print(f"📨 Mensagem recebida de {phone_number}: {text}")
 
@@ -80,7 +82,7 @@ def webhook():
 
     return "ok", 200
 
-# === Envio manual (caso queira usar) ===
+# === Envio manual (opcional) ===
 def send_text_message(phone_number, message):
     url = f"https://graph.facebook.com/v19.0/{PHONE_NUMBER_ID}/messages"
     headers = {
