@@ -137,14 +137,26 @@ Thiago: 📲 https://wa.me/5511986122905"""
             enviar_mensagem(numero, blocos[cod])
             return
 
+    # === Botões do menu principal (limite WhatsApp: 3)
     botoes_menu_principal = [
         {"type": "reply", "reply": {"id": "1", "title": "📍 Endereço"}},
         {"type": "reply", "reply": {"id": "2", "title": "🚗 Comprar"}},
         {"type": "reply", "reply": {"id": "3", "title": "📤 Vender"}}
     ]
 
-    if texto in ["oi", "olá", "bom dia", "boa tarde", "boa noite", "menu", "início"]:
-        enviar_botoes(numero, "Olá! 👋 Eu sou o atendimento virtual da *Sullato*.\nSelecione abaixo como posso te ajudar:", botoes_menu_principal)
+    # === Submenu "mais opções"
+    if texto == "mais":
+        botoes_mais = [
+            {"type": "reply", "reply": {"id": "4", "title": "💰 Crédito"}},
+            {"type": "reply", "reply": {"id": "5", "title": "🔧 Oficina"}},
+            {"type": "reply", "reply": {"id": "6", "title": "🏛️ Governo"}}
+        ]
+        enviar_botoes(numero, "Aqui estão mais opções disponíveis:", botoes_mais)
+        return
+
+    # === Ações dos botões principais
+    if texto == "1":
+        enviar_mensagem(numero, blocos["1"])
         return
 
     if texto == "2":
@@ -163,6 +175,18 @@ Thiago: 📲 https://wa.me/5511986122905"""
         enviar_botoes(numero, "Qual tipo de veículo deseja vender?", botoes_sub)
         return
 
+    if texto == "4":
+        enviar_mensagem(numero, blocos["4"])
+        return
+
+    if texto == "5":
+        enviar_mensagem(numero, blocos["5"])
+        return
+
+    if texto == "6":
+        enviar_mensagem(numero, blocos["6"])
+        return
+
     if texto == "7":
         botoes_sub = [
             {"type": "reply", "reply": {"id": "7.1", "title": "✅ Garantia Passeio"}},
@@ -171,4 +195,10 @@ Thiago: 📲 https://wa.me/5511986122905"""
         enviar_botoes(numero, "Para qual tipo de veículo é a garantia?", botoes_sub)
         return
 
+    # === Saudação padrão
+    if texto in ["oi", "olá", "bom dia", "boa tarde", "boa noite", "menu", "início"]:
+        enviar_botoes(numero, "Olá! 👋 Eu sou o atendimento virtual da *Sullato*.\nSelecione abaixo como posso te ajudar:", botoes_menu_principal)
+        return
+
+    # === Fallback (não entendeu)
     enviar_botoes(numero, "Não encontrei exatamente o que você procurava 🤔, mas posso te ajudar com essas opções:", botoes_menu_principal)
