@@ -55,13 +55,15 @@ def webhook():
 
             phone_number = message_data.get("from")
 
-            # 🔧 Novo tratamento para botões
+            # ✅ Tratamento para botões ou texto
             tipo = message_data.get("type")
             if tipo == "button":
                 text = message_data.get("interactive", {}).get("button_reply", {}).get("id")
+                print("🟡 Botão interativo detectado, ID recebido:", text)
             else:
                 text_obj = message_data.get("text")
                 text = text_obj.get("body") if text_obj else None
+                print("🟢 Texto comum detectado:", text)
 
             print(f"📨 Mensagem recebida de {phone_number}: {text}")
 
