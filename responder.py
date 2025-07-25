@@ -164,6 +164,14 @@ Magali, Silvano, Thiago
         enviar_botoes(numero, "Para qual tipo de veículo é a garantia?", botoes)
         return
 
+    if texto == "7.1":
+        enviar_mensagem(numero, blocos["7.1"])
+        return
+
+    if texto == "7.2":
+        enviar_mensagem(numero, blocos["7.2"])
+        return
+
     if texto in blocos:
         enviar_mensagem(numero, blocos[texto])
         return
