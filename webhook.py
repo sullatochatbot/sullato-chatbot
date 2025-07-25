@@ -38,7 +38,7 @@ def verify():
 def webhook():
     try:
         data = request.get_json()
-        print("📩 Dados recebidos:\n", json.dumps(data, indent=2))
+        print("📩 JSON recebido:\n", json.dumps(data, indent=2))
 
         if not data or "entry" not in data:
             print("⚠️ Nenhum dado ou entrada válida recebida.")
@@ -47,29 +47,31 @@ def webhook():
         for entry in data.get("entry", []):
             for change in entry.get("changes", []):
                 value = change.get("value", {})
-                messages = value.get("messages", [])
+                print("📦 Valor recebido:", json.dumps(value, indent=2))
 
-                if messages:
-                    message_data = messages[0]
-                    phone_number = message_data.get("from")
-                    text_obj = message_data.get("text")
-                    text = text_obj.get("body") if text_obj else None
+                if "messages" in value:
+                    messages = value.get("messages", [])
+                    for message_data in messages:
+                        phone_number = message_data.get("from")
+                        text_obj = message_data.get("text")
+                        text = text_obj.get("body") if text_obj else None
 
-                    print(f"📨 Mensagem recebida de {phone_number}: {text}")
+                        print(f"📨 Mensagem recebida de {phone_number}: {text}")
 
-                    if phone_number and text:
-                        responder.gerar_resposta(text, phone_number)
-                    else:
-                        print("⚠️ Dados incompletos: número ou texto ausente.")
+                        if phone_number and text:
+                            print("✅ Chamando responder.gerar_resposta()")
+                            responder.gerar_resposta(text, phone_number)
+                        else:
+                            print("⚠️ Número ou texto ausente na mensagem recebida.")
                 else:
-                    print("⚠️ Nenhuma mensagem encontrada em 'value'.")
+                    print("⚠️ 'messages' não está presente no JSON recebido.")
 
     except Exception as e:
-        print("❌ Erro no processamento do webhook:", str(e))
+        print("❌ ERRO no webhook:", str(e))
 
     return "ok", 200
 
-# === Envio de mensagens (caso precise usar manualmente) ===
+# === Envio manual de mensagens (opcional) ===
 def send_text_message(phone_number, message):
     url = f"https://graph.facebook.com/v19.0/{PHONE_NUMBER_ID}/messages"
     headers = {
@@ -83,7 +85,7 @@ def send_text_message(phone_number, message):
         "text": {"body": message}
     }
 
-    print("📤 Enviando mensagem via API da Meta...")
+    print("📤 Enviando mensagem manual via API...")
     print("📦 Payload:", json.dumps(payload, indent=2))
 
     try:
@@ -91,7 +93,7 @@ def send_text_message(phone_number, message):
         print("📬 Status:", response.status_code)
         print("📨 Resposta:", response.text)
     except Exception as e:
-        print("❌ Erro ao enviar mensagem manual:", str(e))
+        print("❌ Erro no envio manual:", str(e))
 
 # === Inicialização do servidor ===
 if __name__ == "__main__":
