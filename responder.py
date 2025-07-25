@@ -8,7 +8,7 @@ ACCESS_TOKEN = os.getenv("ACCESS_TOKEN")
 PHONE_NUMBER_ID = os.getenv("PHONE_NUMBER_ID")
 
 def enviar_mensagem(numero, texto):
-    url = f"https://graph.facebook.com/v18.0/{PHONE_NUMBER_ID}/messages"
+    url = f"https://graph.facebook.com/v19.0/{PHONE_NUMBER_ID}/messages"
     headers = {
         "Authorization": f"Bearer {ACCESS_TOKEN}",
         "Content-Type": "application/json"
@@ -23,7 +23,7 @@ def enviar_mensagem(numero, texto):
     print("➡️ Resposta da Meta:", resposta.status_code, resposta.text)
 
 def enviar_botoes(numero, texto, botoes):
-    url = f"https://graph.facebook.com/v18.0/{PHONE_NUMBER_ID}/messages"
+    url = f"https://graph.facebook.com/v19.0/{PHONE_NUMBER_ID}/messages"
     headers = {
         "Authorization": f"Bearer {ACCESS_TOKEN}",
         "Content-Type": "application/json"
@@ -137,17 +137,18 @@ Thiago: 📲 https://wa.me/5511986122905"""
             enviar_mensagem(numero, blocos[cod])
             return
 
+    botoes_menu = [
+        {"type": "reply", "reply": {"id": "1", "title": "📍 Contato / Endereço"}},
+        {"type": "reply", "reply": {"id": "2", "title": "🚗 Comprar"}},
+        {"type": "reply", "reply": {"id": "3", "title": "📤 Vender"}},
+        {"type": "reply", "reply": {"id": "4", "title": "💰 Crédito"}},
+        {"type": "reply", "reply": {"id": "5", "title": "🔧 Oficina"}},
+        {"type": "reply", "reply": {"id": "6", "title": "🏛️ Governo"}},
+        {"type": "reply", "reply": {"id": "7", "title": "✅ Garantia"}}
+    ]
+
     if texto in ["oi", "olá", "bom dia", "boa tarde", "boa noite", "menu", "início"]:
-        botoes_menu = [
-            {"type": "reply", "reply": {"id": "1", "title": "📍 Contato / Endereço"}},
-            {"type": "reply", "reply": {"id": "2", "title": "🚗 Comprar"}},
-            {"type": "reply", "reply": {"id": "3", "title": "📤 Vender"}},
-            {"type": "reply", "reply": {"id": "4", "title": "💰 Crédito"}},
-            {"type": "reply", "reply": {"id": "5", "title": "🔧 Oficina"}},
-            {"type": "reply", "reply": {"id": "6", "title": "🏛️ Governo"}},
-            {"type": "reply", "reply": {"id": "7", "title": "✅ Garantia"}}
-        ]
-        enviar_botoes(numero, "Olá! 👋 Eu sou o atendimento virtual da Sullato. Como podemos te ajudar?", botoes_menu[:3])
+        enviar_botoes(numero, "Olá! 👋 Eu sou o atendimento virtual da *Sullato*.\nSelecione abaixo como posso te ajudar:", botoes_menu)
         return
 
     if texto == "2":
@@ -174,9 +175,4 @@ Thiago: 📲 https://wa.me/5511986122905"""
         enviar_botoes(numero, "Para qual tipo de veículo é a garantia?", botoes_sub)
         return
 
-    botoes_padrao = [
-        {"type": "reply", "reply": {"id": "1", "title": "📍 Contato / Endereço"}},
-        {"type": "reply", "reply": {"id": "2", "title": "🚗 Comprar"}},
-        {"type": "reply", "reply": {"id": "3", "title": "📤 Vender"}}
-    ]
-    enviar_botoes(numero, "Bem-vindo à Sullato! Escolha uma das opções abaixo:", botoes_padrao)
+    enviar_botoes(numero, "Não encontrei exatamente o que você procurava 🤔, mas posso te ajudar com essas opções:", botoes_menu)
