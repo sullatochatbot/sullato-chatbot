@@ -54,8 +54,14 @@ def webhook():
             print("🔍 message_data:", json.dumps(message_data, indent=2))
 
             phone_number = message_data.get("from")
-            text_obj = message_data.get("text")
-            text = text_obj.get("body") if text_obj else None
+
+            # 🔧 Novo tratamento para botões
+            tipo = message_data.get("type")
+            if tipo == "button":
+                text = message_data.get("interactive", {}).get("button_reply", {}).get("id")
+            else:
+                text_obj = message_data.get("text")
+                text = text_obj.get("body") if text_obj else None
 
             print(f"📨 Mensagem recebida de {phone_number}: {text}")
 
