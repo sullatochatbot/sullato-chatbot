@@ -5,25 +5,25 @@ import responder
 import os
 from dotenv import load_dotenv
 
-# === Carrega variáveis de ambiente do .env ===
+# === Carrega variáveis do .env ===
 load_dotenv()
 
-# === Flask App ===
+# === Inicializa o Flask ===
 app = Flask(__name__)
 
-# === Configurações ===
+# === Tokens e variáveis ===
 VERIFY_TOKEN = os.getenv("VERIFY_TOKEN")
 ACCESS_TOKEN = os.getenv("ACCESS_TOKEN")
 PHONE_NUMBER_ID = os.getenv("PHONE_NUMBER_ID")
 
-# === Verificação do Webhook ===
+# === Verificação inicial do Webhook (GET) ===
 @app.route("/webhook", methods=["GET"])
 def verify():
     mode = request.args.get("hub.mode")
     token = request.args.get("hub.verify_token")
     challenge = request.args.get("hub.challenge")
 
-    print("📥 Verificação recebida da Meta:", mode)
+    print("📥 Verificação recebida:", mode)
     print("🔐 Token recebido:", token)
 
     if mode == "subscribe" and token == VERIFY_TOKEN:
@@ -38,40 +38,41 @@ def verify():
 def webhook():
     try:
         data = request.get_json()
-        print("📩 JSON recebido:\n", json.dumps(data, indent=2))
+        print("📩 JSON recebido:", json.dumps(data, indent=2))
 
-        if not data or "entry" not in data:
-            print("⚠️ Nenhum dado ou entrada válida recebida.")
+        if not data:
+            print("⚠️ Nenhum dado recebido.")
             return "ok", 200
 
-        for entry in data.get("entry", []):
-            for change in entry.get("changes", []):
-                value = change.get("value", {})
-                print("📦 Valor recebido:", json.dumps(value, indent=2))
+        # Estrutura simples validada
+        entry = data.get("entry", [])[0]
+        changes = entry.get("changes", [])[0]
+        value = changes.get("value", {})
 
-                if "messages" in value:
-                    messages = value.get("messages", [])
-                    for message_data in messages:
-                        phone_number = message_data.get("from")
-                        text_obj = message_data.get("text")
-                        text = text_obj.get("body") if text_obj else None
+        if "messages" in value:
+            message_data = value["messages"][0]
+            print("🔍 message_data:", json.dumps(message_data, indent=2))
 
-                        print(f"📨 Mensagem recebida de {phone_number}: {text}")
+            phone_number = message_data.get("from")
+            text_obj = message_data.get("text")
+            text = text_obj.get("body") if text_obj else None
 
-                        if phone_number and text:
-                            print("✅ Chamando responder.gerar_resposta()")
-                            responder.gerar_resposta(text, phone_number)
-                        else:
-                            print("⚠️ Número ou texto ausente na mensagem recebida.")
-                else:
-                    print("⚠️ 'messages' não está presente no JSON recebido.")
+            print(f"📨 Mensagem recebida de {phone_number}: {text}")
+
+            if phone_number and text:
+                print("✅ Chamando responder.gerar_resposta()")
+                responder.gerar_resposta(text, phone_number)
+            else:
+                print("⚠️ Número ou texto não encontrados.")
+        else:
+            print("⚠️ Nenhuma mensagem presente em 'value'.")
 
     except Exception as e:
-        print("❌ ERRO no webhook:", str(e))
+        print("❌ Erro no webhook:", str(e))
 
     return "ok", 200
 
-# === Envio manual de mensagens (opcional) ===
+# === Envio manual (caso queira usar) ===
 def send_text_message(phone_number, message):
     url = f"https://graph.facebook.com/v19.0/{PHONE_NUMBER_ID}/messages"
     headers = {
@@ -93,9 +94,9 @@ def send_text_message(phone_number, message):
         print("📬 Status:", response.status_code)
         print("📨 Resposta:", response.text)
     except Exception as e:
-        print("❌ Erro no envio manual:", str(e))
+        print("❌ Erro ao enviar mensagem:", str(e))
 
-# === Inicialização do servidor ===
+# === Inicializa o servidor ===
 if __name__ == "__main__":
     print("🚀 Servidor Flask iniciado em http://0.0.0.0:5000")
     app.run(host="0.0.0.0", port=5000)
