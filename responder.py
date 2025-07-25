@@ -7,7 +7,6 @@ load_dotenv()
 ACCESS_TOKEN = os.getenv("ACCESS_TOKEN")
 PHONE_NUMBER_ID = os.getenv("PHONE_NUMBER_ID")
 
-
 def enviar_mensagem(numero, texto):
     url = f"https://graph.facebook.com/v18.0/{PHONE_NUMBER_ID}/messages"
     headers = {
@@ -23,6 +22,24 @@ def enviar_mensagem(numero, texto):
     resposta = requests.post(url, headers=headers, json=payload)
     print("➡️ Resposta da Meta:", resposta.status_code, resposta.text)
 
+def enviar_botoes(numero, texto, botoes):
+    url = f"https://graph.facebook.com/v18.0/{PHONE_NUMBER_ID}/messages"
+    headers = {
+        "Authorization": f"Bearer {ACCESS_TOKEN}",
+        "Content-Type": "application/json"
+    }
+    payload = {
+        "messaging_product": "whatsapp",
+        "to": numero,
+        "type": "interactive",
+        "interactive": {
+            "type": "button",
+            "body": {"text": texto},
+            "action": {"buttons": botoes}
+        }
+    }
+    resposta = requests.post(url, headers=headers, json=payload)
+    print("🟢 Botões enviados:", resposta.status_code, resposta.text)
 
 def gerar_resposta(mensagem, numero):
     texto = mensagem.lower().strip()
@@ -30,11 +47,11 @@ def gerar_resposta(mensagem, numero):
     blocos = {
         "1": """📍 *Informações da Sullato*
 
-🌐 Site: [www.sullato.com.br](https://www.sullato.com.br)
+🌐 Site: www.sullato.com.br
 
 📸 Instagram:
-@sullatomicrosevans – [Ver perfil](https://www.instagram.com/sullatomicrosevans)  
-@sullato.veiculos – [Ver perfil](https://www.instagram.com/sullato.veiculos)
+@sullatomicrosevans – https://www.instagram.com/sullatomicrosevans
+@sullato.veiculos – https://www.instagram.com/sullato.veiculos
 
 🏢 Lojas:
 ➡️ Sullato Micros e Vans  
@@ -44,8 +61,6 @@ Av. São Miguel, 7900 – São Paulo/SP
 ➡️ Sullato Veículos  
 Av. São Miguel, 4049 / 4084 – São Paulo/SP  
 📞 (11) 2542-3332 / (11) 2542-3333""",
-
-        "2": "Digite 2.1 para *veículo de passeio* ou 2.2 para *utilitário*",
 
         "2.1": """🚗 *Compra – Veículo de Passeio*
 Alexandre: 📲 https://wa.me/5511940559880
@@ -60,8 +75,6 @@ Vinicius: 📲 https://wa.me/5511911260469""",
 Magali: 📲 https://wa.me/5511940215082
 Silvano: 📲 https://wa.me/5511988598736
 Thiago: 📲 https://wa.me/5511986122905""",
-
-        "3": "Digite 3.1 para *vender veículo de passeio* ou 3.2 para *vender utilitário*",
 
         "3.1": """🔁 *Venda – Veículo de Passeio*
 Alexandre: 📲 https://wa.me/5511940559880
@@ -89,8 +102,6 @@ Leandro: 📲 https://wa.me/5511940443566
         "6": """🏛️ *Vendas ao Governo*
 Lucas / Natan / Leon: 📞 (11) 2031-5081 / (11) 2030-5081
 📧 vendasdireta@sullato.com.br""",
-
-        "7": "Digite 7.1 para *garantia de passeio* ou 7.2 para *garantia utilitário*",
 
         "7.1": """🛡️ *Garantia – Veículo de Passeio*
 Alexandre: 📲 https://wa.me/5511940559880
@@ -126,16 +137,46 @@ Thiago: 📲 https://wa.me/5511986122905"""
             enviar_mensagem(numero, blocos[cod])
             return
 
-    # Se for saudação ou qualquer outro texto não reconhecido, envia o menu
-    menu = (
-        "Olá! 👋\nEu sou o atendimento virtual da Sullato.\n"
-        "Digite o número da opção desejada:\n"
-        "1 – Endereço e redes sociais\n"
-        "2 – Comprar\n"
-        "3 – Vender\n"
-        "4 – Crédito\n"
-        "5 – Oficina\n"
-        "6 – Venda direta\n"
-        "7 – Garantia"
-    )
-    enviar_mensagem(numero, menu)
+    if texto in ["oi", "olá", "bom dia", "boa tarde", "boa noite", "menu", "início"]:
+        botoes_menu = [
+            {"type": "reply", "reply": {"id": "1", "title": "📍 Contato / Endereço"}},
+            {"type": "reply", "reply": {"id": "2", "title": "🚗 Comprar"}},
+            {"type": "reply", "reply": {"id": "3", "title": "📤 Vender"}},
+            {"type": "reply", "reply": {"id": "4", "title": "💰 Crédito"}},
+            {"type": "reply", "reply": {"id": "5", "title": "🔧 Oficina"}},
+            {"type": "reply", "reply": {"id": "6", "title": "🏛️ Governo"}},
+            {"type": "reply", "reply": {"id": "7", "title": "✅ Garantia"}}
+        ]
+        enviar_botoes(numero, "Olá! 👋 Eu sou o atendimento virtual da Sullato. Como podemos te ajudar?", botoes_menu[:3])
+        return
+
+    if texto == "2":
+        botoes_sub = [
+            {"type": "reply", "reply": {"id": "2.1", "title": "🚘 Passeio"}},
+            {"type": "reply", "reply": {"id": "2.2", "title": "🚐 Utilitário"}}
+        ]
+        enviar_botoes(numero, "Qual tipo de veículo você quer comprar?", botoes_sub)
+        return
+
+    if texto == "3":
+        botoes_sub = [
+            {"type": "reply", "reply": {"id": "3.1", "title": "🚘 Vender Passeio"}},
+            {"type": "reply", "reply": {"id": "3.2", "title": "🚐 Vender Utilitário"}}
+        ]
+        enviar_botoes(numero, "Qual tipo de veículo deseja vender?", botoes_sub)
+        return
+
+    if texto == "7":
+        botoes_sub = [
+            {"type": "reply", "reply": {"id": "7.1", "title": "✅ Garantia Passeio"}},
+            {"type": "reply", "reply": {"id": "7.2", "title": "✅ Garantia Utilitário"}}
+        ]
+        enviar_botoes(numero, "Para qual tipo de veículo é a garantia?", botoes_sub)
+        return
+
+    botoes_padrao = [
+        {"type": "reply", "reply": {"id": "1", "title": "📍 Contato / Endereço"}},
+        {"type": "reply", "reply": {"id": "2", "title": "🚗 Comprar"}},
+        {"type": "reply", "reply": {"id": "3", "title": "📤 Vender"}}
+    ]
+    enviar_botoes(numero, "Bem-vindo à Sullato! Escolha uma das opções abaixo:", botoes_padrao)
