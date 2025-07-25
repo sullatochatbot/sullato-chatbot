@@ -137,14 +137,17 @@ Thiago: 📲 https://wa.me/5511986122905"""
             enviar_mensagem(numero, blocos[cod])
             return
 
-    # === Botões do menu principal (limite WhatsApp: 3)
+    # === Botões do menu principal
     botoes_menu_principal = [
         {"type": "reply", "reply": {"id": "1", "title": "📍 Endereço"}},
         {"type": "reply", "reply": {"id": "2", "title": "🚗 Comprar"}},
         {"type": "reply", "reply": {"id": "3", "title": "📤 Vender"}}
     ]
 
-    # === Submenu "mais opções"
+    if texto in ["oi", "olá", "bom dia", "boa tarde", "boa noite", "menu", "início"]:
+        enviar_botoes(numero, "Olá! 👋 Eu sou o atendimento virtual da *Sullato*.\nSelecione abaixo como posso te ajudar:", botoes_menu_principal)
+        return
+
     if texto == "mais":
         botoes_mais = [
             {"type": "reply", "reply": {"id": "4", "title": "💰 Crédito"}},
@@ -154,7 +157,7 @@ Thiago: 📲 https://wa.me/5511986122905"""
         enviar_botoes(numero, "Aqui estão mais opções disponíveis:", botoes_mais)
         return
 
-    # === Ações dos botões principais
+    # === Tratamento completo dos botões
     if texto == "1":
         enviar_mensagem(numero, blocos["1"])
         return
@@ -173,6 +176,22 @@ Thiago: 📲 https://wa.me/5511986122905"""
             {"type": "reply", "reply": {"id": "3.2", "title": "🚐 Vender Utilitário"}}
         ]
         enviar_botoes(numero, "Qual tipo de veículo deseja vender?", botoes_sub)
+        return
+
+    if texto == "2.1":
+        enviar_mensagem(numero, blocos["2.1"])
+        return
+
+    if texto == "2.2":
+        enviar_mensagem(numero, blocos["2.2"])
+        return
+
+    if texto == "3.1":
+        enviar_mensagem(numero, blocos["3.1"])
+        return
+
+    if texto == "3.2":
+        enviar_mensagem(numero, blocos["3.2"])
         return
 
     if texto == "4":
@@ -195,10 +214,13 @@ Thiago: 📲 https://wa.me/5511986122905"""
         enviar_botoes(numero, "Para qual tipo de veículo é a garantia?", botoes_sub)
         return
 
-    # === Saudação padrão
-    if texto in ["oi", "olá", "bom dia", "boa tarde", "boa noite", "menu", "início"]:
-        enviar_botoes(numero, "Olá! 👋 Eu sou o atendimento virtual da *Sullato*.\nSelecione abaixo como posso te ajudar:", botoes_menu_principal)
+    if texto == "7.1":
+        enviar_mensagem(numero, blocos["7.1"])
         return
 
-    # === Fallback (não entendeu)
+    if texto == "7.2":
+        enviar_mensagem(numero, blocos["7.2"])
+        return
+
+    # === Fallback final
     enviar_botoes(numero, "Não encontrei exatamente o que você procurava 🤔, mas posso te ajudar com essas opções:", botoes_menu_principal)
