@@ -53,6 +53,7 @@ Jeferson: 📲 https://wa.me/5511941006862
 Marcela: 📲 https://wa.me/5511912115673
 Pedro: 📲 https://wa.me/5511952704363
 Thiago: 📲 https://wa.me/5511986122905
+Vanessa: 📲 https://wa.me/5511947954378
 Vinicius: 📲 https://wa.me/5511911260469""",
 
         "2.2": """🚐 *Compra – Veículo Utilitário*
@@ -68,6 +69,7 @@ Jeferson: 📲 https://wa.me/5511941006862
 Marcela: 📲 https://wa.me/5511912115673
 Pedro: 📲 https://wa.me/5511952704363
 Thiago: 📲 https://wa.me/5511986122905
+Vanessa: 📲 https://wa.me/5511947954378
 Vinicius: 📲 https://wa.me/5511911260469""",
 
         "3.2": """🔁 *Venda – Veículo Utilitário*
@@ -96,6 +98,7 @@ Jeferson: 📲 https://wa.me/5511941006862
 Marcela: 📲 https://wa.me/5511912115673
 Pedro: 📲 https://wa.me/5511952704363
 Thiago: 📲 https://wa.me/5511986122905
+Vanessa: 📲 https://wa.me/5511947954378
 Vinicius: 📲 https://wa.me/5511911260469""",
 
         "7.2": """🛡️ *Garantia – Veículo Utilitário*
