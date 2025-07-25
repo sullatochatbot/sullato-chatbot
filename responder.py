@@ -144,4 +144,3 @@ def gerar_resposta(mensagem, numero):
         return
 
     enviar_botoes(numero, "Desculpe, não entendi 🤔. Veja abaixo algumas opções:", botoes_menu)
-
