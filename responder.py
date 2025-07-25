@@ -133,7 +133,7 @@ Magali, Silvano, Thiago
 
     if texto == "mais2":
         botoes_mais2 = [
-            {"type": "reply", "reply": {"id": "7", "title": "🛡️ Garantia"}},
+            {"type": "reply", "reply": {"id": "7", "title": "Garantia"}},
             {"type": "reply", "reply": {"id": "5", "title": "🔧 Oficina"}},
             {"type": "reply", "reply": {"id": "menu", "title": "🔙 Voltar ao início"}}
         ]
@@ -158,8 +158,8 @@ Magali, Silvano, Thiago
 
     if texto == "7":
         botoes = [
-            {"type": "reply", "reply": {"id": "7.1", "title": "✅ Garantia Passeio"}},
-            {"type": "reply", "reply": {"id": "7.2", "title": "✅ Garantia Utilitário"}}
+            {"type": "reply", "reply": {"id": "7.1", "title": "Garantia Passeio"}},
+            {"type": "reply", "reply": {"id": "7.2", "title": "Garantia Utilitário"}}
         ]
         enviar_botoes(numero, "Para qual tipo de veículo é a garantia?", botoes)
         return
