@@ -104,12 +104,18 @@ Lucas / Natan / Leon: 📞 (11) 2031-5081 / (11) 2030-5081
 📧 vendasdireta@sullato.com.br""",
 
         "7.1": """🛡️ *Garantia – Veículo de Passeio*
-Alexandre, Jeferson, Marcela, Pedro, Thiago, Vanessa, Vinicius  
-📲 Contatos nos mesmos links da equipe de vendas.""",
+Alexandre: https://wa.me/5511940559880  
+Jeferson: https://wa.me/5511941006862  
+Marcela: https://wa.me/5511912115673  
+Pedro: https://wa.me/5511952704363  
+Thiago: https://wa.me/5511986122905  
+Vanessa: https://wa.me/5511947954378  
+Vinicius: https://wa.me/5511911260469""",
 
         "7.2": """🛡️ *Garantia – Utilitário*
-Magali, Silvano, Thiago  
-📲 Contatos nos mesmos links da equipe de vendas."""
+Magali: https://wa.me/5511940215082  
+Silvano: https://wa.me/5511988598736  
+Thiago: https://wa.me/5511986122905"""
     }
 
     botoes_menu = [
