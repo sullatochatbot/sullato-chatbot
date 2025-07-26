@@ -59,6 +59,11 @@ def gerar_resposta(mensagem, numero):
     print("ID recebido:", repr(id_recebido))
 
     blocos = {
+        "1.1": "*Veículos de Passeio*\n\nAlexandre: https://wa.me/5511940559880\n📧 alexandre@sullato.com.br\nJeferson: https://wa.me/5511941006862\n📧 jeferson@sullato.com.br",
+        "1.2": "*Veículos Utilitários*\n\nMagali: https://wa.me/5511940215082\n📧 magali@sullato.com.br\nSilvano: https://wa.me/5511988598736\n📧 silvano@sullato.com.br",
+        "1.3": "*Endereço e Site*\n\n🌐 https://www.sullato.com.br\n📍 Av. São Miguel, 7900 – SP\n📞 (11) 20305081",
+        "2.1": "*Oficina e Peças*\n\nErico: https://wa.me/5511940497678\n📧 erico@sullato.com.br\nLeandro: https://wa.me/5511940443566\n📧 sullatopecas@sullato.com.br",
+        "2.2": "*Endereço da Oficina*\n\nAv. São Miguel, 4049 – SP\n📞 (11) 25423332",
         "3.1": "*Crédito e Financiamento*\n\nEntre em contato conosco pelo WhatsApp para análise de crédito.",
         "3.2.1": "*Pós-venda – Passeio*\n\nLeandro: https://wa.me/5511940443566\nEmail: sullatopecas@sullato.com.br",
         "3.2.2": "*Pós-venda – Utilitário*\n\nErico: https://wa.me/5511940497678\nEmail: erico@sullato.com.br",
@@ -74,6 +79,23 @@ def gerar_resposta(mensagem, numero):
 
     if texto in ["oi", "ola", "menu", "inicio", "bom dia", "boa tarde", "boa noite"]:
         enviar_botoes(numero, "Olá! Eu sou o atendimento virtual da Sullato. Como posso te ajudar?", botoes_menu)
+        return
+
+    if id_recebido == "1":
+        botoes1 = [
+            {"type": "reply", "reply": {"id": "1.1", "title": "Passeio"}},
+            {"type": "reply", "reply": {"id": "1.2", "title": "Utilitário"}},
+            {"type": "reply", "reply": {"id": "1.3", "title": "Endereço"}}
+        ]
+        enviar_botoes(numero, "Escolha uma opção de compra/venda:", botoes1)
+        return
+
+    if id_recebido == "2":
+        botoes2 = [
+            {"type": "reply", "reply": {"id": "2.1", "title": "Oficina"}},
+            {"type": "reply", "reply": {"id": "2.2", "title": "Endereço Oficina"}}
+        ]
+        enviar_botoes(numero, "Escolha uma opção sobre oficina/peças:", botoes2)
         return
 
     if id_recebido == "mais1":
