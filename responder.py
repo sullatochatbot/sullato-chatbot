@@ -40,6 +40,7 @@ def enviar_botoes(numero, texto, botoes):
     }
     resposta = requests.post(url, headers=headers, json=payload)
     print("🟢 Botões enviados:", resposta.status_code, resposta.text)
+
 def gerar_resposta(mensagem, numero):
     print("Função gerar_resposta acionada")
 
@@ -82,7 +83,7 @@ def gerar_resposta(mensagem, numero):
 📞 (11) 2030-5081 | (11) 2031-5081
 
 🏢 Loja 02/03: Av. São Miguel, 4049/4084 – SP
-📞 (11) 2542-3332 | (11) 2542-3333""" + saudacao,
+📞 (11) 2542-3332 | (11) 2542-3333""",
 
         "2.1": """*Oficina e Peças*
 🔧 Erico: https://wa.me/5511940497678 | 📧 erico@sullato.com.br
@@ -90,7 +91,7 @@ def gerar_resposta(mensagem, numero):
 
         "2.2": """*Endereço da Oficina*
 🏢 Loja 02: Av. São Miguel, 4049 – SP
-📞 (11) 2542-3332 | (11) 2542-3333""" + saudacao,
+📞 (11) 2542-3332 | (11) 2542-3333""",
 
         "3.1": """*Crédito e Financiamento*
 💰 Magali: https://wa.me/5511940215082 | 📧 magali@sullato.com.br
@@ -130,7 +131,7 @@ def gerar_resposta(mensagem, numero):
 
     if id_recebido == "2":
         botoes2 = [
-            {"type": "reply", "reply": {"id": "2.1", "title": "Oficina"}},
+            {"type": "reply", "reply": {"id": "2.1", "title": "Oficina e Peças"}},
             {"type": "reply", "reply": {"id": "2.2", "title": "Endereço Oficina"}}
         ]
         enviar_botoes(numero, "Escolha uma opção sobre oficina/peças:", botoes2)
