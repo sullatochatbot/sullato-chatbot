@@ -118,17 +118,17 @@ def gerar_resposta(mensagem, numero):
 
     if texto == "4":
         botoes4 = [
-            {"type": "reply", "reply": {"id": "3.2.1", "title": "🚘 Pós-venda Passeio"}},
-            {"type": "reply", "reply": {"id": "3.2.2", "title": "🚐 Pós-venda Utilitário"}}
-        ]
+        {"type": "reply", "reply": {"id": "3.2.1", "title": "🚘 Pós-venda Passeio"}},
+        {"type": "reply", "reply": {"id": "3.2.2", "title": "🚐 Pós-venda Utilitário"}}
+    ]
         enviar_botoes(numero, "Escolha uma opção de pós-venda:", botoes4)
         return
 
-    if "pós-venda passeio" in texto:
+    if texto == "3.2.1":
         enviar_mensagem(numero, blocos["3.2.1"])
         return
 
-    if "pós-venda utilitário" in texto:
+    if texto == "3.2.2":
         enviar_mensagem(numero, blocos["3.2.2"])
         return
 
