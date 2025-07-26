@@ -63,21 +63,21 @@ def gerar_resposta(mensagem, numero):
 
 ✉️ Em caso de dúvidas, consulte um de nossos consultores.
 
-👨‍💼 Alexandre: https://wa.me/5511940559880  
-👨‍💼 Jeferson: https://wa.me/5511941006862  
-👩‍💼 Marcela: https://wa.me/5511953816822  
-👨‍💼 Pedro: https://wa.me/5511952704363  
-👨‍💼 Thiago: https://wa.me/5511986122905  
-👩‍💼 Vanessa: https://wa.me/5511947954378  
-👨‍💼 Vinicius: https://wa.me/5511911260469""",
+👨🏻‍💼 Alexandre: https://wa.me/5511940559880  
+👨🏻‍💼 Jeferson: https://wa.me/5511941006862  
+👩🏻‍💼 Marcela: https://wa.me/5511953816822  
+👨🏻‍💼 Pedro: https://wa.me/5511952704363  
+👨🏻‍💼 Thiago: https://wa.me/5511986122905  
+👩🏻‍💼 Vanessa: https://wa.me/5511947954378  
+👨🏻‍💼 Vinicius: https://wa.me/5511911260469""",
 
         "1.2": """*Veículos Utilitários*
 
 ✉️ Em caso de dúvidas, consulte um de nossos consultores.
 
-👩‍💼 Magali: https://wa.me/5511940215082  
-👨‍💼 Silvano: https://wa.me/5511988598736  
-👨‍💼 Thiago: https://wa.me/5511986122905""",
+👩🏻‍💼 Magali: https://wa.me/5511940215082  
+👨🏻‍💼 Silvano: https://wa.me/5511988598736  
+👨🏻‍💼 Thiago: https://wa.me/5511986122905""",
 
         "1.3": """*Endereço e Site*
 
