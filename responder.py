@@ -102,14 +102,13 @@ def gerar_resposta(mensagem, numero):
         enviar_mensagem(numero, blocos["3.1"])
         return
 
-    if texto in ["4", "🔁 pós-venda", "pós-venda"]:
+    if "pós-venda" in texto:
         botoes4 = [
             {"type": "reply", "reply": {"id": "3.2.1", "title": "🚘 Pós-venda Passeio"}},
             {"type": "reply", "reply": {"id": "3.2.2", "title": "🚐 Pós-venda Utilitário"}}
         ]
         enviar_botoes(numero, "Escolha uma opção de pós-venda:", botoes4)
         return
-
 
     if texto in ["3.2.1", "🚘 pós-venda passeio"]:
         enviar_mensagem(numero, blocos["3.2.1"])
