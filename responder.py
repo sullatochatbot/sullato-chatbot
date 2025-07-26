@@ -75,7 +75,7 @@ def gerar_resposta(mensagem, numero):
         enviar_botoes(numero, "Olá! 👋 Eu sou o atendimento virtual da *Sullato*. Como posso te ajudar?", botoes_menu)
         return
 
-    if texto == "1":
+    if id_recebido == "1":
         botoes1 = [
             {"type": "reply", "reply": {"id": "1.1", "title": "🚘 Passeio"}},
             {"type": "reply", "reply": {"id": "1.2", "title": "🚐 Utilitário"}},
@@ -84,7 +84,7 @@ def gerar_resposta(mensagem, numero):
         enviar_botoes(numero, "Escolha uma opção de compra/venda:", botoes1)
         return
 
-    if texto == "2":
+    if id_recebido == "2":
         botoes2 = [
             {"type": "reply", "reply": {"id": "2.1", "title": "🔧 Oficina"}},
             {"type": "reply", "reply": {"id": "2.2", "title": "📍 Endereço Oficina"}}
@@ -92,11 +92,7 @@ def gerar_resposta(mensagem, numero):
         enviar_botoes(numero, "Escolha uma opção sobre oficina/peças:", botoes2)
         return
 
-    if texto in ["1.1", "1.2", "1.3", "2.1", "2.2", "3.1", "4.1", "4.2"]:
-        enviar_mensagem(numero, blocos[texto])
-        return
-
-    if texto == "mais1":
+    if id_recebido == "mais1":
         botoes_mais1 = [
             {"type": "reply", "reply": {"id": "3", "title": "💳 Crédito"}},
             {"type": "reply", "reply": {"id": "pos-venda", "title": "🔁 Pós-venda"}},
@@ -105,27 +101,28 @@ def gerar_resposta(mensagem, numero):
         enviar_botoes(numero, "Mais opções disponíveis:", botoes_mais1)
         return
 
-    if texto == "3":
+    if id_recebido == "3":
         enviar_mensagem(numero, blocos["3.1"])
         return
 
     if id_recebido == "pos-venda":
-        botoes4 = [
+        botoes_posvenda = [
             {"type": "reply", "reply": {"id": "3.2.1", "title": "🚘 Pós-venda Passeio"}},
-            {"type": "reply", "reply": {"id": "3.2.2", "title": "🚐 Pós-venda Utilitário"}}
+            {"type": "reply", "reply": {"id": "3.2.2", "title": "🚐 Pós-venda Utilitário"}},
+            {"type": "reply", "reply": {"id": "menu", "title": "🔙 Voltar ao início"}}
         ]
-        enviar_botoes(numero, "Escolha uma opção de pós-venda:", botoes4)
+        enviar_botoes(numero, "📦 *Pós-venda Sullato*\n\nEscolha uma das opções abaixo:", botoes_posvenda)
         return
 
-    if texto in ["3.2.1", "🚘 pos-venda passeio"]:
+    if id_recebido == "3.2.1":
         enviar_mensagem(numero, blocos["3.2.1"])
         return
 
-    if texto in ["3.2.2", "🚐 pos-venda utilitario"]:
+    if id_recebido == "3.2.2":
         enviar_mensagem(numero, blocos["3.2.2"])
         return
 
-    if texto == "mais2":
+    if id_recebido == "mais2":
         botoes_mais2 = [
             {"type": "reply", "reply": {"id": "4.1", "title": "🏛️ Governamentais"}},
             {"type": "reply", "reply": {"id": "4.2", "title": "📃 Assinatura"}},
@@ -134,8 +131,8 @@ def gerar_resposta(mensagem, numero):
         enviar_botoes(numero, "Outras opções:", botoes_mais2)
         return
 
-    if texto in blocos:
-        enviar_mensagem(numero, blocos[texto])
+    if id_recebido in blocos:
+        enviar_mensagem(numero, blocos[id_recebido])
         return
 
     enviar_botoes(numero, "Desculpe, não entendi 🤔. Veja abaixo algumas opções:", botoes_menu)
