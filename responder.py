@@ -42,8 +42,14 @@ def enviar_botoes(numero, texto, botoes):
     print("🟢 Botões enviados:", resposta.status_code, resposta.text)
 
 def gerar_resposta(mensagem, numero):
-    id_recebido = mensagem.strip()
-    texto = mensagem.lower().strip()
+    print("💡 Função gerar_resposta acionada")
+
+    if isinstance(mensagem, dict) and "button_reply" in mensagem:
+        id_recebido = mensagem["button_reply"]["id"]
+    else:
+        id_recebido = mensagem.strip()
+
+    texto = id_recebido.lower().strip()
 
     import unicodedata
     texto = unicodedata.normalize('NFD', texto)
@@ -105,8 +111,8 @@ def gerar_resposta(mensagem, numero):
         enviar_mensagem(numero, blocos["3.1"])
         return
 
-    if id_recebido == "pos-venda":
-        botoes_posvenda = [
+    if "pos" in id_recebido.lower() and "venda" in id_recebido.lower():
+        bbotoes_posvenda = [
             {"type": "reply", "reply": {"id": "3.2.1", "title": "🚘 Pós-venda Passeio"}},
             {"type": "reply", "reply": {"id": "3.2.2", "title": "🚐 Pós-venda Utilitário"}},
             {"type": "reply", "reply": {"id": "menu", "title": "🔙 Voltar ao início"}}
