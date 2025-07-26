@@ -122,11 +122,11 @@ def gerar_resposta(mensagem, numero):
         enviar_botoes(numero, "Escolha uma opção de pós-venda:", botoes4)
         return
 
-    if texto in ["3.2.1", "🚘 pós-venda passeio"]:
+    if "pós-venda passeio" in texto:
         enviar_mensagem(numero, blocos["3.2.1"])
         return
 
-    if texto in ["3.2.2", "🚐 pós-venda utilitário"]:
+    if "pós-venda utilitário" in texto:
         enviar_mensagem(numero, blocos["3.2.2"])
         return
 
