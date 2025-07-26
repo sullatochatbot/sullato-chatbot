@@ -58,19 +58,20 @@ def gerar_resposta(mensagem, numero):
     print("Texto recebido:", repr(texto))
     print("ID recebido:", repr(id_recebido))
 
-    blocos = {
-        "1.1": "*Veículos de Passeio*\n\nAlexandre: https://wa.me/5511940559880\n📧 alexandre@sullato.com.br\nJeferson: https://wa.me/5511941006862\n📧 jeferson@sullato.com.br\nMarcela: https://wa.me/5511953816822\n📧 marcela@sullato.com.br\nPedro: https://wa.me/5511952704363\n📧 pedro@sullato.com.br\nThiago: https://wa.me/5511986122905\n📧 thiago@sullato.com.br\nVanessa: https://wa.me/5511947954378\n📧 vanessa@sullato.com.br\nVinicius: https://wa.me/5511911260469\n📧 vinicius@sullato.com.br",
-        "1.2": "*Veículos Utilitários*\n\nMagali: https://wa.me/5511940215082\n📧 magali@sullato.com.br\nSilvano: https://wa.me/5511988598736\n📧 silvano@sullato.com.br\nThiago: https://wa.me/5511986122905\n📧 thiago@sullato.com.br",
-        "1.3": "*Endereço e Site*\n\n🌐 https://www.sullato.com.br\n📍 Av. São Miguel, 7900 – SP\n📞 (11) 20305081 / (11) 20315081",
-        "2.1": "*Oficina e Peças*\n\nErico: https://wa.me/5511940497678\n📧 erico@sullato.com.br\nLeandro: https://wa.me/5511940443566\n📧 sullatopecas@sullato.com.br",
-        "2.2": "*Endereço da Oficina*\n\nAv. São Miguel, 4049 – SP\n📞 (11) 25423332 / (11) 25423333",
-        "3.1": "*Crédito e Financiamento*\n\nMagali: https://wa.me/5511940215082\n📧 magali@sullato.com.br\nPatrícia: https://wa.me/5511940215081\n📧 patricia@sullato.com.br",
-        "3.2.1": "*Pós-venda – Passeio*\n\nLeandro: https://wa.me/5511940443566\nEmail: sullatopecas@sullato.com.br",
-        "3.2.2": "*Pós-venda – Utilitário*\n\nErico: https://wa.me/5511940497678\nEmail: erico@sullato.com.br",
-        "4.1": "*Vendas Governamentais*\n\nSolange: https://wa.me/5511989536141\nEmail: sol@sullato.com.br",
-        "4.2": "*Veículo por Assinatura*\n\nAlexsander: https://wa.me/5511996371559\nEmail: alex@sullato.com.br"
-    }
+    saudacao = "\\n\\n✉️ Em caso de dúvidas, consulte um de nossos consultores."
 
+    blocos = {
+        "1.1": "*Veículos de Passeio*\\n\\nAlexandre: https://wa.me/5511940559880\\n📧 alexandre@sullato.com.br\\nJeferson: https://wa.me/5511941006862\\n📧 jeferson@sullato.com.br\\nMarcela: https://wa.me/5511953816822\\n📧 marcela@sullato.com.br\\nPedro: https://wa.me/5511952704363\\n📧 pedro@sullato.com.br\\nThiago: https://wa.me/5511986122905\\n📧 thiago@sullato.com.br\\nVanessa: https://wa.me/5511947954378\\n📧 vanessa@sullato.com.br\\nVinicius: https://wa.me/5511911260469\\n📧 vinicius@sullato.com.br" + saudacao,
+        "1.2": "*Veículos Utilitários*\\n\\nMagali: https://wa.me/5511940215082\\n📧 magali@sullato.com.br\\nSilvano: https://wa.me/5511988598736\\n📧 silvano@sullato.com.br\\nThiago: https://wa.me/5511986122905\\n📧 thiago@sullato.com.br" + saudacao,
+        "1.3": "*Endereço e Site*\\n\\n🌐 Site: https://www.sullato.com.br\\n📸 Instagram: @sullatomicrosevans | @sullato.veiculos\\n\\n🏢 Loja 01: Av. São Miguel, 7900 – SP\\n📞 (11) 20305081 / (11) 20315081\\n\\n🏢 Loja 02/03: Av. São Miguel, 4049/4084 – SP\\n📞 (11) 25423332 / (11) 25423333" + saudacao,
+        "2.1": "*Oficina e Peças*\\n\\nErico: https://wa.me/5511940497678\\n📧 erico@sullato.com.br\\nLeandro: https://wa.me/5511940443566\\n📧 sullatopecas@sullato.com.br" + saudacao,
+        "2.2": "*Endereço da Oficina*\\n\\n🏢 Loja 02: Av. São Miguel, 4049 – SP\\n📞 (11) 25423332 / (11) 25423333" + saudacao,
+        "3.1": "*Crédito e Financiamento*\\n\\nMagali: https://wa.me/5511940215082\\n📧 magali@sullato.com.br\\nPatrícia: https://wa.me/5511940215081\\n📧 patricia@sullato.com.br" + saudacao,
+        "3.2.1": "*Pós-venda – Passeio*\\n\\nLeandro: https://wa.me/5511940443566\\n📧 sullatopecas@sullato.com.br" + saudacao,
+        "3.2.2": "*Pós-venda – Utilitário*\\n\\nErico: https://wa.me/5511940497678\\n📧 erico@sullato.com.br" + saudacao,
+        "4.1": "*Vendas Governamentais*\\n\\nSolange: https://wa.me/5511989536141\\n📧 sol@sullato.com.br" + saudacao,
+        "4.2": "*Veículo por Assinatura*\\n\\nAlexsander: https://wa.me/5511996371559\\n📧 alex@sullato.com.br" + saudacao
+    }
     botoes_menu = [
         {"type": "reply", "reply": {"id": "1", "title": "Comprar/Vender"}},
         {"type": "reply", "reply": {"id": "2", "title": "Oficina/Peças"}},
