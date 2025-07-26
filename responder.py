@@ -124,11 +124,10 @@ def gerar_resposta(mensagem, numero):
         enviar_botoes(numero, "Escolha uma opção de pós-venda:", botoes4)
         return
 
-    if "pós-venda passeio" in texto.lower() or texto.strip() == "3.2.1":
-        enviar_mensagem(numero, blocos["3.2.1"])
-        return
-
-    if "pós-venda utilitário" in texto.lower() or texto.strip() == "3.2.2":
+    if texto.strip() in ["3.2.1", "🚘 Pós-venda Passeio"]:
+        (numero, blocos["3.2.1"])
+        
+    if texto.strip() in ["3.2.2", "🚐 Pós-venda Utilitário"]:
         enviar_mensagem(numero, blocos["3.2.2"])
         return
 
