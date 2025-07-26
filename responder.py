@@ -97,7 +97,7 @@ def gerar_resposta(mensagem, numero):
     if texto == "mais1":
         botoes_mais1 = [
             {"type": "reply", "reply": {"id": "3", "title": "💳 Crédito"}},
-            {"type": "reply", "reply": {"id": "4", "title": "🔁 Pós-venda"}},
+            {"type": "reply", "reply": {"id": "pos-venda", "title": "🔁 Pós-venda"}},
             {"type": "reply", "reply": {"id": "mais2", "title": "➕ Mais opções"}}
         ]
         enviar_botoes(numero, "Mais opções disponíveis:", botoes_mais1)
@@ -107,12 +107,12 @@ def gerar_resposta(mensagem, numero):
         enviar_mensagem(numero, blocos["3.1"])
         return
 
-    if "pos-venda" in texto:
+    if texto == "pos-venda" or "pos-venda" in texto:
         botoes4 = [
-            {"type": "reply", "reply": {"id": "3.2.1", "title": "🚘 Pos-venda Passeio"}},
-            {"type": "reply", "reply": {"id": "3.2.2", "title": "🚐 Pos-venda Utilitario"}}
+            {"type": "reply", "reply": {"id": "3.2.1", "title": "🚘 Pós-venda Passeio"}},
+            {"type": "reply", "reply": {"id": "3.2.2", "title": "🚐 Pós-venda Utilitário"}}
         ]
-        enviar_botoes(numero, "Escolha uma opção de pos-venda:", botoes4)
+        enviar_botoes(numero, "Escolha uma opção de pós-venda:", botoes4)
         return
 
     if texto in ["3.2.1", "🚘 pos-venda passeio"]:
