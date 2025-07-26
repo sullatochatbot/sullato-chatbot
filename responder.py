@@ -58,56 +58,80 @@ def gerar_resposta(mensagem, numero):
     print("Texto recebido:", repr(texto))
     print("ID recebido:", repr(id_recebido))
 
-    saudacao = "\n\n✉️ Em caso de dúvidas, consulte um de nossos consultores."
-
     blocos = {
         "1.1": """*Veículos de Passeio*
-📍 Alexandre: https://wa.me/5511940559880 | 📧 alexandre@sullato.com.br
-📍 Jeferson: https://wa.me/5511941006862 | 📧 jeferson@sullato.com.br
-📍 Marcela: https://wa.me/5511953816822 | 📧 marcela@sullato.com.br
-📍 Pedro: https://wa.me/5511952704363 | 📧 pedro@sullato.com.br
-📍 Thiago: https://wa.me/5511986122905 | 📧 thiago@sullato.com.br
-📍 Vanessa: https://wa.me/5511947954378 | 📧 vanessa@sullato.com.br
-📍 Vinicius: https://wa.me/5511911260469 | 📧 vinicius@sullato.com.br""" + saudacao,
+
+✉️ Em caso de dúvidas, consulte um de nossos consultores.
+
+📍 Alexandre: https://wa.me/5511940559880 | 📧 alexandre@sullato.com.br  
+📍 Jeferson: https://wa.me/5511941006862 | 📧 jeferson@sullato.com.br  
+📍 Marcela: https://wa.me/5511953816822 | 📧 marcela@sullato.com.br  
+📍 Pedro: https://wa.me/5511952704363 | 📧 pedro@sullato.com.br  
+📍 Thiago: https://wa.me/5511986122905 | 📧 thiago@sullato.com.br  
+📍 Vanessa: https://wa.me/5511947954378 | 📧 vanessa@sullato.com.br  
+📍 Vinicius: https://wa.me/5511911260469 | 📧 vinicius@sullato.com.br""",
 
         "1.2": """*Veículos Utilitários*
-📍 Magali: https://wa.me/5511940215082 | 📧 magali@sullato.com.br
-📍 Silvano: https://wa.me/5511988598736 | 📧 silvano@sullato.com.br
-📍 Thiago: https://wa.me/5511986122905 | 📧 thiago@sullato.com.br""" + saudacao,
+
+✉️ Em caso de dúvidas, consulte um de nossos consultores.
+
+📍 Magali: https://wa.me/5511940215082 | 📧 magali@sullato.com.br  
+📍 Silvano: https://wa.me/5511988598736 | 📧 silvano@sullato.com.br  
+📍 Thiago: https://wa.me/5511986122905 | 📧 thiago@sullato.com.br""",
 
         "1.3": """*Endereço e Site*
-🌐 Site: https://www.sullato.com.br
-📸 Instagram: @sullatomicrosevans | @sullato.veiculos
 
-🏢 Loja 01: Av. São Miguel, 7900 – SP
+🌐 Site: [www.sullato.com.br](https://www.sullato.com.br)  
+📸 Instagram: [@sullatomicrosevans](https://www.instagram.com/sullatomicrosevans) | [@sullato.veiculos](https://www.instagram.com/sullato.veiculos)
+
+🏢 Loja 01: Av. São Miguel, 7900 – SP  
 📞 (11) 2030-5081 | (11) 2031-5081
 
-🏢 Loja 02/03: Av. São Miguel, 4049/4084 – SP
+🏢 Loja 02/03: Av. São Miguel, 4049/4084 – SP  
 📞 (11) 2542-3332 | (11) 2542-3333""",
 
         "2.1": """*Oficina e Peças*
-🔧 Erico: https://wa.me/5511940497678 | 📧 erico@sullato.com.br
-🔧 Leandro: https://wa.me/5511940443566 | 📧 sullatopecas@sullato.com.br""" + saudacao,
+
+✉️ Em caso de dúvidas, consulte um de nossos consultores.
+
+🔧 Erico: https://wa.me/5511940497678 | 📧 erico@sullato.com.br  
+🔧 Leandro: https://wa.me/5511940443566 | 📧 sullatopecas@sullato.com.br""",
 
         "2.2": """*Endereço da Oficina*
-🏢 Loja 02: Av. São Miguel, 4049 – SP
+
+🏢 Loja 02: Av. São Miguel, 4049 – SP  
 📞 (11) 2542-3332 | (11) 2542-3333""",
 
         "3.1": """*Crédito e Financiamento*
-💰 Magali: https://wa.me/5511940215082 | 📧 magali@sullato.com.br
-💰 Patrícia: https://wa.me/5511940215081 | 📧 patricia@sullato.com.br""" + saudacao,
+
+✉️ Em caso de dúvidas, consulte um de nossos consultores.
+
+💰 Magali: https://wa.me/5511940215082 | 📧 magali@sullato.com.br  
+💰 Patrícia: https://wa.me/5511940215081 | 📧 patricia@sullato.com.br""",
 
         "3.2.1": """*Pós-venda – Passeio*
-🔧 Leandro: https://wa.me/5511940443566 | 📧 sullatopecas@sullato.com.br""" + saudacao,
+
+✉️ Em caso de dúvidas, consulte um de nossos consultores.
+
+🔧 Leandro: https://wa.me/5511940443566 | 📧 sullatopecas@sullato.com.br""",
 
         "3.2.2": """*Pós-venda – Utilitário*
-🔧 Erico: https://wa.me/5511940497678 | 📧 erico@sullato.com.br""" + saudacao,
+
+✉️ Em caso de dúvidas, consulte um de nossos consultores.
+
+🔧 Erico: https://wa.me/5511940497678 | 📧 erico@sullato.com.br""",
 
         "4.1": """*Vendas Governamentais*
-🏛️ Solange: https://wa.me/5511989536141 | 📧 sol@sullato.com.br""" + saudacao,
+
+✉️ Em caso de dúvidas, consulte um de nossos consultores.
+
+🏛️ Solange: https://wa.me/5511989536141 | 📧 sol@sullato.com.br""",
 
         "4.2": """*Veículo por Assinatura*
-📆 Alexsander: https://wa.me/5511996371559 | 📧 alex@sullato.com.br""" + saudacao
+
+✉️ Em caso de dúvidas, consulte um de nossos consultores.
+
+📆 Alexsander: https://wa.me/5511996371559 | 📧 alex@sullato.com.br"""
     }
 
     botoes_menu = [
