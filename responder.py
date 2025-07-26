@@ -43,6 +43,11 @@ def enviar_botoes(numero, texto, botoes):
 
 def gerar_resposta(mensagem, numero):
     texto = mensagem.lower().strip()
+
+    import unicodedata
+    texto = unicodedata.normalize('NFD', texto)
+    texto = ''.join(c for c in texto if unicodedata.category(c) != 'Mn')
+
     print("📥 Texto bruto recebido:", repr(texto))
 
     blocos = {
@@ -102,19 +107,19 @@ def gerar_resposta(mensagem, numero):
         enviar_mensagem(numero, blocos["3.1"])
         return
 
-    if "pós-venda" in texto:
+    if "pos-venda" in texto:
         botoes4 = [
-            {"type": "reply", "reply": {"id": "3.2.1", "title": "🚘 Pós-venda Passeio"}},
-            {"type": "reply", "reply": {"id": "3.2.2", "title": "🚐 Pós-venda Utilitário"}}
+            {"type": "reply", "reply": {"id": "3.2.1", "title": "🚘 Pos-venda Passeio"}},
+            {"type": "reply", "reply": {"id": "3.2.2", "title": "🚐 Pos-venda Utilitario"}}
         ]
-        enviar_botoes(numero, "Escolha uma opção de pós-venda:", botoes4)
+        enviar_botoes(numero, "Escolha uma opção de pos-venda:", botoes4)
         return
 
-    if texto in ["3.2.1", "🚘 pós-venda passeio"]:
+    if texto in ["3.2.1", "🚘 pos-venda passeio"]:
         enviar_mensagem(numero, blocos["3.2.1"])
         return
 
-    if texto in ["3.2.2", "🚐 pós-venda utilitário"]:
+    if texto in ["3.2.2", "🚐 pos-venda utilitario"]:
         enviar_mensagem(numero, blocos["3.2.2"])
         return
 
