@@ -44,6 +44,8 @@ def enviar_botoes(numero, texto, botoes):
 def gerar_resposta(mensagem, numero):
     texto = mensagem.lower().strip()
 
+    print("📥 Texto recebido:", repr(texto))
+
     blocos = {
         "1.1": "🛒 *Veículos de Passeio*\n\nAlexandre: https://wa.me/5511940559880\n📧 alexandre@sullato.com.br\nJeferson: https://wa.me/5511941006862\n📧 jeferson@sullato.com.br\nMarcela: https://wa.me/5511953816822\n📧 marcela@sullato.com.br\nPedro: https://wa.me/5511952704363\n📧 pedro@sullato.com.br\nThiago: https://wa.me/5511986122905\n📧 thiago@sullato.com.br\nVanessa: https://wa.me/5511947954378\n📧 vanessa@sullato.com.br\nVinicius: https://wa.me/5511911260469\n📧 vinicius@sullato.com.br\n\n✉️ Em caso de dúvidas, escreva para: chatbot@sullato.com.br",
 
