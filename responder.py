@@ -42,13 +42,15 @@ def enviar_botoes(numero, texto, botoes):
     print("🟢 Botões enviados:", resposta.status_code, resposta.text)
 
 def gerar_resposta(mensagem, numero):
+    id_recebido = mensagem.strip()
     texto = mensagem.lower().strip()
 
     import unicodedata
     texto = unicodedata.normalize('NFD', texto)
     texto = ''.join(c for c in texto if unicodedata.category(c) != 'Mn')
 
-    print("📥 Texto bruto recebido:", repr(texto))
+    print("📥 Texto recebido:", repr(texto))
+    print("📥 ID recebido:", repr(id_recebido))
 
     blocos = {
         "1.1": "🛒 *Veículos de Passeio*\n\nAlexandre: https://wa.me/5511940559880\n📧 alexandre@sullato.com.br\nJeferson: https://wa.me/5511941006862\n📧 jeferson@sullato.com.br\nMarcela: https://wa.me/5511953816822\n📧 marcela@sullato.com.br\nPedro: https://wa.me/5511952704363\n📧 pedro@sullato.com.br\nThiago: https://wa.me/5511986122905\n📧 thiago@sullato.com.br\nVanessa: https://wa.me/5511947954378\n📧 vanessa@sullato.com.br\nVinicius: https://wa.me/5511911260469\n📧 vinicius@sullato.com.br\n\n✉️ Em caso de dúvidas, escreva para: chatbot@sullato.com.br",
@@ -107,7 +109,7 @@ def gerar_resposta(mensagem, numero):
         enviar_mensagem(numero, blocos["3.1"])
         return
 
-    if texto == "pos-venda" or "pos-venda" in texto:
+    if id_recebido == "pos-venda":
         botoes4 = [
             {"type": "reply", "reply": {"id": "3.2.1", "title": "🚘 Pós-venda Passeio"}},
             {"type": "reply", "reply": {"id": "3.2.2", "title": "🚐 Pós-venda Utilitário"}}
