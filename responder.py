@@ -101,7 +101,7 @@ def gerar_resposta(mensagem, numero):
     if id_recebido == "mais1":
         botoes_mais1 = [
             {"type": "reply", "reply": {"id": "3", "title": "💳 Crédito"}},
-            {"type": "reply", "reply": {"id": "pos-venda", "title": "🔁 Pós-venda"}},
+            {"type": "reply", "reply": {"id": "btn-pos-venda", "title": "🔁 Pós-venda"}}
             {"type": "reply", "reply": {"id": "mais2", "title": "➕ Mais opções"}}
         ]
         enviar_botoes(numero, "Mais opções disponíveis:", botoes_mais1)
@@ -111,8 +111,10 @@ def gerar_resposta(mensagem, numero):
         enviar_mensagem(numero, blocos["3.1"])
         return
 
-    if "pos" in id_recebido.lower() and "venda" in id_recebido.lower():
-        bbotoes_posvenda = [
+    if id_recebido == "btn-pos-venda":
+        print("✅ Novo botão Pós-venda DETECTADO com ID corrigido")
+
+        botoes_posvenda = [
             {"type": "reply", "reply": {"id": "3.2.1", "title": "🚘 Pós-venda Passeio"}},
             {"type": "reply", "reply": {"id": "3.2.2", "title": "🚐 Pós-venda Utilitário"}},
             {"type": "reply", "reply": {"id": "menu", "title": "🔙 Voltar ao início"}}
