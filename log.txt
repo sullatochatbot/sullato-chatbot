@@ -1,0 +1,418 @@
+{
+  "object": "whatsapp_business_account",
+  "entry": [
+    {
+      "id": "0",
+      "changes": [
+        {
+          "field": "messages",
+          "value": {
+            "messaging_product": "whatsapp",
+            "metadata": {
+              "display_phone_number": "16505551111",
+              "phone_number_id": "123456123"
+            },
+            "contacts": [
+              {
+                "profile": {
+                  "name": "test user name"
+                },
+                "wa_id": "16315551181"
+              }
+            ],
+            "messages": [
+              {
+                "from": "16315551181",
+                "id": "ABGGFlA5Fpa",
+                "timestamp": "1504902988",
+                "type": "text",
+                "text": {
+                  "body": "this is a text message"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
+
+---
+
+{
+  "object": "whatsapp_business_account",
+  "entry": [
+    {
+      "id": "1222792309228961",
+      "changes": [
+        {
+          "value": {
+            "messaging_product": "whatsapp",
+            "metadata": {
+              "display_phone_number": "15556366284",
+              "phone_number_id": "684523561413203"
+            },
+            "contacts": [
+              {
+                "profile": {
+                  "name": "Anderson R Sullato"
+                },
+                "wa_id": "5511988780161"
+              }
+            ],
+            "messages": [
+              {
+                "from": "5511988780161",
+                "id": "wamid.HBgNNTUxMTk4ODc4MDE2MRUCABIYFDNBQUZERThCQzg0RDhFNDUwMkU2AA==",
+                "timestamp": "1751221301",
+                "text": {
+                  "body": "Vocês aceitam troca com troco?"
+                },
+                "type": "text"
+              }
+            ]
+          },
+          "field": "messages"
+        }
+      ]
+    }
+  ]
+}
+
+---
+
+{
+  "object": "whatsapp_business_account",
+  "entry": [
+    {
+      "id": "1222792309228961",
+      "changes": [
+        {
+          "value": {
+            "messaging_product": "whatsapp",
+            "metadata": {
+              "display_phone_number": "15556366284",
+              "phone_number_id": "684523561413203"
+            },
+            "contacts": [
+              {
+                "profile": {
+                  "name": "Anderson R Sullato"
+                },
+                "wa_id": "5511988780161"
+              }
+            ],
+            "messages": [
+              {
+                "from": "5511988780161",
+                "id": "wamid.HBgNNTUxMTk4ODc4MDE2MRUCABIYFDNBRUIzRjE5OTQ4QkNBMDUzOTA3AA==",
+                "timestamp": "1751222115",
+                "text": {
+                  "body": "Vocês aceitam troca com troco?"
+                },
+                "type": "text"
+              }
+            ]
+          },
+          "field": "messages"
+        }
+      ]
+    }
+  ]
+}
+
+---
+
+{
+  "object": "whatsapp_business_account",
+  "entry": [
+    {
+      "id": "1222792309228961",
+      "changes": [
+        {
+          "value": {
+            "messaging_product": "whatsapp",
+            "metadata": {
+              "display_phone_number": "15556366284",
+              "phone_number_id": "684523561413203"
+            },
+            "statuses": [
+              {
+                "id": "wamid.HBgNNTUxMTk4ODc4MDE2MRUCABEYEjU1REUyNThFN0UyRUU4NUY2QgA=",
+                "status": "sent",
+                "timestamp": "1751222334",
+                "recipient_id": "5511988780161",
+                "conversation": {
+                  "id": "ec3dfedc4a55b0f78b5a1a09d58b0a8f",
+                  "expiration_timestamp": "1751294160",
+                  "origin": {
+                    "type": "utility"
+                  }
+                },
+                "pricing": {
+                  "billable": true,
+                  "pricing_model": "CBP",
+                  "category": "utility"
+                }
+              }
+            ]
+          },
+          "field": "messages"
+        }
+      ]
+    }
+  ]
+}
+
+---
+
+{
+  "object": "whatsapp_business_account",
+  "entry": [
+    {
+      "id": "1222792309228961",
+      "changes": [
+        {
+          "value": {
+            "messaging_product": "whatsapp",
+            "metadata": {
+              "display_phone_number": "15556366284",
+              "phone_number_id": "684523561413203"
+            },
+            "statuses": [
+              {
+                "id": "wamid.HBgNNTUxMTk4ODc4MDE2MRUCABEYEjU1REUyNThFN0UyRUU4NUY2QgA=",
+                "status": "delivered",
+                "timestamp": "1751222338",
+                "recipient_id": "5511988780161",
+                "conversation": {
+                  "id": "ec3dfedc4a55b0f78b5a1a09d58b0a8f",
+                  "origin": {
+                    "type": "utility"
+                  }
+                },
+                "pricing": {
+                  "billable": true,
+                  "pricing_model": "CBP",
+                  "category": "utility"
+                }
+              }
+            ]
+          },
+          "field": "messages"
+        }
+      ]
+    }
+  ]
+}
+
+---
+
+{
+  "entry": [
+    {
+      "changes": [
+        {
+          "value": {
+            "messages": [
+              {
+                "from": "5511988780161",
+                "text": {
+                  "body": "Olá, vocês têm van escolar?"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
+
+---
+
+{
+  "entry": [
+    {
+      "changes": [
+        {
+          "value": {
+            "messages": [
+              {
+                "from": "5511988780161",
+                "text": {
+                  "body": "Quero financiar mesmo com nome sujo."
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
+
+---
+
+{
+  "entry": [
+    {
+      "changes": [
+        {
+          "value": {
+            "messages": [
+              {
+                "from": "5511988780161",
+                "text": {
+                  "body": "Aceita meu carro na troca?"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
+
+---
+
+{
+  "entry": [
+    {
+      "changes": [
+        {
+          "value": {
+            "messages": [
+              {
+                "from": "5511988780161",
+                "text": {
+                  "body": "Preciso de uma van pra transporte de carga refrigerada."
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
+
+---
+
+{
+  "entry": [
+    {
+      "changes": [
+        {
+          "value": {
+            "messages": [
+              {
+                "from": "5511988780161",
+                "text": {
+                  "body": "Vocês ficam onde?"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
+
+---
+
+{
+  "entry": [
+    {
+      "changes": [
+        {
+          "value": {
+            "messages": [
+              {
+                "from": "5511988780161",
+                "text": {
+                  "body": "Tem van com troco?"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
+
+---
+
+{
+  "entry": [
+    {
+      "changes": [
+        {
+          "value": {
+            "messages": [
+              {
+                "from": "5511988780161",
+                "text": {
+                  "body": "Qual o horário de atendimento?"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
+
+---
+
+{
+  "entry": [
+    {
+      "changes": [
+        {
+          "value": {
+            "messages": [
+              {
+                "from": "5511988780161",
+                "text": {
+                  "body": "Quero começar como motorista de transporte escolar. O que vocês recomendam?"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
+
+---
+
+{
+  "entry": [
+    {
+      "changes": [
+        {
+          "value": {
+            "messages": [
+              {
+                "from": "5511988780161",
+                "text": {
+                  "body": "Quero vender minha Kombi e pegar uma com baú."
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
+
+---
+
