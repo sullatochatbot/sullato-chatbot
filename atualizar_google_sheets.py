@@ -1,7 +1,12 @@
 import gspread
 from google.oauth2.service_account import Credentials
+import os
+from dotenv import load_dotenv
 
-CAMINHO_CREDENCIAL = 'credenciais_sheets.json'
+# Carrega variáveis de ambiente
+load_dotenv()
+
+CAMINHO_CREDENCIAL = os.getenv("GOOGLE_SHEETS_CREDENTIALS_PATH")
 SHEET_ID = '1Xke33HzOXW78CjX7sVm9OORZmw7dvUN2YzjBXcVQ0II'
 NOME_ABA = 'Página1'
 

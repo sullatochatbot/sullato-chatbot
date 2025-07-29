@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 from responder import gerar_resposta
 
 # Carrega variáveis de ambiente do .env
-load_dotenv(dotenv_path="/etc/secrets/.env")  # ou apenas: load_dotenv()
+load_dotenv()
 
 app = Flask(__name__)
 

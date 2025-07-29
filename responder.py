@@ -6,8 +6,10 @@ import csv
 import unicodedata
 import re  # necessário para capturar nome com regex
 from salvar_em_google_sheets import salvar_em_google_sheets
-from atualizar_google_sheets import atualizar_interesse_google_sheets
-            # from mala_direta import salvar_em_mala_direta
+from atualizar_google_sheets import atualizar_interesse_google_sheets  
+            # from mala_direta import salvar_em_mala_direta         
+from registrar_historico import registrar_interacao
+from salvar_em_mala_direta import salvar_em_mala_direta
 
 load_dotenv()
 
@@ -100,6 +102,8 @@ def gerar_resposta(mensagem, numero, nome_cliente=None):
     # 🔒 Sempre grava o primeiro contato apenas uma vez, com nome ou "Desconhecido"
     nome_final = nome_cliente.title() if nome_cliente else "Desconhecido"
     salvar_em_google_sheets(numero, nome_final, interesse="Primeiro contato")
+    registrar_interacao(numero, nome_final, interesse="Primeiro contato")
+    salvar_em_mala_direta(numero, nome_final)
 
     # ✅ Se o nome for capturado agora, responder com saudação e botões
     if nome_capturado:
