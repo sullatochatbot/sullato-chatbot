@@ -8,7 +8,8 @@ from dotenv import load_dotenv
 # Carregar .env
 load_dotenv()
 
-CAMINHO_CREDENCIAL = os.getenv("SHEETS_CREDENTIALS_PATH")
+# ✅ Corrigido: Nome da variável agora bate com o Render
+CAMINHO_CREDENCIAL = os.getenv("GOOGLE_SHEETS_CREDENTIALS_PATH")
 SHEET_ID = '1Xke33HzOXW78CjX7sVm9O0RZmw7dvUN2YzjBXcVQ0II'
 NOME_ABA_HISTORICO = 'Historico'
 
