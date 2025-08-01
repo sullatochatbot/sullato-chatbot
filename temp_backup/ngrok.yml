@@ -1,0 +1,8 @@
+version: "2"
+authtoken: 2yO7Vrg9AAuOPq1GfXo46ljCLu1_64GU8rws29ytpRTgMrE2k
+
+tunnels:
+  sullato-bot:
+    addr: 5000
+    proto: http
+    subdomain: sullato
