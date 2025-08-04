@@ -5,6 +5,7 @@ from datetime import datetime
 import csv
 import unicodedata
 import re  # necessário para capturar nome com regex
+from interpretador_ia import interpretar_mensagem
 from salvar_em_google_sheets import salvar_em_google_sheets
 from atualizar_google_sheets import atualizar_interesse_google_sheets  
 from registrar_historico import registrar_interacao
@@ -104,6 +105,46 @@ def gerar_resposta(mensagem, numero, nome_cliente=None):
     salvar_em_google_sheets(numero, nome_final, interesse="Primeiro contato")
     registrar_interacao(numero, nome_final, interesse="Primeiro contato")
     salvar_em_mala_direta(numero, nome_final)
+
+    # Interpretação inteligente da mensagem digitada
+    if nome_cliente and not id_recebido:
+        intencao = interpretar_mensagem(mensagem)
+
+        if intencao == "credito":
+            enviar_mensagem(numero, "💰 Aqui na Sullato temos opções de crédito facilitado! Me chama que explico como funciona.")
+            atualizar_interesse(numero, "Interesse - Crédito")
+            registrar_interacao(numero, nome_cliente, "Interesse - Crédito")
+            return
+
+        elif intencao == "endereco":
+            enviar_mensagem(numero, "📍 Estamos em dois endereços: Av. São Miguel, 7900 e 4049/4084 – São Paulo.")
+            atualizar_interesse(numero, "Interesse - Endereço Loja")
+            registrar_interacao(numero, nome_cliente, "Interesse - Endereço Loja")
+            return
+
+        elif intencao == "comprar":
+            enviar_mensagem(numero, "🚗 Temos vans, utilitários e veículos de passeio esperando por você!")
+            atualizar_interesse(numero, "Interesse - Comprar")
+            registrar_interacao(numero, nome_cliente, "Interesse - Comprar")
+            return
+
+        elif intencao == "vender":
+            enviar_mensagem(numero, "📢 Estamos prontos pra ajudar você a vender seu veículo com segurança e agilidade.")
+            atualizar_interesse(numero, "Interesse - Vender")
+            registrar_interacao(numero, nome_cliente, "Interesse - Vender")
+            return
+
+        elif intencao == "oficina":
+            enviar_mensagem(numero, "🔧 Nossa oficina especializada está pronta pra te atender! Quer agendar uma visita?")
+            atualizar_interesse(numero, "Interesse - Oficina")
+            registrar_interacao(numero, nome_cliente, "Interesse - Oficina")
+            return
+
+        elif intencao == "garantia":
+            enviar_mensagem(numero, "🛡️ Conte com nosso suporte! Fale conosco e vamos verificar sua garantia.")
+            atualizar_interesse(numero, "Interesse - Garantia")
+            registrar_interacao(numero, nome_cliente, "Interesse - Garantia")
+            return
 
     if nome_capturado:
         botoes_menu = [
