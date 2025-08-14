@@ -1,191 +1,194 @@
-import requests
 import os
-from dotenv import load_dotenv
-from datetime import datetime
-import csv
+import random
+import requests
 import unicodedata
-import re  # necessário para capturar nome com regex
-from interpretador_ia import interpretar_mensagem
+import re
+import smtplib
+import ssl
+from datetime import datetime
+from dotenv import load_dotenv
+
+# =============================
+# Imports de módulos do projeto
+# =============================
+try:
+    from interpretar_ia import interpretar_mensagem
+except Exception:
+    try:
+        from interpretador_ia import interpretar_mensagem  # compatibilidade se existir
+    except Exception:
+        def interpretar_mensagem(_msg: str):
+            return None
+
 from salvar_em_google_sheets import salvar_em_google_sheets
-from atualizar_google_sheets import atualizar_interesse_google_sheets  
+from atualizar_google_sheets import atualizar_interesse_google_sheets
 from registrar_historico import registrar_interacao
 from salvar_em_mala_direta import salvar_em_mala_direta
+
+try:
+    from responder_ia import responder_com_ia
+except Exception:
+    def responder_com_ia(_msg: str, _nome: str | None = None):
+        return None
 
 load_dotenv()
 
 ACCESS_TOKEN = os.getenv("ACCESS_TOKEN")
 PHONE_NUMBER_ID = os.getenv("PHONE_NUMBER_ID")
 
-def registrar_primeiro_interesse(numero, nome, interesse):
-    atualizar_interesse_google_sheets(numero, interesse)
+# =============================
+# SMTP (Trabalhe Conosco)
+# =============================
+SMTP_SERVER = os.getenv("SMTP_SERVER", "smtp.gmail.com")
+SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
+SMTP_USER = os.getenv("SMTP_USER")
+SMTP_PASS = os.getenv("SMTP_PASS")
+SMTP_FROM = os.getenv("SMTP_FROM", SMTP_USER or "no-reply@sullato.com.br")
+SMTP_TO_DEFAULT = os.getenv("SMTP_TO", "anderson@sullato.com.br")
 
-def extrair_nome(texto):
-    texto = texto.lower()
+# =============================
+# Utilitários
+# =============================
+
+def _normalize(texto: str) -> str:
+    if not isinstance(texto, str):
+        return ""
+    texto = texto.strip().lower()
+    texto = unicodedata.normalize('NFD', texto)
+    return ''.join(c for c in texto if unicodedata.category(c) != 'Mn')
+
+def _safe_title(nome: str | None) -> str:
+    try:
+        return (nome or "Desconhecido").title()
+    except Exception:
+        return "Desconhecido"
+
+def extrair_nome(texto: str) -> str | None:
+    texto = (texto or "").lower()
     padroes = [
-        r"meu nome é ([a-zA-ZÀ-ÿ\s]+)",
+        r"meu nome e ([a-zA-ZÀ-ÿ\s]+)",
         r"me chamo ([a-zA-ZÀ-ÿ\s]+)",
         r"sou o ([a-zA-ZÀ-ÿ\s]+)",
         r"sou a ([a-zA-ZÀ-ÿ\s]+)",
-        r"nome é ([a-zA-ZÀ-ÿ\s]+)"
+        r"nome e ([a-zA-ZÀ-ÿ\s]+)",
     ]
-    for padrao in padroes:
-        match = re.search(padrao, texto)
-        if match:
-            nome_extraido = match.group(1).strip()
-            return nome_extraido
+    for p in padroes:
+        m = re.search(p, texto)
+        if m:
+            return m.group(1).strip()
     return None
 
-def enviar_mensagem(numero, texto):
+def atualizar_interesse(numero: str, interesse: str) -> None:
+    try:
+        atualizar_interesse_google_sheets(numero, interesse)
+    except Exception as e:
+        print("⚠️ Falha ao atualizar interesse na planilha:", e)
+
+def enviar_email(assunto: str, corpo: str, destinatario: str | None = None) -> bool:
+    """Envia e-mail via SMTP (TLS). Retorna True se OK."""
+    to_addr = destinatario or SMTP_TO_DEFAULT
+    if not (SMTP_SERVER and SMTP_PORT and SMTP_USER and SMTP_PASS and to_addr):
+        print("⚠️ SMTP não configurado corretamente. Pular envio de e-mail.")
+        return False
+    try:
+        msg = (
+            f"From: {SMTP_FROM}\r\n"
+            f"To: {to_addr}\r\n"
+            f"Subject: {assunto}\r\n"
+            f"MIME-Version: 1.0\r\n"
+            f"Content-Type: text/plain; charset=utf-8\r\n\r\n"
+            f"{corpo}"
+        )
+        context = ssl.create_default_context()
+        with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
+            server.ehlo()
+            server.starttls(context=context)
+            server.ehlo()
+            server.login(SMTP_USER, SMTP_PASS)
+            server.sendmail(SMTP_FROM, [to_addr], msg.encode('utf-8'))
+        print("📧 E-mail enviado para", to_addr)
+        return True
+    except Exception as e:
+        print("❌ Erro ao enviar e-mail:", e)
+        return False
+
+def enviar_mensagem(numero: str, texto: str) -> None:
     url = f"https://graph.facebook.com/v19.0/{PHONE_NUMBER_ID}/messages"
-    headers = {
-        "Authorization": f"Bearer {ACCESS_TOKEN}",
-        "Content-Type": "application/json"
-    }
+    headers = {"Authorization": f"Bearer {ACCESS_TOKEN}", "Content-Type": "application/json"}
     payload = {
         "messaging_product": "whatsapp",
         "to": numero,
         "type": "text",
-        "text": {"body": texto}
+        "text": {"body": texto},
     }
     try:
-        resposta = requests.post(url, headers=headers, json=payload)
-        print("➡️ Resposta da Meta:", resposta.status_code, resposta.text)
+        r = requests.post(url, headers=headers, json=payload)
+        print("➡️ Meta texto:", r.status_code, r.text)
     except Exception as e:
-        print("❌ Erro ao enviar mensagem de texto:", e)
+        print("❌ Erro ao enviar mensagem:", e)
 
-def enviar_botoes(numero, texto, botoes):
+def enviar_botoes(numero: str, texto: str, botoes: list[dict]) -> None:
     url = f"https://graph.facebook.com/v19.0/{PHONE_NUMBER_ID}/messages"
-    headers = {
-        "Authorization": f"Bearer {ACCESS_TOKEN}",
-        "Content-Type": "application/json"
-    }
+    headers = {"Authorization": f"Bearer {ACCESS_TOKEN}", "Content-Type": "application/json"}
     payload = {
         "messaging_product": "whatsapp",
         "to": numero,
         "type": "interactive",
-        "interactive": {
-            "type": "button",
-            "body": {"text": texto},
-            "action": {"buttons": botoes}
-        }
+        "interactive": {"type": "button", "body": {"text": texto}, "action": {"buttons": botoes}},
     }
     try:
-        resposta = requests.post(url, headers=headers, json=payload)
-        print("🟢 Botões enviados:", resposta.status_code, resposta.text)
+        r = requests.post(url, headers=headers, json=payload)
+        print("🟢 Meta botões:", r.status_code, r.text)
     except Exception as e:
         print("❌ Erro ao enviar botões:", e)
 
-def gerar_resposta(mensagem, numero, nome_cliente=None):
-    numero = ''.join(filter(str.isdigit, numero))
-    nome_capturado = None
-
-    print("Função gerar_resposta acionada")
-    id_recebido = ""
-
-    if isinstance(mensagem, dict):
-        if "interactive" in mensagem and "button_reply" in mensagem["interactive"]:
-            id_recebido = mensagem["interactive"]["button_reply"]["id"]
-        elif "text" in mensagem:
-            id_recebido = mensagem["text"].get("body", "")
-    elif isinstance(mensagem, str):
-        id_recebido = mensagem.strip()
-
-    id_recebido = unicodedata.normalize('NFD', id_recebido.strip().lower())
-    id_recebido = ''.join(c for c in id_recebido if unicodedata.category(c) != 'Mn')
-
-    print("ID recebido:", repr(id_recebido))
-
-    if not nome_cliente:
-        nome_capturado = extrair_nome(id_recebido)
-        if nome_capturado:
-            nome_cliente = nome_capturado
-            print("✅ Nome detectado automaticamente:", nome_cliente)
-
-    nome_final = nome_cliente.title() if nome_cliente else "Desconhecido"
-    salvar_em_google_sheets(numero, nome_final, interesse="Primeiro contato")
-    registrar_interacao(numero, nome_final, interesse="Primeiro contato")
-    salvar_em_mala_direta(numero, nome_final)
-
-    # Interpretação inteligente da mensagem digitada
-    if nome_cliente and not id_recebido:
-        intencao = interpretar_mensagem(mensagem)
-
-        if intencao == "credito":
-            enviar_mensagem(numero, "💰 Aqui na Sullato temos opções de crédito facilitado! Me chama que explico como funciona.")
-            atualizar_interesse(numero, "Interesse - Crédito")
-            registrar_interacao(numero, nome_cliente, "Interesse - Crédito")
-            return
-
-        elif intencao == "endereco":
-            enviar_mensagem(numero, "📍 Estamos em dois endereços: Av. São Miguel, 7900 e 4049/4084 – São Paulo.")
-            atualizar_interesse(numero, "Interesse - Endereço Loja")
-            registrar_interacao(numero, nome_cliente, "Interesse - Endereço Loja")
-            return
-
-        elif intencao == "comprar":
-            enviar_mensagem(numero, "🚗 Temos vans, utilitários e veículos de passeio esperando por você!")
-            atualizar_interesse(numero, "Interesse - Comprar")
-            registrar_interacao(numero, nome_cliente, "Interesse - Comprar")
-            return
-
-        elif intencao == "vender":
-            enviar_mensagem(numero, "📢 Estamos prontos pra ajudar você a vender seu veículo com segurança e agilidade.")
-            atualizar_interesse(numero, "Interesse - Vender")
-            registrar_interacao(numero, nome_cliente, "Interesse - Vender")
-            return
-
-        elif intencao == "oficina":
-            enviar_mensagem(numero, "🔧 Nossa oficina especializada está pronta pra te atender! Quer agendar uma visita?")
-            atualizar_interesse(numero, "Interesse - Oficina")
-            registrar_interacao(numero, nome_cliente, "Interesse - Oficina")
-            return
-
-        elif intencao == "garantia":
-            enviar_mensagem(numero, "🛡️ Conte com nosso suporte! Fale conosco e vamos verificar sua garantia.")
-            atualizar_interesse(numero, "Interesse - Garantia")
-            registrar_interacao(numero, nome_cliente, "Interesse - Garantia")
-            return
-
-    if nome_capturado:
-        botoes_menu = [
-            {"type": "reply", "reply": {"id": "1", "title": "Comprar/Vender"}},
-            {"type": "reply", "reply": {"id": "2", "title": "Oficina/Peças"}},
-            {"type": "reply", "reply": {"id": "mais1", "title": "Mais opções"}}
-        ]
-        enviar_botoes(numero, f"Olá, {nome_cliente.title()}! 😃 Seja bem-vindo ao atendimento virtual do Grupo Sullato. Como posso te ajudar?", botoes_menu)
-        return
-
-    botoes_menu = [
-        {"type": "reply", "reply": {"id": "1", "title": "Comprar/Vender"}},
-        {"type": "reply", "reply": {"id": "2", "title": "Oficina/Peças"}},
-        {"type": "reply", "reply": {"id": "mais1", "title": "Mais opções"}}
+def _parece_detalhe_trabalho(texto: str) -> bool:
+    if not texto:
+        return False
+    texto_l = texto.lower()
+    chaves = [
+        "curriculo", "currículo", "experiencia", "experiência", "emprego", "trabalhar",
+        "vaga", "vagas", "rh", "salario", "salário", "contratacao", "contratação",
     ]
+    if any(c in texto_l for c in chaves):
+        return True
+    if re.search(r"[\w\.-]+@[\w\.-]+", texto, re.I):
+        return True
+    if sum(ch.isdigit() for ch in texto) >= 8:
+        return True
+    if len(texto.strip()) >= 120:
+        return True
+    return False
+# =============================
+# Rodízio diário de vendedores (1.1 e 1.2)
+# =============================
+random.seed(datetime.now().strftime('%Y%m%d'))
+VENDEDORES_PASSEIO = [
+    ("👨🏻‍💼 Alexandre", "https://wa.me/5511940559880"),
+    ("👨🏻‍💼 Jeferson",  "https://wa.me/5511941006862"),
+    ("👩🏻‍💼 Marcela",   "https://wa.me/5511912115673"),
+    ("👨🏻‍💼 Pedro",     "https://wa.me/5511992037103"),
+    ("👨🏻‍💼 Thiago",    "https://wa.me/5511986122905"),
+    ("👩🏻‍💼 Vanessa",   "https://wa.me/5511947954378"),
+    ("👨🏻‍💼 Vinicius",  "https://wa.me/5511911260469"),
+]
+random.shuffle(VENDEDORES_PASSEIO)
 
-    if id_recebido in ["oi", "ola", "menu", "inicio", "bom dia", "boa tarde", "boa noite"]:
-        enviar_botoes(numero, f"Olá, {nome_cliente.title()}! 😃 Seja bem-vindo ao atendimento virtual do Grupo Sullato. Como posso te ajudar?", botoes_menu)
-        return
-    blocos = {
-        "1.1": """*Veículos de Passeio*
+VENDEDORES_UTIL = [
+    ("👩🏻‍💼 Magali",  "https://wa.me/5511940215082"),
+    ("👨🏻‍💼 Silvano", "https://wa.me/5511988598736"),
+    ("👨🏻‍💼 Thiago",  "https://wa.me/5511986122905"),
+]
+random.shuffle(VENDEDORES_UTIL)
 
-✉️ Consulte um de nossos consultores.
+def _bloco_vendedores(lista: list[tuple[str, str]]) -> str:
+    return "\n".join([f"{nome}: {link}" for nome, link in lista])
 
-👨🏻‍💼 Alexandre: https://wa.me/5511940559880
-👨🏻‍💼 Jeferson: https://wa.me/5511941006862
-👩🏻‍💼 Marcela: https://wa.me/5511912115673
-👨🏻‍💼 Pedro: https://wa.me/5511992037103
-👨🏻‍💼 Thiago: https://wa.me/5511986122905
-👩🏻‍💼 Vanessa: https://wa.me/5511947954378
-👨🏻‍💼 Vinicius: https://wa.me/5511911260469""",
-
-        "1.2": """*Veículos Utilitários*
-
-✉️ Consulte um de nossos consultores.
-
-👩🏻‍💼 Magali: https://wa.me/5511940215082
-👨🏻‍💼 Silvano: https://wa.me/5511988598736
-👨🏻‍💼 Thiago: https://wa.me/5511986122905""",
-
-        "1.3": """*Endereço e Site*
+# =============================
+# Blocos fixos (exceto 1.1 e 1.2, que são dinâmicos)
+# =============================
+BLOCOS = {
+    "1.3": """*Endereço e Site*
 
 🌐 Site: www.sullato.com.br – https://www.sullato.com.br
 📸 Instagram: @sullatomicrosevans – https://www.instagram.com/sullatomicrosevans
@@ -197,158 +200,255 @@ def gerar_resposta(mensagem, numero, nome_cliente=None):
 🏢 Loja 02/03: Av. São Miguel, 4049/4084 – cep. 03871-000 - SP
 📞 (11) 2542-3332 | (11) 2542-3333""",
 
-        "2.1": """*Oficina e Peças*
+    "2.1": """*Oficina e Peças*
 
 ✉️ Consulte um de nossos consultores.
 
 🔧 Erico: https://wa.me/5511940497678
 🔧 Leandro: https://wa.me/5511940443566""",
 
-        "2.2": """*Endereço da Oficina*
+    "2.2": """*Endereço da Oficina*
 
 🏢 Loja 02: Av. São Miguel, 4049 – cep. 03871-000 - SP
 📞 (11) 2542-3332 | (11) 2542-3333""",
 
-        "3": """*Crédito e Financiamento*
+    "3": """*Crédito e Financiamento*
 
 ✉️ Consulte uma de nossas consultoras.
 
 💰 Magali: https://wa.me/5511940215082
 💰 Patrícia: https://wa.me/5511940215081""",
 
-        "3.2.1": """*Pós-venda – Passeio*
+    "3.2.1": """*Pós-venda – Passeio*
 
 ✉️ Consulte um de nossos consultores.
 
 🔧 Leandro: https://wa.me/5511940443566""",
 
-        "3.2.2": """*Pós-venda – Utilitário*
+    "3.2.2": """*Pós-venda – Utilitário*
 
 ✉️ Consulte um de nossos consultores.
 
 🔧 Erico: https://wa.me/5511940497678""",
 
-        "4.1": """*Vendas Governamentais*
+    "4.1": """*Vendas Governamentais*
 
 ✉️ Consulte nossa consultora.
 
 🏛️ Solange: https://wa.me/5511989536141""",
 
-        "4.2": """*Veículo por Assinatura*
+    "4.2": """*Veículo por Assinatura*
 
 ✉️ Consulte nosso consultor.
 
-📆 Alexsander: https://wa.me/5511996371559"""
-    }
+📆 Alexsander: https://wa.me/5511996371559""",
+}
 
-    if id_recebido == "1":
-        registrar_primeiro_interesse(numero, nome_final, "Menu - Compra/Venda")
+# =============================
+# Botões
+# =============================
+BOTOES_MENU_INICIAL = [
+    {"type": "reply", "reply": {"id": "1", "title": "Comprar/Vender"}},
+    {"type": "reply", "reply": {"id": "2", "title": "Oficina/Peças"}},
+    {"type": "reply", "reply": {"id": "mais1", "title": "Mais opções"}},
+    {"type": "reply", "reply": {"id": "btn-trabalhe", "title": "Venha trabalhar conosco"}},
+]
+# =============================
+# Lógica principal
+# =============================
+
+def gerar_resposta(mensagem, numero: str, nome_cliente: str | None = None):
+    numero = ''.join(filter(str.isdigit, str(numero)))
+
+    # Extrai texto/ID
+    id_recebido = ""
+    if isinstance(mensagem, dict) and mensagem.get("interactive", {}).get("button_reply"):
+        id_recebido = mensagem["interactive"]["button_reply"].get("id", "")
+    elif isinstance(mensagem, dict) and "text" in mensagem:
+        id_recebido = mensagem["text"].get("body", "")
+    else:
+        id_recebido = str(mensagem or "")
+
+    id_normalizado = _normalize(id_recebido)
+
+    # Nome detectado (se digitado)
+    if not nome_cliente:
+        nome_detectado = extrair_nome(id_normalizado)
+        if nome_detectado:
+            nome_cliente = nome_detectado
+    nome_final = _safe_title(nome_cliente)
+
+    # Registro inicial
+    try:
+        salvar_em_google_sheets(numero, nome_final, "Primeiro contato")
+        registrar_interacao(numero, nome_final, "Primeiro contato")
+        salvar_em_mala_direta(numero, nome_final)
+    except Exception as e:
+        print("⚠️ Falha em algum registro inicial:", e)
+
+    # Saudações → Menu
+    if id_normalizado in {"oi", "ola", "menu", "inicio", "bom dia", "boa tarde", "boa noite"}:
+        enviar_botoes(numero, f"Olá, {nome_final}! 😃 Seja bem-vindo ao atendimento virtual do Grupo Sullato. Como posso te ajudar?", BOTOES_MENU_INICIAL)
+        return
+
+    # Menus (mantidos como botões)
+    if id_normalizado == "1":
+        atualizar_interesse(numero, "Menu - Compra/Venda")
         registrar_interacao(numero, nome_final, "Menu - Compra/Venda")
         enviar_botoes(numero, "Escolha uma opção de compra/venda:", [
             {"type": "reply", "reply": {"id": "1.1", "title": "Passeio"}},
             {"type": "reply", "reply": {"id": "1.2", "title": "Utilitário"}},
-            {"type": "reply", "reply": {"id": "1.3", "title": "Endereço"}}
+            {"type": "reply", "reply": {"id": "1.3", "title": "Endereço"}},
         ])
         return
 
-    if id_recebido == "2":
-        registrar_primeiro_interesse(numero, nome_final, "Menu - Oficina/Peças")
+    if id_normalizado == "2":
+        atualizar_interesse(numero, "Menu - Oficina/Peças")
         registrar_interacao(numero, nome_final, "Menu - Oficina/Peças")
         enviar_botoes(numero, "Escolha uma opção sobre oficina/peças:", [
             {"type": "reply", "reply": {"id": "2.1", "title": "Oficina e Peças"}},
-            {"type": "reply", "reply": {"id": "2.2", "title": "Endereço Oficina"}}
+            {"type": "reply", "reply": {"id": "2.2", "title": "Endereço Oficina"}},
         ])
         return
 
-    if id_recebido == "mais1":
-        registrar_primeiro_interesse(numero, nome_final, "Menu - Mais opções")
+    if id_normalizado == "mais1":
+        atualizar_interesse(numero, "Menu - Mais opções")
         registrar_interacao(numero, nome_final, "Menu - Mais opções")
         enviar_botoes(numero, "Mais opções disponíveis:", [
             {"type": "reply", "reply": {"id": "3", "title": "Crédito"}},
             {"type": "reply", "reply": {"id": "btn-pos-venda", "title": "Pós-venda"}},
-            {"type": "reply", "reply": {"id": "mais2", "title": "Mais opções"}}
+            {"type": "reply", "reply": {"id": "mais2", "title": "Mais opções"}},
         ])
         return
 
-    if id_recebido == "mais2":
-        registrar_primeiro_interesse(numero, nome_final, "Menu - Outras opções")
+    if id_normalizado == "mais2":
+        atualizar_interesse(numero, "Menu - Outras opções")
         registrar_interacao(numero, nome_final, "Menu - Outras opções")
         enviar_botoes(numero, "Outras opções:", [
             {"type": "reply", "reply": {"id": "4.1", "title": "Governamentais"}},
             {"type": "reply", "reply": {"id": "4.2", "title": "Assinatura"}},
-            {"type": "reply", "reply": {"id": "menu", "title": "Voltar ao início"}}
+            {"type": "reply", "reply": {"id": "menu", "title": "Voltar ao início"}},
         ])
         return
 
-    if id_recebido == "btn-pos-venda":
-        registrar_primeiro_interesse(numero, nome_final, "Menu - Pós-venda")
+    if id_normalizado == "btn-pos-venda":
+        atualizar_interesse(numero, "Menu - Pós-venda")
         registrar_interacao(numero, nome_final, "Menu - Pós-venda")
         enviar_botoes(numero, "Pós-venda Sullato - Escolha uma das opções abaixo:", [
             {"type": "reply", "reply": {"id": "3.2.1", "title": "Passeio"}},
             {"type": "reply", "reply": {"id": "3.2.2", "title": "Utilitário"}},
-            {"type": "reply", "reply": {"id": "menu", "title": "Voltar ao início"}}
+            {"type": "reply", "reply": {"id": "menu", "title": "Voltar ao início"}},
         ])
         return
 
-    if id_recebido == "1.1":
-        registrar_primeiro_interesse(numero, nome_final, "Interesse - Passeio")
+    # Folhas / Blocos
+    if id_normalizado == "1.1":
+        atualizar_interesse(numero, "Interesse - Passeio")
         registrar_interacao(numero, nome_final, "Interesse - Passeio")
-        enviar_mensagem(numero, blocos["1.1"])
+        enviar_mensagem(numero, "*Veículos de Passeio*\n\n" + _bloco_vendedores(VENDEDORES_PASSEIO))
         return
 
-    if id_recebido == "1.2":
-        registrar_primeiro_interesse(numero, nome_final, "Interesse - Utilitário")
+    if id_normalizado == "1.2":
+        atualizar_interesse(numero, "Interesse - Utilitário")
         registrar_interacao(numero, nome_final, "Interesse - Utilitário")
-        enviar_mensagem(numero, blocos["1.2"])
+        enviar_mensagem(numero, "*Veículos Utilitários*\n\n" + _bloco_vendedores(VENDEDORES_UTIL))
         return
 
-    if id_recebido == "1.3":
-        registrar_primeiro_interesse(numero, nome_final, "Interesse - Endereço Loja")
-        registrar_interacao(numero, nome_final, "Interesse - Endereço Loja")
-        enviar_mensagem(numero, blocos["1.3"])
+    if id_normalizado in BLOCOS:
+        interesse_map = {
+            "1.3": "Interesse - Endereço Loja",
+            "2.1": "Interesse - Oficina e Peças",
+            "2.2": "Interesse - Endereço Oficina",
+            "3": "Interesse - Crédito",
+            "3.2.1": "Interesse - Pós-venda Passeio",
+            "3.2.2": "Interesse - Pós-venda Utilitário",
+            "4.1": "Interesse - Governamentais",
+            "4.2": "Interesse - Assinatura",
+        }
+        atualizar_interesse(numero, interesse_map.get(id_normalizado, "Interesse"))
+        registrar_interacao(numero, nome_final, interesse_map.get(id_normalizado, "Interesse"))
+        enviar_mensagem(numero, BLOCOS[id_normalizado])
         return
 
-    if id_recebido == "2.1":
-        registrar_primeiro_interesse(numero, nome_final, "Interesse - Oficina e Peças")
-        registrar_interacao(numero, nome_final, "Interesse - Oficina e Peças")
-        enviar_mensagem(numero, blocos["2.1"])
+    # Trabalhe Conosco (botão)
+    if id_normalizado == "btn-trabalhe":
+        atualizar_interesse(numero, "Interesse - Trabalhe Conosco")
+        registrar_interacao(numero, nome_final, "Interesse - Trabalhe Conosco")
+        texto = (
+            "Envie seu *nome*, *telefone* e uma *breve descrição* da sua experiência. Vamos encaminhar ao RH.\n\n"
+            "Se deseja atuar com *veículos de passeio*, seu contato será direcionado para:\n"
+            "Alex - 📞 011996371559 - https://wa.me/5511996371559 - ✉️ alex@sullato.com.br\n\n"
+            "Se deseja atuar com *veículos utilitários*, seu contato será direcionado para:\n"
+            "Anderson - 📞 011988780161 - https://wa.me/5511988780161 - ✉️ anderson@sullato.com.br"
+        )
+        enviar_mensagem(numero, texto)
+        # E-mail imediato avisando abertura do fluxo
+        enviar_email(
+            "Novo interesse - Trabalhe Conosco (Sullato)",
+            (
+                f"Data/Hora: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
+                f"Nome (detectado): {nome_final}\n"
+                f"WhatsApp: {numero}\n"
+                f"Status: Iniciou fluxo Trabalhe Conosco pelo botão.\n"
+            ),
+        )
         return
 
-    if id_recebido == "2.2":
-        registrar_primeiro_interesse(numero, nome_final, "Interesse - Endereço Oficina")
-        registrar_interacao(numero, nome_final, "Interesse - Endereço Oficina")
-        enviar_mensagem(numero, blocos["2.2"])
+    # Se o usuário digitar detalhes de candidatura → enviar e-mail com os dados
+    if not isinstance(mensagem, dict) and _parece_detalhe_trabalho(id_recebido):
+        enviar_email(
+            "Detalhes de candidatura - Trabalhe Conosco (Sullato)",
+            (
+                f"Data/Hora: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
+                f"Nome (detectado): {nome_final}\n"
+                f"WhatsApp: {numero}\n"
+                f"Mensagem:\n{id_recebido}\n"
+            ),
+        )
+        enviar_mensagem(numero, "Obrigado! Seus dados foram encaminhados ao nosso RH. Entraremos em contato.")
+        registrar_interacao(numero, nome_final, "Trabalhe Conosco - Dados enviados")
         return
 
-    if id_recebido == "3":
-        registrar_primeiro_interesse(numero, nome_final, "Interesse - Crédito")
-        registrar_interacao(numero, nome_final, "Interesse - Crédito")
-        enviar_mensagem(numero, blocos["3"])
+    # Classificação por IA + fallback generativo
+    intencao = None
+    try:
+        intencao = interpretar_mensagem(id_normalizado)
+    except Exception as e:
+        print("⚠️ Erro interpretar_mensagem:", e)
+
+    if intencao:
+        mapa = {
+            "credito": ("💰 Aqui na Sullato temos opções de crédito facilitado! Me chama que explico como funciona.", "Interesse - Crédito"),
+            "endereco": ("📍 Estamos em dois endereços: Av. São Miguel, 7900 e 4049/4084 – São Paulo.", "Interesse - Endereço Loja"),
+            "comprar": ("🚗 Temos vans, utilitários e veículos de passeio esperando por você!", "Interesse - Comprar"),
+            "vender": ("📢 Estamos prontos pra ajudar você a vender seu veículo com segurança e agilidade.", "Interesse - Vender"),
+            "oficina": ("🔧 Nossa oficina especializada está pronta pra te atender! Quer agendar uma visita?", "Interesse - Oficina"),
+            "garantia": ("🛡️ Conte com nosso suporte! Fale conosco e vamos verificar sua garantia.", "Interesse - Garantia"),
+        }
+        msg, tag = mapa.get(intencao, (None, None))
+        if msg:
+            enviar_mensagem(numero, msg)
+            atualizar_interesse(numero, tag or "Interesse")
+            registrar_interacao(numero, nome_final, tag or "Interesse")
+            return
+
+    resposta = None
+    try:
+        resposta = responder_com_ia(id_normalizado, nome_final)
+    except TypeError:
+        try:
+            resposta = responder_com_ia(id_normalizado)
+        except Exception:
+            resposta = None
+    except Exception as e:
+        print("⚠️ Erro responder_com_ia:", e)
+        resposta = None
+
+    if resposta:
+        enviar_mensagem(numero, resposta)
+        registrar_interacao(numero, nome_final, "IA - Resposta livre")
         return
 
-    if id_recebido == "3.2.1":
-        registrar_primeiro_interesse(numero, nome_final, "Interesse - Pós-venda Passeio")
-        registrar_interacao(numero, nome_final, "Interesse - Pós-venda Passeio")
-        enviar_mensagem(numero, blocos["3.2.1"])
-        return
-
-    if id_recebido == "3.2.2":
-        registrar_primeiro_interesse(numero, nome_final, "Interesse - Pós-venda Utilitário")
-        registrar_interacao(numero, nome_final, "Interesse - Pós-venda Utilitário")
-        enviar_mensagem(numero, blocos["3.2.2"])
-        return
-
-    if id_recebido == "4.1":
-        registrar_primeiro_interesse(numero, nome_final, "Interesse - Governamentais")
-        registrar_interacao(numero, nome_final, "Interesse - Governamentais")
-        enviar_mensagem(numero, blocos["4.1"])
-        return
-
-    if id_recebido == "4.2":
-        registrar_primeiro_interesse(numero, nome_final, "Interesse - Assinatura")
-        registrar_interacao(numero, nome_final, "Interesse - Assinatura")
-        enviar_mensagem(numero, blocos["4.2"])
-        return
-
-    enviar_botoes(numero, "Desculpe, não entendi. Escolha uma das opções abaixo:", botoes_menu)
+    # Fallback final → Menu
+    enviar_botoes(numero, f"Não entendi. Escolha uma das opções abaixo, {nome_final}:", BOTOES_MENU_INICIAL)
     return
