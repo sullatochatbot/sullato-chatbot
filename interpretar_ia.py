@@ -1,4 +1,5 @@
 # interpretar_ia.py
+from typing import Optional
 import unicodedata
 import re
 
@@ -7,7 +8,7 @@ def _normalize(s: str) -> str:
     s = unicodedata.normalize("NFD", s)
     return "".join(c for c in s if unicodedata.category(c) != "Mn")
 
-def interpretar_mensagem(texto: str) -> str | None:
+def interpretar_mensagem(texto: str) -> Optional[str]:
     """
     Retorna uma intenção simples:
       "credito", "endereco", "comprar", "vender", "oficina", "garantia"

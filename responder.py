@@ -8,6 +8,8 @@ import ssl
 from datetime import datetime
 from dotenv import load_dotenv
 
+from typing import Optional, List, Dict, Any, Tuple
+
 # =============================
 # Imports de módulos do projeto
 # =============================
@@ -28,7 +30,7 @@ from salvar_em_mala_direta import salvar_em_mala_direta
 try:
     from responder_ia import responder_com_ia
 except Exception:
-    def responder_com_ia(_msg: str, _nome: str | None = None):
+    def responder_com_ia(_msg: str, _nome: Optional[str] = None):
         return None
 
 load_dotenv()
@@ -57,13 +59,13 @@ def _normalize(texto: str) -> str:
     texto = unicodedata.normalize('NFD', texto)
     return ''.join(c for c in texto if unicodedata.category(c) != 'Mn')
 
-def _safe_title(nome: str | None) -> str:
+def _safe_title(nome: Optional[str]) -> str:
     try:
         return (nome or "Desconhecido").title()
     except Exception:
         return "Desconhecido"
 
-def extrair_nome(texto: str) -> str | None:
+def extrair_nome(texto: str) -> Optional[str]:
     texto = (texto or "").lower()
     padroes = [
         r"meu nome e ([a-zA-ZÀ-ÿ\s]+)",
@@ -84,7 +86,7 @@ def atualizar_interesse(numero: str, interesse: str) -> None:
     except Exception as e:
         print("⚠️ Falha ao atualizar interesse na planilha:", e)
 
-def enviar_email(assunto: str, corpo: str, destinatario: str | None = None) -> bool:
+def enviar_email(assunto: str, corpo: str, destinatario: Optional[str] = None) -> bool:
     """Envia e-mail via SMTP (TLS). Retorna True se OK."""
     to_addr = destinatario or SMTP_TO_DEFAULT
     if not (SMTP_SERVER and SMTP_PORT and SMTP_USER and SMTP_PASS and to_addr):
@@ -127,7 +129,7 @@ def enviar_mensagem(numero: str, texto: str) -> None:
     except Exception as e:
         print("❌ Erro ao enviar mensagem:", e)
 
-def enviar_botoes(numero: str, texto: str, botoes: list[dict]) -> None:
+def enviar_botoes(numero: str, texto: str, botoes: List[Dict[str, Any]]) -> None:
     url = f"https://graph.facebook.com/v19.0/{PHONE_NUMBER_ID}/messages"
     headers = {"Authorization": f"Bearer {ACCESS_TOKEN}", "Content-Type": "application/json"}
     payload = {
@@ -257,7 +259,7 @@ BOTOES_MENU_INICIAL = [
 # Lógica principal
 # =============================
 
-def gerar_resposta(mensagem, numero: str, nome_cliente: str | None = None):
+def gerar_resposta(mensagem, numero: str, nome_cliente: Optional[str] = None):
     numero = ''.join(filter(str.isdigit, str(numero)))
 
     # Extrai texto/ID

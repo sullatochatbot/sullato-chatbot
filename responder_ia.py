@@ -1,18 +1,19 @@
 # responder_ia.py
 import os
+from typing import Optional
 
-def responder_com_ia(mensagem: str, nome: str | None = None) -> str | None:
+def responder_com_ia(mensagem: str, nome: Optional[str] = None) -> Optional[str]:
     """
-    Gera resposta curta usando OpenAI se configurado.
+    Usa OpenAI se a chave estiver disponível; caso contrário, responde com fallback simpático.
     Compatível com responder_com_ia(msg) e responder_com_ia(msg, nome).
     """
-    api_key = os.getenv("OPENAI_API_KEY", "")
-    # Tratar chave ausente ou em espera
-    if not api_key or api_key.strip().upper() == "EM_ESPERA":
+    api_key = os.getenv("OPENAI_API_KEY", "").strip()
+    if not api_key or api_key.upper() == "EM_ESPERA":
         return _fallback_resposta(mensagem, nome)
 
     model = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
     try:
+        # SDK novo (openai>=1.0)
         from openai import OpenAI
         client = OpenAI(api_key=api_key)
 
@@ -39,7 +40,7 @@ def responder_com_ia(mensagem: str, nome: str | None = None) -> str | None:
         print("⚠️ IA indisponível, usando fallback. Detalhe:", e)
         return _fallback_resposta(mensagem, nome)
 
-def _fallback_resposta(mensagem: str, nome: str | None = None) -> str:
+def _fallback_resposta(mensagem: str, nome: Optional[str] = None) -> str:
     saud = (nome or "tudo bem").title()
     return (
         f"{saud}? Para agilizar, me diga se você quer *comprar*, *vender*, saber *endereço*, "
