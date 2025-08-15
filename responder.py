@@ -7,7 +7,6 @@ import smtplib
 import ssl
 from datetime import datetime
 from dotenv import load_dotenv
-
 from typing import Optional, List, Dict, Any, Tuple
 
 # =============================
@@ -34,7 +33,6 @@ except Exception:
         return None
 
 load_dotenv()
-
 ACCESS_TOKEN = os.getenv("ACCESS_TOKEN")
 PHONE_NUMBER_ID = os.getenv("PHONE_NUMBER_ID")
 
@@ -51,7 +49,6 @@ SMTP_TO_DEFAULT = os.getenv("SMTP_TO", "anderson@sullato.com.br")
 # =============================
 # Utilitários
 # =============================
-
 def _normalize(texto: str) -> str:
     if not isinstance(texto, str):
         return ""
@@ -103,9 +100,7 @@ def enviar_email(assunto: str, corpo: str, destinatario: Optional[str] = None) -
         )
         context = ssl.create_default_context()
         with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
-            server.ehlo()
-            server.starttls(context=context)
-            server.ehlo()
+            server.ehlo(); server.starttls(context=context); server.ehlo()
             server.login(SMTP_USER, SMTP_PASS)
             server.sendmail(SMTP_FROM, [to_addr], msg.encode('utf-8'))
         print("📧 E-mail enviado para", to_addr)
@@ -117,12 +112,7 @@ def enviar_email(assunto: str, corpo: str, destinatario: Optional[str] = None) -
 def enviar_mensagem(numero: str, texto: str) -> None:
     url = f"https://graph.facebook.com/v19.0/{PHONE_NUMBER_ID}/messages"
     headers = {"Authorization": f"Bearer {ACCESS_TOKEN}", "Content-Type": "application/json"}
-    payload = {
-        "messaging_product": "whatsapp",
-        "to": numero,
-        "type": "text",
-        "text": {"body": texto},
-    }
+    payload = {"messaging_product": "whatsapp", "to": numero, "type": "text", "text": {"body": texto}}
     try:
         r = requests.post(url, headers=headers, json=payload)
         print("➡️ Meta texto:", r.status_code, r.text)
@@ -152,20 +142,47 @@ def _parece_detalhe_trabalho(texto: str) -> bool:
         "curriculo", "currículo", "experiencia", "experiência", "emprego", "trabalhar",
         "vaga", "vagas", "rh", "salario", "salário", "contratacao", "contratação",
     ]
-    if any(c in texto_l for c in chaves):
-        return True
-    if re.search(r"[\w\.-]+@[\w\.-]+", texto, re.I):
-        return True
-    if sum(ch.isdigit() for ch in texto) >= 8:
-        return True
-    if len(texto.strip()) >= 120:
-        return True
+    if any(c in texto_l for c in chaves): return True
+    if re.search(r"[\w\.-]+@[\w\.-]+", texto, re.I): return True
+    if sum(ch.isdigit() for ch in texto) >= 8: return True
+    if len(texto.strip()) >= 120: return True
     return False
+
+# === Helpers para WhatsApp ===
+def _extrair_id_ou_texto(msg) -> str:
+    """Extrai ID de botão ou texto do payload, em vários formatos que a Meta envia."""
+    try:
+        if isinstance(msg, str):
+            return msg
+        if isinstance(msg, dict):
+            inter = msg.get("interactive")
+            if isinstance(inter, dict):
+                br = inter.get("button_reply") or inter.get("list_reply")
+                if isinstance(br, dict):
+                    return br.get("id") or br.get("title") or ""
+            t = msg.get("text")
+            if isinstance(t, dict) and "body" in t:
+                return t.get("body") or ""
+            t2 = msg.get("message")
+            if isinstance(t2, dict) and "text" in t2 and isinstance(t2["text"], dict):
+                return t2["text"].get("body") or ""
+            msgs = msg.get("messages")
+            if isinstance(msgs, list) and msgs:
+                return _extrair_id_ou_texto(msgs[0])
+        return str(msg or "")
+    except Exception:
+        return str(msg or "")
+
+def _tem_trigger_menu(texto: str) -> bool:
+    """True se o usuário pedir o menu (oi/ola/menu/inicio/ajuda/voltar)."""
+    t = _normalize(texto)
+    return re.search(r"\b(oi|ola|menu|inicio|start|ajuda|help|voltar|voltar ao inicio)\b", t) is not None
+
 # =============================
 # Rodízio diário de vendedores (1.1 e 1.2)
 # =============================
 random.seed(datetime.now().strftime('%Y%m%d'))
-VENDEDORES_PASSEIO = [
+VENDEDORES_PASSEIO: List[Tuple[str, str]] = [
     ("👨🏻‍💼 Alexandre", "https://wa.me/5511940559880"),
     ("👨🏻‍💼 Jeferson",  "https://wa.me/5511941006862"),
     ("👩🏻‍💼 Marcela",   "https://wa.me/5511912115673"),
@@ -176,14 +193,14 @@ VENDEDORES_PASSEIO = [
 ]
 random.shuffle(VENDEDORES_PASSEIO)
 
-VENDEDORES_UTIL = [
+VENDEDORES_UTIL: List[Tuple[str, str]] = [
     ("👩🏻‍💼 Magali",  "https://wa.me/5511940215082"),
     ("👨🏻‍💼 Silvano", "https://wa.me/5511988598736"),
     ("👨🏻‍💼 Thiago",  "https://wa.me/5511986122905"),
 ]
 random.shuffle(VENDEDORES_UTIL)
 
-def _bloco_vendedores(lista: list[tuple[str, str]]) -> str:
+def _bloco_vendedores(lista: List[Tuple[str, str]]) -> str:
     return "\n".join([f"{nome}: {link}" for nome, link in lista])
 
 # =============================
@@ -247,40 +264,31 @@ BLOCOS = {
 }
 
 # =============================
-# Botões
+# Botões (menu inicial: 3 itens; Trabalhe vai para "Mais opções")
 # =============================
 BOTOES_MENU_INICIAL = [
     {"type": "reply", "reply": {"id": "1", "title": "Comprar/Vender"}},
     {"type": "reply", "reply": {"id": "2", "title": "Oficina/Peças"}},
     {"type": "reply", "reply": {"id": "mais1", "title": "Mais opções"}},
-    {"type": "reply", "reply": {"id": "btn-trabalhe", "title": "Venha trabalhar conosco"}},
 ]
 # =============================
 # Lógica principal
 # =============================
-
 def gerar_resposta(mensagem, numero: str, nome_cliente: Optional[str] = None):
     numero = ''.join(filter(str.isdigit, str(numero)))
 
-    # Extrai texto/ID
-    id_recebido = ""
-    if isinstance(mensagem, dict) and mensagem.get("interactive", {}).get("button_reply"):
-        id_recebido = mensagem["interactive"]["button_reply"].get("id", "")
-    elif isinstance(mensagem, dict) and "text" in mensagem:
-        id_recebido = mensagem["text"].get("body", "")
-    else:
-        id_recebido = str(mensagem or "")
-
+    # Extrai texto/ID de forma robusta
+    id_recebido = _extrair_id_ou_texto(mensagem)
     id_normalizado = _normalize(id_recebido)
 
-    # Nome detectado (se digitado)
+    # Nome detectado (se digitado no texto)
     if not nome_cliente:
         nome_detectado = extrair_nome(id_normalizado)
         if nome_detectado:
             nome_cliente = nome_detectado
     nome_final = _safe_title(nome_cliente)
 
-    # Registro inicial
+    # Registro inicial (planilha, histórico, mala direta)
     try:
         salvar_em_google_sheets(numero, nome_final, "Primeiro contato")
         registrar_interacao(numero, nome_final, "Primeiro contato")
@@ -288,12 +296,16 @@ def gerar_resposta(mensagem, numero: str, nome_cliente: Optional[str] = None):
     except Exception as e:
         print("⚠️ Falha em algum registro inicial:", e)
 
-    # Saudações → Menu
-    if id_normalizado in {"oi", "ola", "menu", "inicio", "bom dia", "boa tarde", "boa noite"}:
-        enviar_botoes(numero, f"Olá, {nome_final}! 😃 Seja bem-vindo ao atendimento virtual do Grupo Sullato. Como posso te ajudar?", BOTOES_MENU_INICIAL)
+    # Gatilho de Menu (oi/ola/menu/inicio/ajuda/voltar)
+    if _tem_trigger_menu(id_recebido) or id_normalizado == "menu":
+        enviar_botoes(
+            numero,
+            f"Olá, {nome_final}! 😃 Seja bem-vindo ao atendimento virtual do Grupo Sullato. Como posso te ajudar?",
+            BOTOES_MENU_INICIAL
+        )
         return
 
-    # Menus (mantidos como botões)
+    # ===== Menus =====
     if id_normalizado == "1":
         atualizar_interesse(numero, "Menu - Compra/Venda")
         registrar_interacao(numero, nome_final, "Menu - Compra/Venda")
@@ -317,9 +329,9 @@ def gerar_resposta(mensagem, numero: str, nome_cliente: Optional[str] = None):
         atualizar_interesse(numero, "Menu - Mais opções")
         registrar_interacao(numero, nome_final, "Menu - Mais opções")
         enviar_botoes(numero, "Mais opções disponíveis:", [
-            {"type": "reply", "reply": {"id": "3", "title": "Crédito"}},
+            {"type": "reply", "reply": {"id": "btn-trabalhe", "title": "Trabalhe conosco"}},
             {"type": "reply", "reply": {"id": "btn-pos-venda", "title": "Pós-venda"}},
-            {"type": "reply", "reply": {"id": "mais2", "title": "Mais opções"}},
+            {"type": "reply", "reply": {"id": "mais2", "title": "Outras opções"}},
         ])
         return
 
@@ -327,9 +339,9 @@ def gerar_resposta(mensagem, numero: str, nome_cliente: Optional[str] = None):
         atualizar_interesse(numero, "Menu - Outras opções")
         registrar_interacao(numero, nome_final, "Menu - Outras opções")
         enviar_botoes(numero, "Outras opções:", [
+            {"type": "reply", "reply": {"id": "3",   "title": "Crédito"}},
             {"type": "reply", "reply": {"id": "4.1", "title": "Governamentais"}},
             {"type": "reply", "reply": {"id": "4.2", "title": "Assinatura"}},
-            {"type": "reply", "reply": {"id": "menu", "title": "Voltar ao início"}},
         ])
         return
 
@@ -343,7 +355,7 @@ def gerar_resposta(mensagem, numero: str, nome_cliente: Optional[str] = None):
         ])
         return
 
-    # Folhas / Blocos
+    # ===== Folhas / Blocos =====
     if id_normalizado == "1.1":
         atualizar_interesse(numero, "Interesse - Passeio")
         registrar_interacao(numero, nome_final, "Interesse - Passeio")
@@ -361,18 +373,18 @@ def gerar_resposta(mensagem, numero: str, nome_cliente: Optional[str] = None):
             "1.3": "Interesse - Endereço Loja",
             "2.1": "Interesse - Oficina e Peças",
             "2.2": "Interesse - Endereço Oficina",
-            "3": "Interesse - Crédito",
+            "3":   "Interesse - Crédito",
             "3.2.1": "Interesse - Pós-venda Passeio",
             "3.2.2": "Interesse - Pós-venda Utilitário",
             "4.1": "Interesse - Governamentais",
             "4.2": "Interesse - Assinatura",
         }
-        atualizar_interesse(numero, interesse_map.get(id_normalizado, "Interesse"))
-        registrar_interacao(numero, nome_final, interesse_map.get(id_normalizado, "Interesse"))
+        tag = interesse_map.get(id_normalizado, "Interesse")
+        atualizar_interesse(numero, tag)
+        registrar_interacao(numero, nome_final, tag)
         enviar_mensagem(numero, BLOCOS[id_normalizado])
         return
-
-    # Trabalhe Conosco (botão)
+    # ===== Trabalhe Conosco =====
     if id_normalizado == "btn-trabalhe":
         atualizar_interesse(numero, "Interesse - Trabalhe Conosco")
         registrar_interacao(numero, nome_final, "Interesse - Trabalhe Conosco")
@@ -384,7 +396,7 @@ def gerar_resposta(mensagem, numero: str, nome_cliente: Optional[str] = None):
             "Anderson - 📞 011988780161 - https://wa.me/5511988780161 - ✉️ anderson@sullato.com.br"
         )
         enviar_mensagem(numero, texto)
-        # E-mail imediato avisando abertura do fluxo
+        # E-mail automático opcional (não falha se SMTP não configurado)
         enviar_email(
             "Novo interesse - Trabalhe Conosco (Sullato)",
             (
@@ -411,7 +423,7 @@ def gerar_resposta(mensagem, numero: str, nome_cliente: Optional[str] = None):
         registrar_interacao(numero, nome_final, "Trabalhe Conosco - Dados enviados")
         return
 
-    # Classificação por IA + fallback generativo
+    # ===== Classificação por IA (se disponível) =====
     intencao = None
     try:
         intencao = interpretar_mensagem(id_normalizado)
@@ -434,6 +446,7 @@ def gerar_resposta(mensagem, numero: str, nome_cliente: Optional[str] = None):
             registrar_interacao(numero, nome_final, tag or "Interesse")
             return
 
+    # ===== Resposta livre por IA (fallback) =====
     resposta = None
     try:
         resposta = responder_com_ia(id_normalizado, nome_final)
@@ -451,6 +464,12 @@ def gerar_resposta(mensagem, numero: str, nome_cliente: Optional[str] = None):
         registrar_interacao(numero, nome_final, "IA - Resposta livre")
         return
 
-    # Fallback final → Menu
-    enviar_botoes(numero, f"Não entendi. Escolha uma das opções abaixo, {nome_final}:", BOTOES_MENU_INICIAL)
+    # ===== Fallback final → Menu =====
+    registrar_interacao(numero, nome_final, "Fallback → Menu")
+    atualizar_interesse(numero, "Fallback → Menu")
+    enviar_botoes(
+        numero,
+        f"Não entendi. Escolha uma das opções abaixo, {nome_final}:",
+        BOTOES_MENU_INICIAL
+    )
     return
