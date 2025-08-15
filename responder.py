@@ -148,7 +148,7 @@ def _parece_detalhe_trabalho(texto: str) -> bool:
     if len(texto.strip()) >= 120: return True
     return False
 
-# === Helpers para WhatsApp ===
+# === Helpers p/ WhatsApp ===
 def _extrair_id_ou_texto(msg) -> str:
     """Extrai ID de botão ou texto do payload, em vários formatos que a Meta envia."""
     try:
@@ -204,7 +204,7 @@ def _bloco_vendedores(lista: List[Tuple[str, str]]) -> str:
     return "\n".join([f"{nome}: {link}" for nome, link in lista])
 
 # =============================
-# Blocos fixos (exceto 1.1 e 1.2, que são dinâmicos)
+# Blocos fixos (folhas)
 # =============================
 BLOCOS = {
     "1.3": """*Endereço e Site*
@@ -264,12 +264,12 @@ BLOCOS = {
 }
 
 # =============================
-# Botões (menu inicial: 3 itens; Trabalhe vai para "Mais opções")
+# Menu inicial (3 botões)
 # =============================
 BOTOES_MENU_INICIAL = [
-    {"type": "reply", "reply": {"id": "1", "title": "Comprar/Vender"}},
-    {"type": "reply", "reply": {"id": "2", "title": "Oficina/Peças"}},
-    {"type": "reply", "reply": {"id": "mais1", "title": "Mais opções"}},
+    {"type": "reply", "reply": {"id": "comprar", "title": "Comprar"}},
+    {"type": "reply", "reply": {"id": "vender",  "title": "Vender"}},
+    {"type": "reply", "reply": {"id": "mais1",  "title": "Mais opções"}},
 ]
 # =============================
 # Lógica principal
@@ -305,57 +305,72 @@ def gerar_resposta(mensagem, numero: str, nome_cliente: Optional[str] = None):
         )
         return
 
-    # ===== Menus =====
-    if id_normalizado == "1":
-        atualizar_interesse(numero, "Menu - Compra/Venda")
-        registrar_interacao(numero, nome_final, "Menu - Compra/Venda")
-        enviar_botoes(numero, "Escolha uma opção de compra/venda:", [
+    # ===== Menus topo (sem mexer nas folhas) =====
+    # COMPRAR → reutiliza suas folhas 1.1/1.2/1.3
+    if id_normalizado == "comprar" or id_normalizado == "1":
+        atualizar_interesse(numero, "Menu - Comprar")
+        registrar_interacao(numero, nome_final, "Menu - Comprar")
+        enviar_botoes(numero, "O que você procura para *comprar*?", [
             {"type": "reply", "reply": {"id": "1.1", "title": "Passeio"}},
             {"type": "reply", "reply": {"id": "1.2", "title": "Utilitário"}},
             {"type": "reply", "reply": {"id": "1.3", "title": "Endereço"}},
         ])
         return
 
-    if id_normalizado == "2":
-        atualizar_interesse(numero, "Menu - Oficina/Peças")
-        registrar_interacao(numero, nome_final, "Menu - Oficina/Peças")
-        enviar_botoes(numero, "Escolha uma opção sobre oficina/peças:", [
-            {"type": "reply", "reply": {"id": "2.1", "title": "Oficina e Peças"}},
-            {"type": "reply", "reply": {"id": "2.2", "title": "Endereço Oficina"}},
-        ])
+    # VENDER → mensagem simples (como já era)
+    if id_normalizado == "vender":
+        atualizar_interesse(numero, "Interesse - Vender")
+        registrar_interacao(numero, nome_final, "Interesse - Vender")
+        enviar_mensagem(
+            numero,
+            "📢 Estamos prontos pra ajudar você a vender seu veículo com segurança e agilidade."
+        )
         return
 
+    # ===== Cadeia de 'Mais opções' em 3 níveis =====
+    # Nível 1: Crédito / Pós-venda / Mais opções
     if id_normalizado == "mais1":
-        atualizar_interesse(numero, "Menu - Mais opções")
-        registrar_interacao(numero, nome_final, "Menu - Mais opções")
-        enviar_botoes(numero, "Mais opções disponíveis:", [
-            {"type": "reply", "reply": {"id": "btn-trabalhe", "title": "Trabalhe conosco"}},
+        atualizar_interesse(numero, "Menu - Mais opções (1)")
+        registrar_interacao(numero, nome_final, "Menu - Mais opções (1)")
+        enviar_botoes(numero, "Mais opções:", [
+            {"type": "reply", "reply": {"id": "3",             "title": "Crédito"}},
             {"type": "reply", "reply": {"id": "btn-pos-venda", "title": "Pós-venda"}},
-            {"type": "reply", "reply": {"id": "mais2", "title": "Outras opções"}},
+            {"type": "reply", "reply": {"id": "mais2",         "title": "Mais opções"}},
         ])
         return
 
+    # Nível 2: Governamentais / Assinatura / Mais opções
     if id_normalizado == "mais2":
-        atualizar_interesse(numero, "Menu - Outras opções")
-        registrar_interacao(numero, nome_final, "Menu - Outras opções")
+        atualizar_interesse(numero, "Menu - Mais opções (2)")
+        registrar_interacao(numero, nome_final, "Menu - Mais opções (2)")
         enviar_botoes(numero, "Outras opções:", [
-            {"type": "reply", "reply": {"id": "3",   "title": "Crédito"}},
-            {"type": "reply", "reply": {"id": "4.1", "title": "Governamentais"}},
-            {"type": "reply", "reply": {"id": "4.2", "title": "Assinatura"}},
+            {"type": "reply", "reply": {"id": "4.1",  "title": "Governamentais"}},
+            {"type": "reply", "reply": {"id": "4.2",  "title": "Assinatura"}},
+            {"type": "reply", "reply": {"id": "mais3","title": "Mais opções"}},
         ])
         return
 
+    # Nível 3: Trabalhe / Voltar ao início
+    if id_normalizado == "mais3":
+        atualizar_interesse(numero, "Menu - Mais opções (3)")
+        registrar_interacao(numero, nome_final, "Menu - Mais opções (3)")
+        enviar_botoes(numero, "Mais opções:", [
+            {"type": "reply", "reply": {"id": "btn-trabalhe", "title": "Trabalhe conosco"}},
+            {"type": "reply", "reply": {"id": "menu",         "title": "Voltar ao início"}},
+        ])
+        return
+
+    # Pós-venda (mantido)
     if id_normalizado == "btn-pos-venda":
         atualizar_interesse(numero, "Menu - Pós-venda")
         registrar_interacao(numero, nome_final, "Menu - Pós-venda")
         enviar_botoes(numero, "Pós-venda Sullato - Escolha uma das opções abaixo:", [
             {"type": "reply", "reply": {"id": "3.2.1", "title": "Passeio"}},
             {"type": "reply", "reply": {"id": "3.2.2", "title": "Utilitário"}},
-            {"type": "reply", "reply": {"id": "menu", "title": "Voltar ao início"}},
+            {"type": "reply", "reply": {"id": "menu",  "title": "Voltar ao início"}},
         ])
         return
-
-    # ===== Folhas / Blocos =====
+    # ===== Folhas / Blocos (MANTIDAS) =====
     if id_normalizado == "1.1":
         atualizar_interesse(numero, "Interesse - Passeio")
         registrar_interacao(numero, nome_final, "Interesse - Passeio")
@@ -384,19 +399,20 @@ def gerar_resposta(mensagem, numero: str, nome_cliente: Optional[str] = None):
         registrar_interacao(numero, nome_final, tag)
         enviar_mensagem(numero, BLOCOS[id_normalizado])
         return
+
     # ===== Trabalhe Conosco =====
     if id_normalizado == "btn-trabalhe":
         atualizar_interesse(numero, "Interesse - Trabalhe Conosco")
         registrar_interacao(numero, nome_final, "Interesse - Trabalhe Conosco")
-        texto = (
-            "Envie seu *nome*, *telefone* e uma *breve descrição* da sua experiência. Vamos encaminhar ao RH.\n\n"
-            "Se deseja atuar com *veículos de passeio*, seu contato será direcionado para:\n"
-            "Alex - 📞 011996371559 - https://wa.me/5511996371559 - ✉️ alex@sullato.com.br\n\n"
-            "Se deseja atuar com *veículos utilitários*, seu contato será direcionado para:\n"
-            "Anderson - 📞 011988780161 - https://wa.me/5511988780161 - ✉️ anderson@sullato.com.br"
+        enviar_mensagem(
+            numero,
+            "Envie seu *nome*, *telefone* e uma *breve descrição* da sua experiência.\n\n"
+            "Para *veículos de passeio*:\n"
+            "Alex – 📞 011996371559 – https://wa.me/5511996371559 – ✉️ alex@sullato.com.br\n\n"
+            "Para *veículos utilitários*:\n"
+            "Anderson – 📞 011988780161 – https://wa.me/5511988780161 – ✉️ anderson@sullato.com.br"
         )
-        enviar_mensagem(numero, texto)
-        # E-mail automático opcional (não falha se SMTP não configurado)
+        # opcional: aviso por e-mail (não falha se SMTP não estiver configurado)
         enviar_email(
             "Novo interesse - Trabalhe Conosco (Sullato)",
             (
@@ -408,7 +424,7 @@ def gerar_resposta(mensagem, numero: str, nome_cliente: Optional[str] = None):
         )
         return
 
-    # Se o usuário digitar detalhes de candidatura → enviar e-mail com os dados
+    # Se o usuário enviar dados de candidatura como texto
     if not isinstance(mensagem, dict) and _parece_detalhe_trabalho(id_recebido):
         enviar_email(
             "Detalhes de candidatura - Trabalhe Conosco (Sullato)",
