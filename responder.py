@@ -267,9 +267,9 @@ BLOCOS = {
 # Menu inicial (3 botões)
 # =============================
 BOTOES_MENU_INICIAL = [
-    {"type": "reply", "reply": {"id": "comprar", "title": "Comprar"}},
-    {"type": "reply", "reply": {"id": "vender",  "title": "Vender"}},
-    {"type": "reply", "reply": {"id": "mais1",  "title": "Mais opções"}},
+    {"type": "reply", "reply": {"id": "1",     "title": "Comprar/Vender"}},
+    {"type": "reply", "reply": {"id": "2",     "title": "Oficina/Peças"}},
+    {"type": "reply", "reply": {"id": "mais1", "title": "Mais opções"}},
 ]
 # =============================
 # Lógica principal
@@ -305,26 +305,26 @@ def gerar_resposta(mensagem, numero: str, nome_cliente: Optional[str] = None):
         )
         return
 
-    # ===== Menus topo (sem mexer nas folhas) =====
-    # COMPRAR → reutiliza suas folhas 1.1/1.2/1.3
-    if id_normalizado == "comprar" or id_normalizado == "1":
-        atualizar_interesse(numero, "Menu - Comprar")
-        registrar_interacao(numero, nome_final, "Menu - Comprar")
-        enviar_botoes(numero, "O que você procura para *comprar*?", [
+    # ===== Menus topo =====
+    # 1) COMPRAR/VENDER → reutiliza 1.1/1.2/1.3
+    if id_normalizado == "1" or id_normalizado == "comprar":
+        atualizar_interesse(numero, "Menu - Comprar/Vender")
+        registrar_interacao(numero, nome_final, "Menu - Comprar/Vender")
+        enviar_botoes(numero, "Escolha uma opção de compra/venda:", [
             {"type": "reply", "reply": {"id": "1.1", "title": "Passeio"}},
             {"type": "reply", "reply": {"id": "1.2", "title": "Utilitário"}},
             {"type": "reply", "reply": {"id": "1.3", "title": "Endereço"}},
         ])
         return
 
-    # VENDER → mensagem simples (como já era)
-    if id_normalizado == "vender":
-        atualizar_interesse(numero, "Interesse - Vender")
-        registrar_interacao(numero, nome_final, "Interesse - Vender")
-        enviar_mensagem(
-            numero,
-            "📢 Estamos prontos pra ajudar você a vender seu veículo com segurança e agilidade."
-        )
+    # 2) OFICINA/PEÇAS → submenu com 2.1 e 2.2  (<<< AJUSTADO AQUI)
+    if id_normalizado == "2":
+        atualizar_interesse(numero, "Menu - Oficina/Peças")
+        registrar_interacao(numero, nome_final, "Menu - Oficina/Peças")
+        enviar_botoes(numero, "Escolha uma opção sobre oficina/peças:", [
+            {"type": "reply", "reply": {"id": "2.1", "title": "Oficina e Peças"}},
+            {"type": "reply", "reply": {"id": "2.2", "title": "Endereço Oficina"}},
+        ])
         return
 
     # ===== Cadeia de 'Mais opções' em 3 níveis =====
@@ -370,7 +370,7 @@ def gerar_resposta(mensagem, numero: str, nome_cliente: Optional[str] = None):
             {"type": "reply", "reply": {"id": "menu",  "title": "Voltar ao início"}},
         ])
         return
-    # ===== Folhas / Blocos (MANTIDAS) =====
+    # ===== Folhas / Blocos (mantidas) =====
     if id_normalizado == "1.1":
         atualizar_interesse(numero, "Interesse - Passeio")
         registrar_interacao(numero, nome_final, "Interesse - Passeio")
