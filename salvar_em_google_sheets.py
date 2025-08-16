@@ -30,7 +30,14 @@ agora_sp = _agora_sp_factory()
 # 🔁 Carregar variáveis do .env
 load_dotenv()
 
-CAMINHO_CREDENCIAL = os.getenv("GOOGLE_SHEETS_CREDENTIALS_PATH")
+# Fallbacks de nome de variável para o caminho das credenciais
+CAMINHO_CREDENCIAL = (
+    os.getenv("GOOGLE_SHEETS_CREDENTIALS_PATH")
+    or os.getenv("GOOGLE_SHEETS_CREDENCIALS_PATH")
+    or os.getenv("GOOGLE_SHEETS_CREDENTIALS")
+    or os.getenv("GOOGLE_SHEETS_JSON")
+)
+
 SHEET_ID = '1Xke33HzOXW78CjX7sVm9O0RZmw7dvUN2YzjBXcVQ0II'
 NOME_ABA = 'Página1'
 
