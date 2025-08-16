@@ -247,7 +247,7 @@ def vendedores_util(dt=None):
 def _bloco_vendedores(lista):
     return "\n".join([f"{nome}: {link}" for nome, link in lista])
 
-# ===== Blocos fixos (inclui Governamentais / Assinatura / Crédito / Pós-venda) =====
+# ===== Blocos fixos =====
 BLOCOS = {
     "1.3": """*Endereço e Site*
 
@@ -306,7 +306,8 @@ Para veículos **utilitários**:
 
 ✉️ Consulte nosso consultor.
 
-📆 Alexsander: https://wa.me/5511996371559""",
+📆 Alexsander: https://wa.me/5511996371559
+📧 E-mail: alex@sullato.com.br""",
 }
 # ===== Menus (compatível com as duas versões) =====
 BOTOES_MENU_INICIAL = [
@@ -377,7 +378,7 @@ def responder(numero: str, mensagem: Any, nome_contato: Optional[str] = None) ->
         ])
         return
 
-    # 2) OFICINA/PEÇAS → submenu (Passeio/Utilitário/Endereço)
+    # 2) OFICINA/PEÇAS → submenu
     if id_normalizado == "2" or id_normalizado == "btn-oficina":
         try:
             atualizar_interesse(numero, "Menu - Oficina/Peças")
@@ -391,7 +392,7 @@ def responder(numero: str, mensagem: Any, nome_contato: Optional[str] = None) ->
         ])
         return
 
-    # 3) MAIS OPÇÕES
+    # 3) MAIS OPÇÕES (1/2/3)
     if id_normalizado in ("mais1",):
         try:
             atualizar_interesse(numero, "Menu - Mais opções (1)")
@@ -405,7 +406,6 @@ def responder(numero: str, mensagem: Any, nome_contato: Optional[str] = None) ->
         ])
         return
 
-    # MAIS OPÇÕES nível 2
     if id_normalizado in ("mais2", "btn-mais2"):
         try:
             atualizar_interesse(numero, "Menu - Mais opções (2)")
@@ -419,7 +419,6 @@ def responder(numero: str, mensagem: Any, nome_contato: Optional[str] = None) ->
         ])
         return
 
-    # MAIS OPÇÕES nível 3
     if id_normalizado == "mais3":
         try:
             atualizar_interesse(numero, "Menu - Mais opções (3)")
@@ -446,7 +445,7 @@ def responder(numero: str, mensagem: Any, nome_contato: Optional[str] = None) ->
         ])
         return
     # ===== Folhas / Blocos =====
-    # Oficina e Peças (acesso direto se algum botão antigo enviar 2.1)
+    # Oficina e Peças (acesso direto antigo)
     if id_normalizado == "2.1":
         try:
             atualizar_interesse(numero, "Interesse - Oficina e Peças")
@@ -456,7 +455,7 @@ def responder(numero: str, mensagem: Any, nome_contato: Optional[str] = None) ->
         enviar_mensagem(numero, BLOCOS["2.1"])
         return
 
-    # Endereço da Oficina (aceita ID e texto)
+    # Endereço da Oficina
     if id_normalizado in ("2.2", "endereco oficina", "endereço oficina"):
         try:
             atualizar_interesse(numero, "Interesse - Endereço Oficina")
@@ -466,7 +465,26 @@ def responder(numero: str, mensagem: Any, nome_contato: Optional[str] = None) ->
         enviar_mensagem(numero, BLOCOS["2.2"])
         return
 
-    # ====== Importante: quando a Meta envia o TÍTULO do botão ======
+    # === CRÍTICO: tratar quando a Meta manda o ID literal dos sub-botões ===
+    if id_normalizado in ("3.2.1", "3,2,1", "32.1", "32,1", "oficina-passeio", "p-venda-passeio"):
+        try:
+            atualizar_interesse(numero, "Interesse - Oficina/Peças - Passeio (ID)")
+            registrar_interacao(numero, nome_final, "Interesse - Oficina/Peças - Passeio (ID)")
+        except Exception as e:
+            print("⚠️ registro passeio(ID) falhou:", e)
+        enviar_mensagem(numero, BLOCOS["3.2.1"])
+        return
+
+    if id_normalizado in ("3.2.2", "3,2,2", "32.2", "32,2", "oficina-utilitario", "p-venda-utilitario"):
+        try:
+            atualizar_interesse(numero, "Interesse - Oficina/Peças - Utilitário (ID)")
+            registrar_interacao(numero, nome_final, "Interesse - Oficina/Peças - Utilitário (ID)")
+        except Exception as e:
+            print("⚠️ registro utilitario(ID) falhou:", e)
+        enviar_mensagem(numero, BLOCOS["3.2.2"])
+        return
+
+    # === Quando a Meta manda o TÍTULO do botão ===
     if id_normalizado in ("passeio",):
         try:
             atualizar_interesse(numero, "Interesse - Oficina/Peças - Passeio")
@@ -485,7 +503,7 @@ def responder(numero: str, mensagem: Any, nome_contato: Optional[str] = None) ->
         enviar_mensagem(numero, BLOCOS["3.2.2"])
         return
 
-    # Comprar/Vender (listas com rotação)
+    # Comprar/Vender (lista com rotação)
     if id_normalizado == "1.1":
         try:
             atualizar_interesse(numero, "Interesse - Passeio")
@@ -540,7 +558,7 @@ def responder(numero: str, mensagem: Any, nome_contato: Optional[str] = None) ->
         enviar_mensagem(numero, BLOCOS["4.2"])
         return
 
-    # ===== Aliases (Venda Direta ≡ Governamentais | Garantia ≡ Pós-venda) =====
+    # Aliases
     if id_normalizado in ("venda direta", "venda-direta", "vendadireta", "btn-venda-direta", "governamental", "governamentais"):
         try:
             atualizar_interesse(numero, "Interesse - Governamentais (via alias)")
@@ -563,7 +581,7 @@ def responder(numero: str, mensagem: Any, nome_contato: Optional[str] = None) ->
         ])
         return
 
-    # ===== Trabalhe Conosco (com e-mails e links wa.me) =====
+    # Trabalhe Conosco (wa.me + e-mails)
     if id_normalizado == "btn-trabalhe":
         try:
             atualizar_interesse(numero, "Interesse - Trabalhe Conosco")
@@ -581,7 +599,7 @@ def responder(numero: str, mensagem: Any, nome_contato: Optional[str] = None) ->
         )
         return
 
-    # ===== Texto livre com dados de candidatura =====
+    # Texto livre com dados de candidatura
     if not isinstance(mensagem, dict) and _parece_detalhe_trabalho(id_recebido):
         enviar_email(
             "Detalhes de candidatura - Trabalhe Conosco (Sullato)",
@@ -599,7 +617,7 @@ def responder(numero: str, mensagem: Any, nome_contato: Optional[str] = None) ->
         enviar_mensagem(numero, "Obrigado! Seus dados foram encaminhados ao nosso RH. Entraremos em contato.")
         return
 
-    # ===== Classificação por IA (se disponível) =====
+    # IA (se houver)
     try:
         intencao = interpretar_mensagem(id_normalizado)
     except Exception as e:
@@ -624,22 +642,7 @@ def responder(numero: str, mensagem: Any, nome_contato: Optional[str] = None) ->
                 print("⚠️ registro IA falhou:", e)
             return
 
-    # ===== Resposta livre por IA (fallback) =====
-    try:
-        resposta = responder_com_ia(id_recebido, nome_final)
-    except Exception as e:
-        print("⚠️ Erro responder_com_ia:", e)
-        resposta = None
-
-    if resposta:
-        enviar_mensagem(numero, resposta)
-        try:
-            registrar_interacao(numero, nome_final, "IA - Resposta livre")
-        except Exception as e:
-            print("⚠️ registrar_interacao falhou:", e)
-        return
-
-    # ===== Fallback final → Menu =====
+    # Fallback → menu
     try:
         registrar_interacao(numero, nome_final, "Fallback → Menu")
         atualizar_interesse(numero, "Fallback → Menu")
