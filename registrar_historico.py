@@ -4,19 +4,26 @@ from datetime import datetime
 import traceback
 import os
 from dotenv import load_dotenv
+from zoneinfo import ZoneInfo  # ⬅ fuso horário
 
 # Carregar .env
 load_dotenv()
 
-# ✅ Corrigido: Nome da variável agora bate com o Render
+# ✅ Mantido igual ao que você já usa neste arquivo
 CAMINHO_CREDENCIAL = os.getenv("GOOGLE_SHEETS_CREDENTIALS_PATH")
 SHEET_ID = '1Xke33HzOXW78CjX7sVm9O0RZmw7dvUN2YzjBXcVQ0II'
 NOME_ABA_HISTORICO = 'Historico'
 
+# Fuso de São Paulo
+TZ_SP = ZoneInfo("America/Sao_Paulo")
+def agora_sp():
+    return datetime.now(TZ_SP)
+
 def registrar_interacao(numero, nome, interesse='-', datahora=None):
     try:
         if datahora is None:
-            datahora = datetime.now().strftime('%d/%m/%Y %H:%M:%S')
+            # ⬇️ Agora grava Data/Hora no horário de Brasília (SP)
+            datahora = agora_sp().strftime('%d/%m/%Y %H:%M:%S')
 
         SCOPES = ['https://www.googleapis.com/auth/spreadsheets']
         creds = Credentials.from_service_account_file(CAMINHO_CREDENCIAL, scopes=SCOPES)
