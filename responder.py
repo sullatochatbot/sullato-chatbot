@@ -266,10 +266,12 @@ BLOCOS = {
 
     "2.1": """*Oficina e Peças*
 
-✉️ Consulte um de nossos consultores.
+Para veículos de **passeio**:
+🔧 Leandro (WhatsApp): https://wa.me/5511981892900
 
-🔧 Erico: https://wa.me/5511940497678
-🔧 Leandro: https://wa.me/5511940443566""",
+Para veículos **utilitários**:
+🔧 Érico (WhatsApp): https://wa.me/5511940497678
+📧 E-mail: erico@sullato.com.br""",
 
     "2.2": """*Endereço da Oficina*
 
@@ -283,23 +285,25 @@ BLOCOS = {
 💰 Magali: https://wa.me/5511940215082
 💰 Patrícia: https://wa.me/5511940215081""",
 
-    "3.2.1": """*Pós-venda – Passeio*
+    "3.2.1": """*Oficina e Peças – Passeio*
 
-✉️ Consulte um de nossos consultores.
+✉️ Fale com nosso consultor.
 
-🔧 Leandro: https://wa.me/5511940443566""",
+🔧 Leandro (WhatsApp): https://wa.me/5511981892900""",
 
-    "3.2.2": """*Pós-venda – Utilitário*
+    "3.2.2": """*Oficina e Peças – Utilitário*
 
-✉️ Consulte um de nossos consultores.
+✉️ Fale com nosso consultor.
 
-🔧 Erico: https://wa.me/5511940497678""",
+🔧 Érico (WhatsApp): https://wa.me/5511940497678
+📧 E-mail: erico@sullato.com.br""",
 
     "4.1": """*Vendas Governamentais*
 
 ✉️ Consulte nossa consultora.
 
-🏛️ Solange: https://wa.me/5511989536141""",
+🏛️ Solange: https://wa.me/5511989536141
+📧 E-mail: vendasdireta@sullato.com.br | sol@sullato.com.br""",
 
     "4.2": """*Veículo por Assinatura*
 
@@ -381,14 +385,13 @@ def responder(numero: str, mensagem: Any, nome_contato: Optional[str] = None) ->
         ])
         return
 
-    # 2) OFICINA/PEÇAS → 2.1 / 2.2
+    # 2) OFICINA/PEÇAS → submenu (Passeio/Utilitário/Endereço)
     if id_normalizado == "2" or id_normalizado == "btn-oficina":
         try:
             atualizar_interesse(numero, "Menu - Oficina/Peças")
             registrar_interacao(numero, nome_final, "Menu - Oficina/Peças")
         except Exception as e:
             print("⚠️ registro menu 2 falhou:", e)
-        # Como estava antes: abrir Passeio / Utilitário e também Endereço Oficina
         enviar_botoes(numero, "Escolha uma opção sobre oficina/peças:", [
             {"type": "reply", "reply": {"id": "3.2.1", "title": "Passeio"}},
             {"type": "reply", "reply": {"id": "3.2.2", "title": "Utilitário"}},
@@ -396,7 +399,7 @@ def responder(numero: str, mensagem: Any, nome_contato: Optional[str] = None) ->
         ])
         return
 
-    # 3) MAIS OPÇÕES (compat: aceita "3" e "mais1")
+    # 3) MAIS OPÇÕES (compat: aceita só 'mais1' para não conflitar com crédito)
     if id_normalizado in ("mais1",):
         try:
             atualizar_interesse(numero, "Menu - Mais opções (1)")
@@ -410,7 +413,7 @@ def responder(numero: str, mensagem: Any, nome_contato: Optional[str] = None) ->
         ])
         return
 
-    # MAIS OPÇÕES nível 2 (compat: aceita btn-mais2)
+    # MAIS OPÇÕES nível 2
     if id_normalizado in ("mais2", "btn-mais2"):
         try:
             atualizar_interesse(numero, "Menu - Mais opções (2)")
@@ -459,7 +462,7 @@ def responder(numero: str, mensagem: Any, nome_contato: Optional[str] = None) ->
             registrar_interacao(numero, nome_final, "Interesse - Oficina e Peças")
         except Exception as e:
             print("⚠️ registro 2.1 falhou:", e)
-        enviar_mensagem(numero, BLOCOS["2.1"])  # contatos da oficina/peças
+        enviar_mensagem(numero, BLOCOS["2.1"])
         return
 
     # Endereço da Oficina
@@ -469,8 +472,9 @@ def responder(numero: str, mensagem: Any, nome_contato: Optional[str] = None) ->
             registrar_interacao(numero, nome_final, "Interesse - Endereço Oficina")
         except Exception as e:
             print("⚠️ registro 2.2 falhou:", e)
-        enviar_mensagem(numero, BLOCOS["2.2"])  # endereço da oficina
+        enviar_mensagem(numero, BLOCOS["2.2"])
         return
+
     if id_normalizado == "1.1":
         try:
             atualizar_interesse(numero, "Interesse - Passeio")
@@ -525,22 +529,7 @@ def responder(numero: str, mensagem: Any, nome_contato: Optional[str] = None) ->
         enviar_mensagem(numero, BLOCOS["4.2"])
         return
 
-    if id_normalizado == "btn-venda-direta":
-        try:
-            atualizar_interesse(numero, "Interesse - Venda Direta")
-            registrar_interacao(numero, nome_final, "Interesse - Venda Direta")
-        except Exception as e:
-            print("⚠️ registro venda direta falhou:", e)
-        enviar_mensagem(
-            numero,
-            "*Venda Direta*\n\n"
-            "Para veículos direto com a Sullato (CNPJ), fale com nosso time comercial.\n\n"
-            + _bloco_vendedores(vendedores_passeio())
-        )
-        return
-
     # ===== Aliases adicionais (Venda Direta ≡ Governamentais | Garantia ≡ Pós-venda) =====
-    # Venda Direta → usar o mesmo conteúdo de Governamentais (4.1)
     if id_normalizado in ("venda direta", "venda-direta", "vendadireta", "btn-venda-direta", "governamental", "governamentais"):
         try:
             atualizar_interesse(numero, "Interesse - Governamentais (via alias)")
@@ -550,7 +539,6 @@ def responder(numero: str, mensagem: Any, nome_contato: Optional[str] = None) ->
         enviar_mensagem(numero, BLOCOS["4.1"])  # mesmo bloco das vendas governamentais
         return
 
-    # Garantia → abrir o submenu de Pós-venda
     if id_normalizado in ("garantia", "btn-garantia"):
         try:
             atualizar_interesse(numero, "Menu - Pós-venda (via Garantia)")
@@ -567,13 +555,16 @@ def responder(numero: str, mensagem: Any, nome_contato: Optional[str] = None) ->
     # ===== Trabalhe Conosco =====
     if id_normalizado == "btn-trabalhe":
         try:
-            atualizar_interesse(numero, "Trabalhe Conosco - Abriu formulário")
-            registrar_interacao(numero, nome_final, "Trabalhe Conosco - Abriu formulário")
+            atualizar_interesse(numero, "Interesse - Trabalhe Conosco")
+            registrar_interacao(numero, nome_final, "Interesse - Trabalhe Conosco")
         except Exception as e:
             print("⚠️ registro Trabalhe Conosco falhou:", e)
         enviar_mensagem(
             numero,
-            "*Trabalhe Conosco - Grupo Sullato*\n\n"
+            "*Trabalhe Conosco – Grupo Sullato*\n\n"
+            "Sullato Micros e Vans – Anderson: +55 11 98878-0161\n"
+            "Sullato Veículos – Alex: +55 11 99637-1559 | alex@sullato.com.br\n"
+            "Peças e Oficina – Érico: +55 11 94049-7678 | erico@sullato.com.br\n\n"
             "Envie seu nome completo, e-mail e um breve resumo da sua experiência.\n"
             "Se preferir, cole seu currículo (texto)."
         )
@@ -608,8 +599,6 @@ def responder(numero: str, mensagem: Any, nome_contato: Optional[str] = None) ->
         mapa = {
             "credito": (BLOCOS.get("3", "💰 Opções de crédito flexíveis. Fale com nossa equipe."), "Interesse - Crédito"),
             "endereco": (BLOCOS.get("1.3", "📍 Endereços atualizados das lojas."), "Interesse - Endereço Loja"),
-            "credito": ("💰 Aqui na Sullato temos opções de crédito flexíveis...", "Interesse - Crédito"),
-            "endereco": ("📍 Estamos em dois endereços: Av. São Miguel, 7900 e 4049/4084 – São Paulo.", "Interesse - Endereço Loja"),
             "comprar": ("🚗 Temos vans, utilitários e veículos de passeio esperando por você!", "Interesse - Comprar"),
             "vender": ("📝 Avaliamos seu veículo e cuidamos de toda a intermediação para vender rapidamente.", "Interesse - Vender"),
             "pos_venda": ("🔧 Nosso pós-venda está pronto para te atender! Quer suporte agora?", "Interesse - Pós-venda"),
