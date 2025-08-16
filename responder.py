@@ -198,7 +198,7 @@ def _extrair_id_ou_texto(msg) -> str:
         if isinstance(msg, dict):
             inter = msg.get("interactive") or {}
             if inter.get("type") == "button":
-                br = inter.get("button_reply") or inter.get("nfm_reply") or {}
+                br = inter.get("button_reply") or br.get("nfm_reply") if (br := inter.get("button_reply") or inter.get("nfm_reply")) else {}
                 return br.get("id") or br.get("title") or ""
             if "text" in msg and isinstance(msg["text"], dict):
                 return msg["text"].get("body", "")
@@ -212,6 +212,28 @@ def _extrair_id_ou_texto(msg) -> str:
 
 def _tem_trigger_menu(id_norm: str) -> bool:
     return re.search(r"\b(oi|ola|menu|inicio|start|ajuda|help|voltar|voltar ao inicio)\b", f" {id_norm} ") is not None
+
+# ===== Heurística simples de intenção (para o toque de IA) =====
+def detectar_intencao_basica(txt: str) -> Optional[str]:
+    if not txt:
+        return None
+    t = txt.lower()
+    grupos = [
+        ("credito",      ["credito", "financi", "parcel", "banco", "consorcio", "consórcio"]),
+        ("endereco",     ["endereco", "endereço", "loja", "onde fica", "mapa"]),
+        ("comprar",      ["comprar", "compra", "quero comprar"]),
+        ("vender",       ["vender", "venda", "quero vender"]),
+        ("pos_venda",    ["pos venda", "pós-venda", "garantia", "assistencia", "assistência", "suporte"]),
+        ("oficina_passeio",   ["oficina passeio", "passeio oficina"]),
+        ("oficina_utilitario",["oficina utilitario", "oficina utilitário", "utilitario oficina", "utilitário oficina"]),
+        ("governamentais",    ["governamental", "governamentais", "venda direta", "venda-direta"]),
+        ("assinatura",        ["assinatura", "subscription", "aluguel longo", "longa duracao", "longa duração"]),
+        ("trabalhe",          ["trabalhe", "curriculo", "currículo", "emprego", "vaga", "vagas", "rh"]),
+    ]
+    for intent, palavras in grupos:
+        if any(p in t for p in palavras):
+            return intent
+    return None
 
 # ===== Rodízio de vendedores (varia a cada 6h) =====
 VENDEDORES_PASSEIO_BASE = [
@@ -264,10 +286,10 @@ BLOCOS = {
     "2.1": """*Oficina e Peças*
 
 Para veículos de **passeio**:
-🔧 Leandro (WhatsApp): https://wa.me/5511981892900
+🔧 Leandro: https://wa.me/5511981892900
 
 Para veículos **utilitários**:
-🔧 Érico (WhatsApp): https://wa.me/5511940497678
+🔧 Érico: https://wa.me/5511940497678
 📧 E-mail: erico@sullato.com.br""",
 
     "2.2": """*Endereço da Oficina*
@@ -286,13 +308,13 @@ Para veículos **utilitários**:
 
 ✉️ Fale com nosso consultor.
 
-🔧 Leandro (WhatsApp): https://wa.me/5511981892900""",
+🔧 Leandro: https://wa.me/5511981892900""",
 
     "3.2.2": """*Oficina e Peças – Utilitário*
 
 ✉️ Fale com nosso consultor.
 
-🔧 Érico (WhatsApp): https://wa.me/5511940497678
+🔧 Érico: https://wa.me/5511940497678
 📧 E-mail: erico@sullato.com.br""",
 
     "4.1": """*Vendas Governamentais*
@@ -465,7 +487,7 @@ def responder(numero: str, mensagem: Any, nome_contato: Optional[str] = None) ->
         enviar_mensagem(numero, BLOCOS["2.2"])
         return
 
-    # === CRÍTICO: tratar quando a Meta manda o ID literal dos sub-botões ===
+    # === CRÍTICO: quando a Meta manda o ID literal dos sub-botões ===
     if id_normalizado in ("3.2.1", "3,2,1", "32.1", "32,1", "oficina-passeio", "p-venda-passeio"):
         try:
             atualizar_interesse(numero, "Interesse - Oficina/Peças - Passeio (ID)")
@@ -599,32 +621,62 @@ def responder(numero: str, mensagem: Any, nome_contato: Optional[str] = None) ->
         )
         return
 
-    # Texto livre com dados de candidatura
-    if not isinstance(mensagem, dict) and _parece_detalhe_trabalho(id_recebido):
-        enviar_email(
-            "Detalhes de candidatura - Trabalhe Conosco (Sullato)",
-            (
-                f"Data/Hora (SP): {agora_sp().strftime('%Y-%m-%d %H:%M:%S')}\n"
-                f"Nome (detectado): {nome_final}\n"
-                f"WhatsApp: {numero}\n"
-                f"Mensagem:\n{id_recebido}\n"
-            ),
-        )
-        try:
-            registrar_interacao(numero, nome_final, "Trabalhe Conosco - Dados enviados")
-        except Exception as e:
-            print("⚠️ registrar_interacao falhou:", e)
-        enviar_mensagem(numero, "Obrigado! Seus dados foram encaminhados ao nosso RH. Entraremos em contato.")
-        return
-
-    # IA (se houver)
+    # ===== IA (se houver) + heurística local (toque de IA) =====
     try:
         intencao = interpretar_mensagem(id_normalizado)
     except Exception as e:
         print("⚠️ Erro interpretar_mensagem:", e)
         intencao = None
 
+    if not intencao:
+        intencao = detectar_intencao_basica(id_normalizado)
+
     if intencao:
+        # atalhos diretos de oficina/pós-venda
+        if intencao == "oficina_passeio":
+            enviar_mensagem(numero, BLOCOS["3.2.1"])
+            try: atualizar_interesse(numero, "Interesse - Oficina/Peças - Passeio (heurística)")
+            except: pass
+            try: registrar_interacao(numero, nome_final, "Heurística - Oficina/Peças - Passeio")
+            except: pass
+            return
+        if intencao == "oficina_utilitario":
+            enviar_mensagem(numero, BLOCOS["3.2.2"])
+            try: atualizar_interesse(numero, "Interesse - Oficina/Peças - Utilitário (heurística)")
+            except: pass
+            try: registrar_interacao(numero, nome_final, "Heurística - Oficina/Peças - Utilitário")
+            except: pass
+            return
+        if intencao == "governamentais":
+            enviar_mensagem(numero, BLOCOS["4.1"])
+            try: atualizar_interesse(numero, "Interesse - Governamentais (heurística)")
+            except: pass
+            try: registrar_interacao(numero, nome_final, "Heurística - Governamentais")
+            except: pass
+            return
+        if intencao == "assinatura":
+            enviar_mensagem(numero, BLOCOS["4.2"])
+            try: atualizar_interesse(numero, "Interesse - Assinatura (heurística)")
+            except: pass
+            try: registrar_interacao(numero, nome_final, "Heurística - Assinatura")
+            except: pass
+            return
+        if intencao == "trabalhe":
+            enviar_mensagem(
+                numero,
+                "*Trabalhe Conosco – Grupo Sullato*\n\n"
+                "Sullato Micros e Vans – Anderson: https://wa.me/5511988780161 | anderson@sullato.com.br\n"
+                "Sullato Veículos – Alex: https://wa.me/5511996371559 | alex@sullato.com.br\n"
+                "Peças e Oficina – Érico: https://wa.me/5511940497678 | erico@sullato.com.br\n\n"
+                "Envie seu nome completo, e-mail e um breve resumo da sua experiência.\n"
+                "Se preferir, cole seu currículo (texto)."
+            )
+            try: atualizar_interesse(numero, "Interesse - Trabalhe Conosco (heurística)")
+            except: pass
+            try: registrar_interacao(numero, nome_final, "Heurística - Trabalhe Conosco")
+            except: pass
+            return
+
         mapa = {
             "credito": (BLOCOS.get("3", "💰 Opções de crédito flexíveis. Fale com nossa equipe."), "Interesse - Crédito"),
             "endereco": (BLOCOS.get("1.3", "📍 Endereços atualizados das lojas."), "Interesse - Endereço Loja"),
@@ -637,20 +689,35 @@ def responder(numero: str, mensagem: Any, nome_contato: Optional[str] = None) ->
             enviar_mensagem(numero, texto)
             try:
                 atualizar_interesse(numero, label)
-                registrar_interacao(numero, nome_final, f"IA - {label}")
+                registrar_interacao(numero, nome_final, f"IA/Heurística - {label}")
             except Exception as e:
-                print("⚠️ registro IA falhou:", e)
+                print("⚠️ registro IA/heurística falhou:", e)
             return
 
-    # Fallback → menu
+    # ===== Fallback → Quick Menu aleatório =====
     try:
-        registrar_interacao(numero, nome_final, "Fallback → Menu")
-        atualizar_interesse(numero, "Fallback → Menu")
+        registrar_interacao(numero, nome_final, "Fallback → QuickMenu")
+        atualizar_interesse(numero, "Fallback → QuickMenu")
     except Exception as e:
-        print("⚠️ registro fallback falhou:", e)
-    enviar_botoes(
-        numero,
-        f"Não entendi. Escolha uma das opções abaixo, {primeiro_nome}:",
-        BOTOES_MENU_INICIAL,
-    )
+        print("⚠️ registro fallback quick falhou:", e)
+
+    quick_menus = [
+        ("Posso te ajudar com algo específico? Escolha abaixo:", [
+            {"type": "reply", "reply": {"id": "1", "title": "Comprar/Vender"}},
+            {"type": "reply", "reply": {"id": "2", "title": "Oficina/Peças"}},
+            {"type": "reply", "reply": {"id": "mais1", "title": "Mais opções"}},
+        ]),
+        ("Assistência técnica ou peças?", [
+            {"type": "reply", "reply": {"id": "3.2.1", "title": "Passeio"}},
+            {"type": "reply", "reply": {"id": "3.2.2", "title": "Utilitário"}},
+            {"type": "reply", "reply": {"id": "2.2",   "title": "Endereço Oficina"}},
+        ]),
+        ("Quer ver opções financeiras ou suporte?", [
+            {"type": "reply", "reply": {"id": "3",             "title": "Crédito"}},
+            {"type": "reply", "reply": {"id": "btn-pos-venda", "title": "Pós-venda"}},
+            {"type": "reply", "reply": {"id": "4.2",           "title": "Assinatura"}},
+        ]),
+    ]
+    titulo, botoes = random.choice(quick_menus)
+    enviar_botoes(numero, titulo, botoes)
     return
