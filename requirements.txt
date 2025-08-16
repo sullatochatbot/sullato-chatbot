@@ -4,3 +4,4 @@ python-dotenv
 gspread
 google-auth
 openai
+tzdata

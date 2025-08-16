@@ -1,28 +1,42 @@
 import gspread
 from google.oauth2.service_account import Credentials
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 import traceback
 import os
 from dotenv import load_dotenv
-from zoneinfo import ZoneInfo  # ⬅ fuso horário
+
+# ===== Fuso SP robusto =====
+def _agora_sp_factory():
+    try:
+        from zoneinfo import ZoneInfo  # type: ignore
+        try:
+            tz = ZoneInfo("America/Sao_Paulo")
+            return lambda: datetime.now(tz)
+        except Exception:
+            pass
+        try:
+            import tzdata  # noqa: F401
+            tz = ZoneInfo("America/Sao_Paulo")
+            return lambda: datetime.now(tz)
+        except Exception:
+            pass
+    except Exception:
+        pass
+    tz_fallback = timezone(timedelta(hours=-3))
+    return lambda: datetime.now(tz_fallback)
+
+agora_sp = _agora_sp_factory()
 
 # Carregar .env
 load_dotenv()
 
-# ✅ Mantido igual ao que você já usa neste arquivo
 CAMINHO_CREDENCIAL = os.getenv("GOOGLE_SHEETS_CREDENTIALS_PATH")
 SHEET_ID = '1Xke33HzOXW78CjX7sVm9O0RZmw7dvUN2YzjBXcVQ0II'
 NOME_ABA_HISTORICO = 'Historico'
 
-# Fuso de São Paulo
-TZ_SP = ZoneInfo("America/Sao_Paulo")
-def agora_sp():
-    return datetime.now(TZ_SP)
-
 def registrar_interacao(numero, nome, interesse='-', datahora=None):
     try:
         if datahora is None:
-            # ⬇️ Agora grava Data/Hora no horário de Brasília (SP)
             datahora = agora_sp().strftime('%d/%m/%Y %H:%M:%S')
 
         SCOPES = ['https://www.googleapis.com/auth/spreadsheets']
@@ -38,6 +52,6 @@ def registrar_interacao(numero, nome, interesse='-', datahora=None):
 
         aba.append_row([numero, nome, interesse, datahora], value_input_option="USER_ENTERED")
         print(f"📌 Interação registrada: {numero}, {nome}, {interesse}, {datahora}")
-    except Exception as e:
+    except Exception:
         print("❌ Erro ao registrar histórico no Google Sheets:")
         traceback.print_exc()

@@ -5,17 +5,37 @@ import unicodedata
 import re
 import smtplib
 import ssl
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from dotenv import load_dotenv
-from typing import Optional, List, Dict, Any, Tuple
+from typing import Optional, List, Dict, Any
 
-from zoneinfo import ZoneInfo
+# =============================
+# Fuso horário SP robusto (com fallback)
+# =============================
+def _agora_sp_factory():
+    """
+    Usa America/Sao_Paulo se disponível (zoneinfo/tzdata).
+    Se não houver base de timezones no ambiente, cai para UTC-3 fixo.
+    """
+    try:
+        from zoneinfo import ZoneInfo  # type: ignore
+        try:
+            tz = ZoneInfo("America/Sao_Paulo")
+            return lambda: datetime.now(tz)
+        except Exception:
+            pass
+        try:
+            import tzdata  # noqa: F401
+            tz = ZoneInfo("America/Sao_Paulo")
+            return lambda: datetime.now(tz)
+        except Exception:
+            pass
+    except Exception:
+        pass
+    tz_fallback = timezone(timedelta(hours=-3))
+    return lambda: datetime.now(tz_fallback)
 
-# Fuso horário de São Paulo
-TZ_SP = ZoneInfo("America/Sao_Paulo")
-
-def agora_sp():
-    return datetime.now(TZ_SP)
+agora_sp = _agora_sp_factory()
 
 # =============================
 # Imports de módulos do projeto
@@ -60,31 +80,36 @@ SMTP_TO_DEFAULT = os.getenv("SMTP_TO", "anderson@sullato.com.br")
 # Utilitários
 # =============================
 def remover_acentos(txt: str) -> str:
-    if not txt: return ""
+    if not txt:
+        return ""
     nfkd_form = unicodedata.normalize("NFKD", txt)
     return "".join([c for c in nfkd_form if not unicodedata.combining(c)])
 
 def normalizar_id(texto: str) -> str:
-    if not texto: return ""
+    if not texto:
+        return ""
     t = texto.strip()
     t = remover_acentos(t).lower()
     t = re.sub(r"\s+", " ", t)
     return t
 
 def extrair_primeiro_nome_exibicao(nome: Optional[str]) -> str:
-    if not nome: return "Cliente"
+    if not nome:
+        return "Cliente"
     nome = nome.strip()
-    if not nome: return "Cliente"
+    if not nome:
+        return "Cliente"
     partes = nome.split()
-    if len(partes) == 0: return "Cliente"
+    if len(partes) == 0:
+        return "Cliente"
     primeiro = partes[0]
-    # Evita coisas tipo "11 9 9999-9999"
     if re.fullmatch(r"\d[\d\s\-()+]*", primeiro or ""):
         return "Cliente"
     return primeiro.capitalize()
 
 def detectar_nome_digitado(texto: str) -> Optional[str]:
-    if not texto: return None
+    if not texto:
+        return None
     texto = texto.strip()
     padroes = [
         r"meu nome e ([a-zA-ZÀ-ÿ\s]+)",
@@ -108,7 +133,6 @@ def atualizar_interesse(numero: str, interesse: str) -> None:
         print("⚠️ Falha ao atualizar interesse na planilha:", e)
 
 def enviar_email(assunto: str, corpo: str, destinatario: Optional[str] = None) -> bool:
-    """Envia e-mail via SMTP (TLS). Retorna True se OK."""
     to_addr = destinatario or SMTP_TO_DEFAULT
     if not (SMTP_SERVER and SMTP_PORT and SMTP_USER and SMTP_PASS and to_addr):
         print("⚠️ SMTP não configurado corretamente. Pular envio de e-mail.")
@@ -122,7 +146,6 @@ def enviar_email(assunto: str, corpo: str, destinatario: Optional[str] = None) -
             f"Content-Type: text/plain; charset=utf-8\r\n\r\n"
             f"{corpo}"
         ).encode("utf-8")
-
         context = ssl.create_default_context()
         with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
             server.starttls(context=context)
@@ -175,19 +198,15 @@ def _parece_detalhe_trabalho(texto: str) -> bool:
 
 # === Helpers p/ WhatsApp ===
 def _extrair_id_ou_texto(msg) -> str:
-    """Extrai ID de botão ou texto do payload, em vários formatos que a Meta envia."""
     try:
         if isinstance(msg, str):
             return msg
         if isinstance(msg, dict):
-            # interactive → button
             inter = msg.get("interactive") or {}
             if inter.get("type") == "button":
                 return inter.get("button_reply", {}).get("id") or inter.get("nfm_reply", {}).get("id") or ""
-            # text
             if "text" in msg and isinstance(msg["text"], dict):
                 return msg["text"].get("body", "")
-            # type message
             if "type" in msg and msg["type"] == "text" and "text" in msg:
                 return msg["text"].get("body", "")
         return ""
@@ -199,11 +218,7 @@ def _tem_trigger_menu(id_normalizado: str) -> bool:
     return re.search(r"\b(oi|ola|menu|inicio|start|ajuda|help|voltar|voltar ao inicio)\b", t) is not None
 
 # =============================
-# Rodízio diário de vendedores (1.1 e 1.2)
-# =============================
-
-# =============================
-# Rodízio de vendedores (varia a cada 6 horas, por fuso de São Paulo)
+# Rodízio de vendedores (varia a cada 6 horas)
 # =============================
 VENDEDORES_PASSEIO_BASE = [
     ("👨🏻‍💼 Alexandre", "https://wa.me/5511940559880"),
@@ -214,7 +229,6 @@ VENDEDORES_PASSEIO_BASE = [
     ("👩🏻‍💼 Vanessa",   "https://wa.me/5511947954378"),
     ("👨🏻‍💼 Vinicius",  "https://wa.me/5511911260469"),
 ]
-
 VENDEDORES_UTIL_BASE = [
     ("👩🏻‍💼 Magali",  "https://wa.me/5511940215082"),
     ("👨🏻‍💼 Silvano", "https://wa.me/5511988598736"),
@@ -222,10 +236,6 @@ VENDEDORES_UTIL_BASE = [
 ]
 
 def _embaralhar_por_janela(lista, dt=None, horas_janela=6):
-    """
-    Embaralhamento determinístico por janela de horas.
-    Ex.: horas_janela=6 => novas posições em 00:00, 06:00, 12:00, 18:00 (fuso SP).
-    """
     dt = dt or agora_sp()
     slot = dt.hour // horas_janela  # 0..3
     seed_val = int(dt.strftime("%Y%m%d")) * 10 + slot
@@ -273,6 +283,7 @@ BLOCOS = {
 
 Nosso time técnico está pronto para te ajudar!""",
 }
+
 # =============================
 # Menus (botões)
 # =============================
@@ -281,13 +292,6 @@ BOTOES_MENU_INICIAL = [
     {"type": "reply", "reply": {"id": "2", "title": "Oficina e Peças"}},
     {"type": "reply", "reply": {"id": "3", "title": "Mais opções"}},
 ]
-
-BOTOES_MENU_MAIS1 = [
-    {"type": "reply", "reply": {"id": "1", "title": "Comprar / Vender"}},
-    {"type": "reply", "reply": {"id": "btn-endereco", "title": "Endereço"}},
-    {"type": "reply", "reply": {"id": "btn-venda-direta", "title": "Venda Direta"}},
-]
-
 BOTOES_MENU_MAIS2 = [
     {"type": "reply", "reply": {"id": "btn-garantia", "title": "Garantia"}},
     {"type": "reply", "reply": {"id": "btn-oficina", "title": "Oficina e Peças"}},
@@ -298,11 +302,6 @@ BOTOES_MENU_MAIS2 = [
 # Handler principal
 # =============================
 def responder(numero: str, mensagem: Any, nome_contato: Optional[str] = None) -> None:
-    """
-    numero: string do WhatsApp em E.164
-    mensagem: payload dict da Meta ou texto puro
-    nome_contato: nome vindo do webhook quando disponível
-    """
     try:
         from salvar_em_google_sheets import salvar_em_google_sheets
     except Exception:
@@ -324,26 +323,21 @@ def responder(numero: str, mensagem: Any, nome_contato: Optional[str] = None) ->
         def responder_com_ia(_msg: str, _nome: Optional[str] = None):
             return None
 
-    # Extrai ID ou texto digitado
     id_recebido = _extrair_id_ou_texto(mensagem)
     id_normalizado = normalizar_id(id_recebido)
 
-    # Nome preferencial (prioriza nome digitado no texto; senão o de contato)
     nome_digitado = detectar_nome_digitado(id_recebido) if isinstance(id_recebido, str) else None
     nome_final = normalizar_nome(nome_digitado or nome_contato or "Cliente")
     primeiro_nome = extrair_primeiro_nome_exibicao(nome_final)
 
-    # Saudações automáticas / captação de nome (ex.: “oi”, “olá”, “menu” etc.)
     if not id_normalizado:
         id_normalizado = ""
 
-    # Registra contato na base mínima (mala direta)
     try:
         salvar_em_mala_direta(numero, nome_final)
     except Exception as e:
         print("⚠️ Falha ao salvar em mala direta:", e)
 
-    # Gatilho de Menu (oi/ola/menu/inicio/ajuda/voltar)
     if _tem_trigger_menu(id_normalizado) or id_normalizado == "menu":
         enviar_botoes(
             numero,
@@ -352,8 +346,7 @@ def responder(numero: str, mensagem: Any, nome_contato: Optional[str] = None) ->
         )
         return
 
-    # ===== Menus topo =====
-    # 1) COMPRAR/VENDER → reutiliza 1.1/1.2/1.3
+    # 1) COMPRAR/VENDER
     if id_normalizado == "1" or id_normalizado == "comprar":
         atualizar_interesse(numero, "Menu - Comprar/Vender")
         registrar_interacao(numero, nome_final, "Menu - Comprar/Vender")
@@ -364,7 +357,7 @@ def responder(numero: str, mensagem: Any, nome_contato: Optional[str] = None) ->
         ])
         return
 
-    # 2) OFICINA/PEÇAS → submenu com 2.1 e 2.2
+    # 2) OFICINA/PEÇAS
     if id_normalizado == "2":
         atualizar_interesse(numero, "Menu - Oficina/Peças")
         registrar_interacao(numero, nome_final, "Menu - Oficina/Peças")
@@ -374,7 +367,7 @@ def responder(numero: str, mensagem: Any, nome_contato: Optional[str] = None) ->
         ])
         return
 
-    # 3) MAIS OPÇÕES (em camadas)
+    # 3) MAIS OPÇÕES (exemplo compacto)
     if id_normalizado == "3":
         atualizar_interesse(numero, "Menu - Mais opções (1)")
         registrar_interacao(numero, nome_final, "Menu - Mais opções (1)")
@@ -384,24 +377,10 @@ def responder(numero: str, mensagem: Any, nome_contato: Optional[str] = None) ->
             {"type": "reply", "reply": {"id": "btn-mais2", "title": "Mais opções ▶"}},
         ])
         return
-
     if id_normalizado == "btn-mais2":
         atualizar_interesse(numero, "Menu - Mais opções (2)")
         registrar_interacao(numero, nome_final, "Menu - Mais opções (2)")
-        enviar_botoes(numero, "Mais opções:", [
-            {"type": "reply", "reply": {"id": "btn-garantia", "title": "Garantia"}},
-            {"type": "reply", "reply": {"id": "btn-oficina", "title": "Oficina e Peças"}},
-            {"type": "reply", "reply": {"id": "btn-mais3", "title": "Mais opções ▶"}},
-        ])
-        return
-
-    if id_normalizado == "btn-mais3":
-        atualizar_interesse(numero, "Menu - Mais opções (3)")
-        registrar_interacao(numero, nome_final, "Menu - Mais opções (3)")
-        enviar_botoes(numero, "Mais opções:", [
-            {"type": "reply", "reply": {"id": "btn-trabalhe", "title": "Trabalhe conosco"}},
-            {"type": "reply", "reply": {"id": "menu",         "title": "Voltar ao início"}},
-        ])
+        enviar_botoes(numero, "Mais opções:", BOTOES_MENU_MAIS2)
         return
 
     # Pós-venda (mantido)
@@ -415,7 +394,7 @@ def responder(numero: str, mensagem: Any, nome_contato: Optional[str] = None) ->
         ])
         return
 
-    # ===== Folhas / Blocos (mantidas/ajustadas) =====
+    # ===== Folhas / Blocos =====
     if id_normalizado == "1.1":
         atualizar_interesse(numero, "Interesse - Passeio")
         registrar_interacao(numero, nome_final, "Interesse - Passeio")
@@ -468,6 +447,7 @@ def responder(numero: str, mensagem: Any, nome_contato: Optional[str] = None) ->
         registrar_interacao(numero, nome_final, "Interesse - Endereço da Oficina")
         enviar_mensagem(numero, BLOCOS["2.2"])
         return
+
     # ===== Trabalhe Conosco =====
     if id_normalizado == "btn-trabalhe":
         atualizar_interesse(numero, "Trabalhe Conosco - Abriu formulário")
@@ -480,12 +460,11 @@ def responder(numero: str, mensagem: Any, nome_contato: Optional[str] = None) ->
         )
         return
 
-    # Se o usuário enviar dados de candidatura como texto
     if not isinstance(mensagem, dict) and _parece_detalhe_trabalho(id_recebido):
         enviar_email(
             "Detalhes de candidatura - Trabalhe Conosco (Sullato)",
             (
-                f"Data/Hora: {agora_sp().strftime('%Y-%m-%d %H:%M:%S')}\n"
+                f"Data/Hora (SP): {agora_sp().strftime('%Y-%m-%d %H:%M:%S')}\n"
                 f"Nome (detectado): {nome_final}\n"
                 f"WhatsApp: {numero}\n"
                 f"Mensagem:\n{id_recebido}\n"
@@ -504,27 +483,11 @@ def responder(numero: str, mensagem: Any, nome_contato: Optional[str] = None) ->
 
     if intencao:
         mapa = {
-            "credito": (
-                "💰 Aqui na Sullato temos opções de crédito flexíveis, mesmo para quem está começando. "
-                "Podemos avaliar seu perfil e propor a melhor alternativa. Me chama que explico como funciona.",
-                "Interesse - Crédito"
-            ),
-            "endereco": (
-                "📍 Estamos em dois endereços: Av. São Miguel, 7900 e 4049/4084 – São Paulo.",
-                "Interesse - Endereço Loja"
-            ),
-            "comprar": (
-                "🚗 Temos vans, utilitários e veículos de passeio esperando por você!",
-                "Interesse - Comprar"
-            ),
-            "vender": (
-                "📝 Avaliamos seu veículo e cuidamos de toda a intermediação para vender rapidamente.",
-                "Interesse - Vender"
-            ),
-            "pos_venda": (
-                "🔧 Nosso pós-venda está pronto para te atender! Quer suporte agora?",
-                "Interesse - Pós-venda"
-            ),
+            "credito": ("💰 Aqui na Sullato temos opções de crédito flexíveis...", "Interesse - Crédito"),
+            "endereco": ("📍 Estamos em dois endereços: Av. São Miguel, 7900 e 4049/4084 – São Paulo.", "Interesse - Endereço Loja"),
+            "comprar": ("🚗 Temos vans, utilitários e veículos de passeio esperando por você!", "Interesse - Comprar"),
+            "vender": ("📝 Avaliamos seu veículo e cuidamos de toda a intermediação para vender rapidamente.", "Interesse - Vender"),
+            "pos_venda": ("🔧 Nosso pós-venda está pronto para te atender! Quer suporte agora?", "Interesse - Pós-venda"),
         }
         if intencao in mapa:
             texto, label = mapa[intencao]
@@ -533,7 +496,7 @@ def responder(numero: str, mensagem: Any, nome_contato: Optional[str] = None) ->
             registrar_interacao(numero, nome_final, f"IA - {label}")
             return
 
-    # ===== Resposta livre por IA (fallback inteligente) =====
+    # ===== Resposta livre por IA (fallback) =====
     resposta = None
     try:
         resposta = responder_com_ia(id_recebido, nome_final)
