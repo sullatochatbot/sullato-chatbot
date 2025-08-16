@@ -175,21 +175,7 @@ def enviar_botoes(numero: str, texto: str, botoes: List[Dict[str, Any]]) -> None
     except Exception as e:
         print("❌ Erro ao enviar botões:", e)
 
-def _parece_detalhe_trabalho(texto: str) -> bool:
-    if not texto:
-        return False
-    texto_l = texto.lower()
-    chaves = [
-        "curriculo", "currículo", "experiencia", "experiência", "emprego", "trabalhar",
-        "vaga", "vagas", "rh", "salario", "salário", "contratacao", "contratação",
-    ]
-    if any(c in texto_l for c in chaves): return True
-    if re.search(r"[\w\.-]+@[\w\.-]+", texto, re.I): return True
-    if sum(ch.isdigit() for ch in texto) >= 8: return True
-    if len(texto.strip()) >= 120: return True
-    return False
-
-# === Helpers p/ WhatsApp ===
+# Helpers payload
 def _extrair_id_ou_texto(msg) -> str:
     """Extrai ID de botão ou texto do payload, cobrindo os formatos comuns da Meta."""
     try:
@@ -198,11 +184,11 @@ def _extrair_id_ou_texto(msg) -> str:
         if isinstance(msg, dict):
             inter = msg.get("interactive") or {}
             if inter.get("type") == "button":
-                br = inter.get("button_reply") or br.get("nfm_reply") if (br := inter.get("button_reply") or inter.get("nfm_reply")) else {}
+                br = inter.get("button_reply") or inter.get("nfm_reply") or {}
                 return br.get("id") or br.get("title") or ""
             if "text" in msg and isinstance(msg["text"], dict):
                 return msg["text"].get("body", "")
-            if "type" in msg and msg["type"] == "text" and "text" in msg:
+            if msg.get("type") == "text" and "text" in msg:
                 return msg["text"].get("body", "")
             if "messages" in msg and isinstance(msg["messages"], list) and msg["messages"]:
                 return _extrair_id_ou_texto(msg["messages"][0])
@@ -210,10 +196,20 @@ def _extrair_id_ou_texto(msg) -> str:
     except Exception:
         return ""
 
+def _is_text_payload(msg) -> bool:
+    if isinstance(msg, str):
+        return True
+    if isinstance(msg, dict):
+        if msg.get("type") == "text":
+            return True
+        if isinstance(msg.get("text"), dict) and msg["text"].get("body"):
+            return True
+    return False
+
 def _tem_trigger_menu(id_norm: str) -> bool:
     return re.search(r"\b(oi|ola|menu|inicio|start|ajuda|help|voltar|voltar ao inicio)\b", f" {id_norm} ") is not None
 
-# ===== Heurística simples de intenção (para o toque de IA) =====
+# ===== Heurística simples de intenção (toque de IA) =====
 def detectar_intencao_basica(txt: str) -> Optional[str]:
     if not txt:
         return None
@@ -340,7 +336,7 @@ BOTOES_MENU_INICIAL = [
 
 # ===== Handler principal =====
 def responder(numero: str, mensagem: Any, nome_contato: Optional[str] = None) -> None:
-    """Handler unificado: rotação 6h e menus completos."""
+    """Handler unificado: rotação 6h e menus completos + IA leve para texto digitado."""
     # Imports tardios
     try:
         from salvar_em_google_sheets import salvar_em_google_sheets
@@ -385,8 +381,80 @@ def responder(numero: str, mensagem: Any, nome_contato: Optional[str] = None) ->
         )
         return
 
-    # ===== Menus topo =====
-    # 1) COMPRAR/VENDER → 1.1 / 1.2 / 1.3
+    # ===== IA RÁPIDA para TEXTO digitado (antes dos menus) =====
+    # Se a mensagem é texto "solto" (não clique de botão) e não é um comando conhecido, usamos heurística/quick menu.
+    comandos_conhecidos = {
+        "1","2","3","4.1","4.2","1.1","1.2","1.3","2.1","2.2","3.2.1","3.2.2",
+        "passeio","utilitario","utilitário","comprar","mais1","mais2","mais3","btn-oficina",
+        "btn-pos-venda","btn-trabalhe","btn-endereco","venda direta","venda-direta",
+        "governamental","governamentais","garantia","menu","endereco oficina","endereço oficina"
+    }
+    if _is_text_payload(mensagem) and id_normalizado not in comandos_conhecidos:
+        # tenta IA externa; se vier vazia, heurística; se ainda vazio, quick menu
+        try:
+            resposta_ia = interpretar_mensagem(id_normalizado)
+        except Exception:
+            resposta_ia = None
+        if resposta_ia:
+            enviar_mensagem(numero, resposta_ia)
+            try:
+                registrar_interacao(numero, nome_final, "IA externa - texto livre")
+            except Exception: pass
+            return
+
+        intent = detectar_intencao_basica(id_normalizado)
+        if intent in ("oficina_passeio", "oficina_utilitario", "governamentais", "assinatura", "trabalhe"):
+            if intent == "oficina_passeio":
+                enviar_mensagem(numero, BLOCOS["3.2.1"])
+            elif intent == "oficina_utilitario":
+                enviar_mensagem(numero, BLOCOS["3.2.2"])
+            elif intent == "governamentais":
+                enviar_mensagem(numero, BLOCOS["4.1"])
+            elif intent == "assinatura":
+                enviar_mensagem(numero, BLOCOS["4.2"])
+            else:  # trabalhe
+                enviar_mensagem(
+                    numero,
+                    "*Trabalhe Conosco – Grupo Sullato*\n\n"
+                    "Sullato Micros e Vans – Anderson: https://wa.me/5511988780161 | anderson@sullato.com.br\n"
+                    "Sullato Veículos – Alex: https://wa.me/5511996371559 | alex@sullato.com.br\n"
+                    "Peças e Oficina – Érico: https://wa.me/5511940497678 | erico@sullato.com.br\n\n"
+                    "Envie seu nome completo, e-mail e um breve resumo da sua experiência.\n"
+                    "Se preferir, cole seu currículo (texto)."
+                )
+            try:
+                atualizar_interesse(numero, f"Heurística - {intent}")
+                registrar_interacao(numero, nome_final, f"Heurística - {intent}")
+            except Exception: pass
+            return
+
+        # Quick menu aleatório
+        quick_menus = [
+            ("Posso te ajudar com algo específico? Escolha abaixo:", [
+                {"type": "reply", "reply": {"id": "1", "title": "Comprar/Vender"}},
+                {"type": "reply", "reply": {"id": "2", "title": "Oficina/Peças"}},
+                {"type": "reply", "reply": {"id": "mais1", "title": "Mais opções"}},
+            ]),
+            ("Assistência técnica ou peças?", [
+                {"type": "reply", "reply": {"id": "3.2.1", "title": "Passeio"}},
+                {"type": "reply", "reply": {"id": "3.2.2", "title": "Utilitário"}},
+                {"type": "reply", "reply": {"id": "2.2",   "title": "Endereço Oficina"}},
+            ]),
+            ("Quer ver opções financeiras ou suporte?", [
+                {"type": "reply", "reply": {"id": "3",             "title": "Crédito"}},
+                {"type": "reply", "reply": {"id": "btn-pos-venda", "title": "Pós-venda"}},
+                {"type": "reply", "reply": {"id": "4.2",           "title": "Assinatura"}},
+            ]),
+        ]
+        titulo, botoes = random.choice(quick_menus)
+        enviar_botoes(numero, titulo, botoes)
+        try:
+            atualizar_interesse(numero, "Fallback texto → QuickMenu")
+            registrar_interacao(numero, nome_final, "Fallback texto → QuickMenu")
+        except Exception: pass
+        return
+
+    # ===== Menus topo (cliques de botões) =====
     if id_normalizado in ("1", "comprar"):
         try:
             atualizar_interesse(numero, "Menu - Comprar/Vender")
@@ -400,7 +468,6 @@ def responder(numero: str, mensagem: Any, nome_contato: Optional[str] = None) ->
         ])
         return
 
-    # 2) OFICINA/PEÇAS → submenu
     if id_normalizado == "2" or id_normalizado == "btn-oficina":
         try:
             atualizar_interesse(numero, "Menu - Oficina/Peças")
@@ -414,7 +481,6 @@ def responder(numero: str, mensagem: Any, nome_contato: Optional[str] = None) ->
         ])
         return
 
-    # 3) MAIS OPÇÕES (1/2/3)
     if id_normalizado in ("mais1",):
         try:
             atualizar_interesse(numero, "Menu - Mais opções (1)")
@@ -453,7 +519,6 @@ def responder(numero: str, mensagem: Any, nome_contato: Optional[str] = None) ->
         ])
         return
 
-    # Pós-venda (submenu)
     if id_normalizado == "btn-pos-venda":
         try:
             atualizar_interesse(numero, "Menu - Pós-venda")
@@ -467,7 +532,6 @@ def responder(numero: str, mensagem: Any, nome_contato: Optional[str] = None) ->
         ])
         return
     # ===== Folhas / Blocos =====
-    # Oficina e Peças (acesso direto antigo)
     if id_normalizado == "2.1":
         try:
             atualizar_interesse(numero, "Interesse - Oficina e Peças")
@@ -477,7 +541,6 @@ def responder(numero: str, mensagem: Any, nome_contato: Optional[str] = None) ->
         enviar_mensagem(numero, BLOCOS["2.1"])
         return
 
-    # Endereço da Oficina
     if id_normalizado in ("2.2", "endereco oficina", "endereço oficina"):
         try:
             atualizar_interesse(numero, "Interesse - Endereço Oficina")
@@ -487,7 +550,7 @@ def responder(numero: str, mensagem: Any, nome_contato: Optional[str] = None) ->
         enviar_mensagem(numero, BLOCOS["2.2"])
         return
 
-    # === CRÍTICO: quando a Meta manda o ID literal dos sub-botões ===
+    # IDs literais dos sub-botões (Oficina/Peças e Pós-venda)
     if id_normalizado in ("3.2.1", "3,2,1", "32.1", "32,1", "oficina-passeio", "p-venda-passeio"):
         try:
             atualizar_interesse(numero, "Interesse - Oficina/Peças - Passeio (ID)")
@@ -506,7 +569,7 @@ def responder(numero: str, mensagem: Any, nome_contato: Optional[str] = None) ->
         enviar_mensagem(numero, BLOCOS["3.2.2"])
         return
 
-    # === Quando a Meta manda o TÍTULO do botão ===
+    # Quando a Meta manda o TÍTULO do botão
     if id_normalizado in ("passeio",):
         try:
             atualizar_interesse(numero, "Interesse - Oficina/Peças - Passeio")
@@ -525,7 +588,7 @@ def responder(numero: str, mensagem: Any, nome_contato: Optional[str] = None) ->
         enviar_mensagem(numero, BLOCOS["3.2.2"])
         return
 
-    # Comprar/Vender (lista com rotação)
+    # Comprar/Vender (rodízio)
     if id_normalizado == "1.1":
         try:
             atualizar_interesse(numero, "Interesse - Passeio")
@@ -553,7 +616,7 @@ def responder(numero: str, mensagem: Any, nome_contato: Optional[str] = None) ->
         enviar_mensagem(numero, BLOCOS["1.3"])
         return
 
-    if id_normalizado == "3":  # Crédito
+    if id_normalizado == "3":
         try:
             atualizar_interesse(numero, "Interesse - Crédito")
             registrar_interacao(numero, nome_final, "Interesse - Crédito")
@@ -603,7 +666,7 @@ def responder(numero: str, mensagem: Any, nome_contato: Optional[str] = None) ->
         ])
         return
 
-    # Trabalhe Conosco (wa.me + e-mails)
+    # Trabalhe Conosco (links wa.me + e-mails)
     if id_normalizado == "btn-trabalhe":
         try:
             atualizar_interesse(numero, "Interesse - Trabalhe Conosco")
@@ -621,67 +684,21 @@ def responder(numero: str, mensagem: Any, nome_contato: Optional[str] = None) ->
         )
         return
 
-    # ===== IA (se houver) + heurística local (toque de IA) =====
+    # ===== IA externa + heurística para qualquer outro caso =====
     try:
         intencao = interpretar_mensagem(id_normalizado)
     except Exception as e:
         print("⚠️ Erro interpretar_mensagem:", e)
         intencao = None
-
     if not intencao:
         intencao = detectar_intencao_basica(id_normalizado)
 
     if intencao:
-        # atalhos diretos de oficina/pós-venda
-        if intencao == "oficina_passeio":
-            enviar_mensagem(numero, BLOCOS["3.2.1"])
-            try: atualizar_interesse(numero, "Interesse - Oficina/Peças - Passeio (heurística)")
-            except: pass
-            try: registrar_interacao(numero, nome_final, "Heurística - Oficina/Peças - Passeio")
-            except: pass
-            return
-        if intencao == "oficina_utilitario":
-            enviar_mensagem(numero, BLOCOS["3.2.2"])
-            try: atualizar_interesse(numero, "Interesse - Oficina/Peças - Utilitário (heurística)")
-            except: pass
-            try: registrar_interacao(numero, nome_final, "Heurística - Oficina/Peças - Utilitário")
-            except: pass
-            return
-        if intencao == "governamentais":
-            enviar_mensagem(numero, BLOCOS["4.1"])
-            try: atualizar_interesse(numero, "Interesse - Governamentais (heurística)")
-            except: pass
-            try: registrar_interacao(numero, nome_final, "Heurística - Governamentais")
-            except: pass
-            return
-        if intencao == "assinatura":
-            enviar_mensagem(numero, BLOCOS["4.2"])
-            try: atualizar_interesse(numero, "Interesse - Assinatura (heurística)")
-            except: pass
-            try: registrar_interacao(numero, nome_final, "Heurística - Assinatura")
-            except: pass
-            return
-        if intencao == "trabalhe":
-            enviar_mensagem(
-                numero,
-                "*Trabalhe Conosco – Grupo Sullato*\n\n"
-                "Sullato Micros e Vans – Anderson: https://wa.me/5511988780161 | anderson@sullato.com.br\n"
-                "Sullato Veículos – Alex: https://wa.me/5511996371559 | alex@sullato.com.br\n"
-                "Peças e Oficina – Érico: https://wa.me/5511940497678 | erico@sullato.com.br\n\n"
-                "Envie seu nome completo, e-mail e um breve resumo da sua experiência.\n"
-                "Se preferir, cole seu currículo (texto)."
-            )
-            try: atualizar_interesse(numero, "Interesse - Trabalhe Conosco (heurística)")
-            except: pass
-            try: registrar_interacao(numero, nome_final, "Heurística - Trabalhe Conosco")
-            except: pass
-            return
-
         mapa = {
             "credito": (BLOCOS.get("3", "💰 Opções de crédito flexíveis. Fale com nossa equipe."), "Interesse - Crédito"),
             "endereco": (BLOCOS.get("1.3", "📍 Endereços atualizados das lojas."), "Interesse - Endereço Loja"),
             "comprar": ("🚗 Temos vans, utilitários e veículos de passeio esperando por você!", "Interesse - Comprar"),
-            "vender": ("📝 Avaliamos seu veículo e cuidamos de toda a intermediação para vender rapidamente.", "Interesse - Vender"),
+            "vender": ("📝 Avaliamos seu veículo e cuidamos da intermediação para vender rapidamente.", "Interesse - Vender"),
             "pos_venda": ("🔧 Nosso pós-venda está pronto para te atender! Quer suporte agora?", "Interesse - Pós-venda"),
         }
         if intencao in mapa:
@@ -694,30 +711,16 @@ def responder(numero: str, mensagem: Any, nome_contato: Optional[str] = None) ->
                 print("⚠️ registro IA/heurística falhou:", e)
             return
 
-    # ===== Fallback → Quick Menu aleatório =====
+    # ===== Fallback → Quick Menu (garantia de resposta útil) =====
     try:
         registrar_interacao(numero, nome_final, "Fallback → QuickMenu")
         atualizar_interesse(numero, "Fallback → QuickMenu")
     except Exception as e:
         print("⚠️ registro fallback quick falhou:", e)
 
-    quick_menus = [
-        ("Posso te ajudar com algo específico? Escolha abaixo:", [
-            {"type": "reply", "reply": {"id": "1", "title": "Comprar/Vender"}},
-            {"type": "reply", "reply": {"id": "2", "title": "Oficina/Peças"}},
-            {"type": "reply", "reply": {"id": "mais1", "title": "Mais opções"}},
-        ]),
-        ("Assistência técnica ou peças?", [
-            {"type": "reply", "reply": {"id": "3.2.1", "title": "Passeio"}},
-            {"type": "reply", "reply": {"id": "3.2.2", "title": "Utilitário"}},
-            {"type": "reply", "reply": {"id": "2.2",   "title": "Endereço Oficina"}},
-        ]),
-        ("Quer ver opções financeiras ou suporte?", [
-            {"type": "reply", "reply": {"id": "3",             "title": "Crédito"}},
-            {"type": "reply", "reply": {"id": "btn-pos-venda", "title": "Pós-venda"}},
-            {"type": "reply", "reply": {"id": "4.2",           "title": "Assinatura"}},
-        ]),
-    ]
-    titulo, botoes = random.choice(quick_menus)
-    enviar_botoes(numero, titulo, botoes)
+    enviar_botoes(numero, "Posso te ajudar com algo específico? Escolha abaixo:", [
+        {"type": "reply", "reply": {"id": "1", "title": "Comprar/Vender"}},
+        {"type": "reply", "reply": {"id": "2", "title": "Oficina/Peças"}},
+        {"type": "reply", "reply": {"id": "mais1", "title": "Mais opções"}},
+    ])
     return
