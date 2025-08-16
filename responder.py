@@ -308,7 +308,6 @@ Para veículos **utilitários**:
 
 📆 Alexsander: https://wa.me/5511996371559""",
 }
-
 # ===== Menus (compatível com as duas versões) =====
 BOTOES_MENU_INICIAL = [
     {"type": "reply", "reply": {"id": "1",     "title": "Comprar/Vender"}},
@@ -446,7 +445,6 @@ def responder(numero: str, mensagem: Any, nome_contato: Optional[str] = None) ->
             {"type": "reply", "reply": {"id": "menu",  "title": "Voltar ao início"}},
         ])
         return
-
     # ===== Folhas / Blocos =====
     # Oficina e Peças (acesso direto se algum botão antigo enviar 2.1)
     if id_normalizado == "2.1":
@@ -458,7 +456,7 @@ def responder(numero: str, mensagem: Any, nome_contato: Optional[str] = None) ->
         enviar_mensagem(numero, BLOCOS["2.1"])
         return
 
-    # Endereço da Oficina
+    # Endereço da Oficina (aceita ID e texto)
     if id_normalizado in ("2.2", "endereco oficina", "endereço oficina"):
         try:
             atualizar_interesse(numero, "Interesse - Endereço Oficina")
@@ -468,9 +466,8 @@ def responder(numero: str, mensagem: Any, nome_contato: Optional[str] = None) ->
         enviar_mensagem(numero, BLOCOS["2.2"])
         return
 
-    # ====== IMPORTANTE: cobrir quando a Meta envia o TÍTULO do botão ======
+    # ====== Importante: quando a Meta envia o TÍTULO do botão ======
     if id_normalizado in ("passeio",):
-        # Mostrar info de Oficina/Peças – Passeio (usado também em Pós-venda)
         try:
             atualizar_interesse(numero, "Interesse - Oficina/Peças - Passeio")
             registrar_interacao(numero, nome_final, "Interesse - Oficina/Peças - Passeio")
@@ -480,7 +477,6 @@ def responder(numero: str, mensagem: Any, nome_contato: Optional[str] = None) ->
         return
 
     if id_normalizado in ("utilitario", "utilitário"):
-        # Mostrar info de Oficina/Peças – Utilitário (usado também em Pós-venda)
         try:
             atualizar_interesse(numero, "Interesse - Oficina/Peças - Utilitário")
             registrar_interacao(numero, nome_final, "Interesse - Oficina/Peças - Utilitário")
@@ -489,6 +485,7 @@ def responder(numero: str, mensagem: Any, nome_contato: Optional[str] = None) ->
         enviar_mensagem(numero, BLOCOS["3.2.2"])
         return
 
+    # Comprar/Vender (listas com rotação)
     if id_normalizado == "1.1":
         try:
             atualizar_interesse(numero, "Interesse - Passeio")
@@ -516,7 +513,7 @@ def responder(numero: str, mensagem: Any, nome_contato: Optional[str] = None) ->
         enviar_mensagem(numero, BLOCOS["1.3"])
         return
 
-    if id_normalizado == "3":  # Crédito (folha)
+    if id_normalizado == "3":  # Crédito
         try:
             atualizar_interesse(numero, "Interesse - Crédito")
             registrar_interacao(numero, nome_final, "Interesse - Crédito")
@@ -543,7 +540,7 @@ def responder(numero: str, mensagem: Any, nome_contato: Optional[str] = None) ->
         enviar_mensagem(numero, BLOCOS["4.2"])
         return
 
-    # ===== Aliases adicionais (Venda Direta ≡ Governamentais | Garantia ≡ Pós-venda) =====
+    # ===== Aliases (Venda Direta ≡ Governamentais | Garantia ≡ Pós-venda) =====
     if id_normalizado in ("venda direta", "venda-direta", "vendadireta", "btn-venda-direta", "governamental", "governamentais"):
         try:
             atualizar_interesse(numero, "Interesse - Governamentais (via alias)")
@@ -566,7 +563,7 @@ def responder(numero: str, mensagem: Any, nome_contato: Optional[str] = None) ->
         ])
         return
 
-    # ===== Trabalhe Conosco =====
+    # ===== Trabalhe Conosco (com e-mails e links wa.me) =====
     if id_normalizado == "btn-trabalhe":
         try:
             atualizar_interesse(numero, "Interesse - Trabalhe Conosco")
@@ -576,15 +573,15 @@ def responder(numero: str, mensagem: Any, nome_contato: Optional[str] = None) ->
         enviar_mensagem(
             numero,
             "*Trabalhe Conosco – Grupo Sullato*\n\n"
-            "Sullato Micros e Vans – Anderson: +55 11 98878-0161 | anderson@sullato.com.br\n"
-            "Sullato Veículos – Alex: +55 11 99637-1559 | alex@sullato.com.br\n"
-            "Peças e Oficina – Érico: +55 11 94049-7678 | erico@sullato.com.br\n\n"
+            "Sullato Micros e Vans – Anderson: https://wa.me/5511988780161 | anderson@sullato.com.br\n"
+            "Sullato Veículos – Alex: https://wa.me/5511996371559 | alex@sullato.com.br\n"
+            "Peças e Oficina – Érico: https://wa.me/5511940497678 | erico@sullato.com.br\n\n"
             "Envie seu nome completo, e-mail e um breve resumo da sua experiência.\n"
             "Se preferir, cole seu currículo (texto)."
         )
         return
 
-    # Texto livre com dados de candidatura
+    # ===== Texto livre com dados de candidatura =====
     if not isinstance(mensagem, dict) and _parece_detalhe_trabalho(id_recebido):
         enviar_email(
             "Detalhes de candidatura - Trabalhe Conosco (Sullato)",
