@@ -191,23 +191,30 @@ def _parece_detalhe_trabalho(texto: str) -> bool:
 
 # === Helpers p/ WhatsApp ===
 def _extrair_id_ou_texto(msg) -> str:
+    """Extrai ID de botão ou texto do payload, cobrindo os formatos comuns da Meta."""
     try:
         if isinstance(msg, str):
             return msg
         if isinstance(msg, dict):
             inter = msg.get("interactive") or {}
             if inter.get("type") == "button":
-                return inter.get("button_reply", {}).get("id") or inter.get("nfm_reply", {}).get("id") or ""
+                # button_reply.title/id, nfm_reply.id (algumas contas)
+                br = inter.get("button_reply") or inter.get("nfm_reply") or {}
+                return br.get("id") or br.get("title") or ""
+            # mensagens de texto padrão
             if "text" in msg and isinstance(msg["text"], dict):
                 return msg["text"].get("body", "")
             if "type" in msg and msg["type"] == "text" and "text" in msg:
                 return msg["text"].get("body", "")
+            # variações aninhadas
+            if "messages" in msg and isinstance(msg["messages"], list) and msg["messages"]:
+                return _extrair_id_ou_texto(msg["messages"][0])
         return ""
     except Exception:
         return ""
 
-def _tem_trigger_menu(id_normalizado: str) -> bool:
-    return re.search(r"\b(oi|ola|menu|inicio|start|ajuda|help|voltar|voltar ao inicio)\b", f" {id_normalizado} ") is not None
+def _tem_trigger_menu(id_norm: str) -> bool:
+    return re.search(r"\b(oi|ola|menu|inicio|start|ajuda|help|voltar|voltar ao inicio)\b", f" {id_norm} ") is not None
 
 # ===== Rodízio de vendedores (varia a cada 6h) =====
 VENDEDORES_PASSEIO_BASE = [
@@ -243,7 +250,7 @@ def vendedores_util(dt=None):
 def _bloco_vendedores(lista):
     return "\n".join([f"{nome}: {link}" for nome, link in lista])
 
-# ===== Blocos fixos =====
+# ===== Blocos fixos (inclui Governamentais / Assinatura / Crédito / Pós-venda) =====
 BLOCOS = {
     "1.3": """*Endereço e Site*
 
@@ -266,26 +273,53 @@ BLOCOS = {
 
     "2.2": """*Endereço da Oficina*
 
-📍 Av. São Miguel, 7900 – São Paulo/SP (Loja 01)
-⏱️ Atendimento: Segunda a Sexta, 08:00 às 18:00
+🏢 Loja 02: Av. São Miguel, 4049 – cep. 03871-000 - SP
+📞 (11) 2542-3332 | (11) 2542-3333""",
 
-Nosso time técnico está pronto para te ajudar!""",
+    "3": """*Crédito e Financiamento*
+
+✉️ Consulte uma de nossas consultoras.
+
+💰 Magali: https://wa.me/5511940215082
+💰 Patrícia: https://wa.me/5511940215081""",
+
+    "3.2.1": """*Pós-venda – Passeio*
+
+✉️ Consulte um de nossos consultores.
+
+🔧 Leandro: https://wa.me/5511940443566""",
+
+    "3.2.2": """*Pós-venda – Utilitário*
+
+✉️ Consulte um de nossos consultores.
+
+🔧 Erico: https://wa.me/5511940497678""",
+
+    "4.1": """*Vendas Governamentais*
+
+✉️ Consulte nossa consultora.
+
+🏛️ Solange: https://wa.me/5511989536141""",
+
+    "4.2": """*Veículo por Assinatura*
+
+✉️ Consulte nosso consultor.
+
+📆 Alexsander: https://wa.me/5511996371559""",
 }
 
-# ===== Menus =====
+# ===== Menus (compatível com as duas versões) =====
+# Menu inicial (3 botões)
 BOTOES_MENU_INICIAL = [
-    {"type": "reply", "reply": {"id": "1", "title": "Comprar / Vender"}},
-    {"type": "reply", "reply": {"id": "2", "title": "Oficina e Peças"}},
-    {"type": "reply", "reply": {"id": "3", "title": "Mais opções"}},
-]
-BOTOES_MENU_MAIS2 = [
-    {"type": "reply", "reply": {"id": "btn-garantia", "title": "Garantia"}},
-    {"type": "reply", "reply": {"id": "btn-oficina", "title": "Oficina e Peças"}},
-    {"type": "reply", "reply": {"id": "menu", "title": "Voltar ao início"}},
+    {"type": "reply", "reply": {"id": "1",     "title": "Comprar/Vender"}},
+    {"type": "reply", "reply": {"id": "2",     "title": "Oficina/Peças"}},
+    {"type": "reply", "reply": {"id": "mais1", "title": "Mais opções"}},
 ]
 
-# ===== Handler =====
+# ===== Handler principal =====
 def responder(numero: str, mensagem: Any, nome_contato: Optional[str] = None) -> None:
+    """Handler unificado: mantém rotação 6h dos vendedores e restaura todos os menus/botões."""
+    # Imports tardios (evita crash se módulos não existirem)
     try:
         from salvar_em_google_sheets import salvar_em_google_sheets
     except Exception:
@@ -306,40 +340,40 @@ def responder(numero: str, mensagem: Any, nome_contato: Optional[str] = None) ->
     except Exception:
         def responder_com_ia(_msg: str, _nome: Optional[str] = None): return None
 
+    # Extrai ID/Texto e normaliza
     id_recebido = _extrair_id_ou_texto(mensagem)
     id_normalizado = normalizar_id(id_recebido)
 
+    # Nome
     nome_digitado = detectar_nome_digitado(id_recebido) if isinstance(id_recebido, str) else None
     nome_final = normalizar_nome(nome_digitado or nome_contato or "Cliente")
     primeiro_nome = extrair_primeiro_nome_exibicao(nome_final)
 
-    if not id_normalizado:
-        id_normalizado = ""
-
+    # Registros básicos
     try:
         salvar_em_mala_direta(numero, nome_final)
+        salvar_em_google_sheets(numero, nome_final, "Primeiro contato")
+        registrar_interacao(numero, nome_final, "Primeiro contato")
     except Exception as e:
-        print("⚠️ Falha ao salvar em mala direta:", e)
+        print("⚠️ Falha em algum registro inicial:", e)
 
+    # Menu gatilho
     if _tem_trigger_menu(id_normalizado) or id_normalizado == "menu":
         enviar_botoes(
             numero,
             f"Olá, {primeiro_nome}! 😃 Seja bem-vindo ao atendimento virtual do Grupo Sullato. Como posso te ajudar?",
-            BOTOES_MENU_INICIAL
+            BOTOES_MENU_INICIAL,
         )
         return
 
-    # 1) COMPRAR/VENDER
-    if id_normalizado == "1" or id_normalizado == "comprar":
+    # ===== Menus topo =====
+    # 1) COMPRAR/VENDER → 1.1 / 1.2 / 1.3
+    if id_normalizado in ("1", "comprar"):
         try:
             atualizar_interesse(numero, "Menu - Comprar/Vender")
-        except Exception as e:
-            print("⚠️ atualizar_interesse falhou:", e)
-        try:
             registrar_interacao(numero, nome_final, "Menu - Comprar/Vender")
         except Exception as e:
-            print("⚠️ registrar_interacao falhou:", e)
-
+            print("⚠️ registro menu 1 falhou:", e)
         enviar_botoes(numero, "Escolha uma opção de compra/venda:", [
             {"type": "reply", "reply": {"id": "1.1", "title": "Passeio"}},
             {"type": "reply", "reply": {"id": "1.2", "title": "Utilitário"}},
@@ -347,55 +381,67 @@ def responder(numero: str, mensagem: Any, nome_contato: Optional[str] = None) ->
         ])
         return
 
-    # 2) OFICINA/PEÇAS
-    if id_normalizado == "2":
+    # 2) OFICINA/PEÇAS → 2.1 / 2.2
+    if id_normalizado == "2" or id_normalizado == "btn-oficina":
         try:
             atualizar_interesse(numero, "Menu - Oficina/Peças")
-        except Exception as e:
-            print("⚠️ atualizar_interesse falhou:", e)
-        try:
             registrar_interacao(numero, nome_final, "Menu - Oficina/Peças")
         except Exception as e:
-            print("⚠️ registrar_interacao falhou:", e)
-
+            print("⚠️ registro menu 2 falhou:", e)
         enviar_botoes(numero, "Escolha uma opção sobre oficina/peças:", [
             {"type": "reply", "reply": {"id": "2.1", "title": "Oficina e Peças"}},
             {"type": "reply", "reply": {"id": "2.2", "title": "Endereço Oficina"}},
         ])
         return
 
-    # 3) MAIS OPÇÕES
-    if id_normalizado == "3":
+    # 3) MAIS OPÇÕES (compat: aceita "3" e "mais1")
+    if id_normalizado in ("3", "mais1"):
         try:
             atualizar_interesse(numero, "Menu - Mais opções (1)")
-        except Exception as e:
-            print("⚠️ atualizar_interesse falhou:", e)
-        try:
             registrar_interacao(numero, nome_final, "Menu - Mais opções (1)")
         except Exception as e:
-            print("⚠️ registrar_interacao falhou:", e)
-
+            print("⚠️ registro mais1 falhou:", e)
         enviar_botoes(numero, "Mais opções:", [
-            {"type": "reply", "reply": {"id": "btn-endereco", "title": "Endereço"}},
-            {"type": "reply", "reply": {"id": "btn-venda-direta", "title": "Venda Direta"}},
-            {"type": "reply", "reply": {"id": "btn-mais2", "title": "Mais opções ▶"}},
+            {"type": "reply", "reply": {"id": "3",             "title": "Crédito"}},
+            {"type": "reply", "reply": {"id": "btn-pos-venda", "title": "Pós-venda"}},
+            {"type": "reply", "reply": {"id": "mais2",         "title": "Mais opções ▶"}},
         ])
         return
-    if id_normalizado == "btn-mais2":
-        enviar_botoes(numero, "Mais opções:", BOTOES_MENU_MAIS2)
+
+    # MAIS OPÇÕES nível 2 (compat: aceita btn-mais2)
+    if id_normalizado in ("mais2", "btn-mais2"):
+        try:
+            atualizar_interesse(numero, "Menu - Mais opções (2)")
+            registrar_interacao(numero, nome_final, "Menu - Mais opções (2)")
+        except Exception as e:
+            print("⚠️ registro mais2 falhou:", e)
+        enviar_botoes(numero, "Outras opções:", [
+            {"type": "reply", "reply": {"id": "4.1",  "title": "Governamentais"}},
+            {"type": "reply", "reply": {"id": "4.2",  "title": "Assinatura"}},
+            {"type": "reply", "reply": {"id": "mais3", "title": "Mais opções ▶"}},
+        ])
         return
 
-    # Pós-venda
+    # MAIS OPÇÕES nível 3
+    if id_normalizado == "mais3":
+        try:
+            atualizar_interesse(numero, "Menu - Mais opções (3)")
+            registrar_interacao(numero, nome_final, "Menu - Mais opções (3)")
+        except Exception as e:
+            print("⚠️ registro mais3 falhou:", e)
+        enviar_botoes(numero, "Mais opções:", [
+            {"type": "reply", "reply": {"id": "btn-trabalhe", "title": "Trabalhe conosco"}},
+            {"type": "reply", "reply": {"id": "menu",         "title": "Voltar ao início"}},
+        ])
+        return
+
+    # Pós-venda (submenu)
     if id_normalizado == "btn-pos-venda":
         try:
             atualizar_interesse(numero, "Menu - Pós-venda")
-        except Exception as e:
-            print("⚠️ atualizar_interesse falhou:", e)
-        try:
             registrar_interacao(numero, nome_final, "Menu - Pós-venda")
         except Exception as e:
-            print("⚠️ registrar_interacao falhou:", e)
-
+            print("⚠️ registro pos-venda falhou:", e)
         enviar_botoes(numero, "Pós-venda Sullato - Escolha uma das opções abaixo:", [
             {"type": "reply", "reply": {"id": "3.2.1", "title": "Passeio"}},
             {"type": "reply", "reply": {"id": "3.2.2", "title": "Utilitário"}},
@@ -407,52 +453,63 @@ def responder(numero: str, mensagem: Any, nome_contato: Optional[str] = None) ->
     if id_normalizado == "1.1":
         try:
             atualizar_interesse(numero, "Interesse - Passeio")
-        except Exception as e:
-            print("⚠️ atualizar_interesse falhou:", e)
-        try:
             registrar_interacao(numero, nome_final, "Interesse - Passeio")
         except Exception as e:
-            print("⚠️ registrar_interacao falhou:", e)
-
+            print("⚠️ registro passeio falhou:", e)
         enviar_mensagem(numero, "*Veículos de Passeio*\n\n" + _bloco_vendedores(vendedores_passeio()))
         return
 
     if id_normalizado == "1.2":
         try:
             atualizar_interesse(numero, "Interesse - Utilitário")
-        except Exception as e:
-            print("⚠️ atualizar_interesse falhou:", e)
-        try:
             registrar_interacao(numero, nome_final, "Interesse - Utilitário")
         except Exception as e:
-            print("⚠️ registrar_interacao falhou:", e)
-
+            print("⚠️ registro utilitario falhou:", e)
         enviar_mensagem(numero, "*Veículos Utilitários*\n\n" + _bloco_vendedores(vendedores_util()))
         return
 
-    if id_normalizado == "1.3" or id_normalizado == "btn-endereco":
+    if id_normalizado in ("1.3", "btn-endereco"):
         try:
             atualizar_interesse(numero, "Interesse - Endereço Loja")
-        except Exception as e:
-            print("⚠️ atualizar_interesse falhou:", e)
-        try:
             registrar_interacao(numero, nome_final, "Interesse - Endereço Loja")
         except Exception as e:
-            print("⚠️ registrar_interacao falhou:", e)
-
+            print("⚠️ registro endereco falhou:", e)
         enviar_mensagem(numero, BLOCOS["1.3"])
+        return
+
+    if id_normalizado == "3":  # Crédito (folha)
+        try:
+            atualizar_interesse(numero, "Interesse - Crédito")
+            registrar_interacao(numero, nome_final, "Interesse - Crédito")
+        except Exception as e:
+            print("⚠️ registro credito falhou:", e)
+        enviar_mensagem(numero, BLOCOS["3"])
+        return
+
+    if id_normalizado == "4.1":
+        try:
+            atualizar_interesse(numero, "Interesse - Governamentais")
+            registrar_interacao(numero, nome_final, "Interesse - Governamentais")
+        except Exception as e:
+            print("⚠️ registro gov falhou:", e)
+        enviar_mensagem(numero, BLOCOS["4.1"])
+        return
+
+    if id_normalizado == "4.2":
+        try:
+            atualizar_interesse(numero, "Interesse - Assinatura")
+            registrar_interacao(numero, nome_final, "Interesse - Assinatura")
+        except Exception as e:
+            print("⚠️ registro assinatura falhou:", e)
+        enviar_mensagem(numero, BLOCOS["4.2"])
         return
 
     if id_normalizado == "btn-venda-direta":
         try:
             atualizar_interesse(numero, "Interesse - Venda Direta")
-        except Exception as e:
-            print("⚠️ atualizar_interesse falhou:", e)
-        try:
             registrar_interacao(numero, nome_final, "Interesse - Venda Direta")
         except Exception as e:
-            print("⚠️ registrar_interacao falhou:", e)
-
+            print("⚠️ registro venda direta falhou:", e)
         enviar_mensagem(
             numero,
             "*Venda Direta*\n\n"
@@ -461,49 +518,29 @@ def responder(numero: str, mensagem: Any, nome_contato: Optional[str] = None) ->
         )
         return
 
-    if id_normalizado == "btn-garantia":
+    # ===== Aliases adicionais (Venda Direta ≡ Governamentais | Garantia ≡ Pós-venda) =====
+    # Venda Direta → usar o mesmo conteúdo de Governamentais (4.1)
+    if id_normalizado in ("venda direta", "venda-direta", "vendadireta", "btn-venda-direta", "governamental", "governamentais"):
         try:
-            atualizar_interesse(numero, "Interesse - Garantia")
+            atualizar_interesse(numero, "Interesse - Governamentais (via alias)")
+            registrar_interacao(numero, nome_final, "Interesse - Governamentais (alias)")
         except Exception as e:
-            print("⚠️ atualizar_interesse falhou:", e)
-        try:
-            registrar_interacao(numero, nome_final, "Interesse - Garantia")
-        except Exception as e:
-            print("⚠️ registrar_interacao falhou:", e)
-
-        enviar_mensagem(
-            numero,
-            "*Garantia Sullato*\n\n"
-            "Todos os veículos da Sullato contam com garantia legal e suporte do nosso time. "
-            "Fale com um consultor para entender os detalhes do seu caso.\n\n"
-            + _bloco_vendedores(vendedores_util())
-        )
+            print("⚠️ registro gov alias falhou:", e)
+        enviar_mensagem(numero, BLOCOS["4.1"])  # mesmo bloco das vendas governamentais
         return
 
-    if id_normalizado == "btn-oficina" or id_normalizado == "2.1":
+    # Garantia → abrir o submenu de Pós-venda
+    if id_normalizado in ("garantia", "btn-garantia"):
         try:
-            atualizar_interesse(numero, "Interesse - Oficina e Peças")
+            atualizar_interesse(numero, "Menu - Pós-venda (via Garantia)")
+            registrar_interacao(numero, nome_final, "Menu - Pós-venda (alias Garantia)")
         except Exception as e:
-            print("⚠️ atualizar_interesse falhou:", e)
-        try:
-            registrar_interacao(numero, nome_final, "Interesse - Oficina e Peças")
-        except Exception as e:
-            print("⚠️ registrar_interacao falhou:", e)
-
-        enviar_mensagem(numero, BLOCOS["2.1"])
-        return
-
-    if id_normalizado == "2.2":
-        try:
-            atualizar_interesse(numero, "Interesse - Endereço da Oficina")
-        except Exception as e:
-            print("⚠️ atualizar_interesse falhou:", e)
-        try:
-            registrar_interacao(numero, nome_final, "Interesse - Endereço da Oficina")
-        except Exception as e:
-            print("⚠️ registrar_interacao falhou:", e)
-
-        enviar_mensagem(numero, BLOCOS["2.2"])
+            print("⚠️ registro garantia alias falhou:", e)
+        enviar_botoes(numero, "Pós-venda Sullato - Escolha uma das opções abaixo:", [
+            {"type": "reply", "reply": {"id": "3.2.1", "title": "Passeio"}},
+            {"type": "reply", "reply": {"id": "3.2.2", "title": "Utilitário"}},
+            {"type": "reply", "reply": {"id": "menu",  "title": "Voltar ao início"}},
+        ])
         return
 
     # ===== Trabalhe Conosco =====
@@ -521,6 +558,7 @@ def responder(numero: str, mensagem: Any, nome_contato: Optional[str] = None) ->
         )
         return
 
+    # Texto livre com dados de candidatura
     if not isinstance(mensagem, dict) and _parece_detalhe_trabalho(id_recebido):
         enviar_email(
             "Detalhes de candidatura - Trabalhe Conosco (Sullato)",
@@ -587,6 +625,6 @@ def responder(numero: str, mensagem: Any, nome_contato: Optional[str] = None) ->
     enviar_botoes(
         numero,
         f"Não entendi. Escolha uma das opções abaixo, {primeiro_nome}:",
-        BOTOES_MENU_INICIAL
+        BOTOES_MENU_INICIAL,
     )
     return
