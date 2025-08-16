@@ -1,9 +1,9 @@
-# webhook.py (substitua inteiro)
+# webhook.py
 import os
 import json
 import requests
 from flask import Flask, request, jsonify
-import responder  # seu módulo de resposta
+import responder  # seu módulo principal de respostas
 
 VERIFY_TOKEN = os.getenv("VERIFY_TOKEN", "sullato_token_verificacao")
 ACCESS_TOKEN = os.getenv("ACCESS_TOKEN")
@@ -12,7 +12,7 @@ PHONE_NUMBER_ID = os.getenv("PHONE_NUMBER_ID")
 app = Flask(__name__)
 
 def _send_text(phone_number: str, message: str) -> None:
-    """Envio direto via API da Meta (fallback)."""
+    """Fallback: envia texto direto pela API da Meta."""
     try:
         url = f"https://graph.facebook.com/v19.0/{PHONE_NUMBER_ID}/messages"
         headers = {"Authorization": f"Bearer {ACCESS_TOKEN}", "Content-Type": "application/json"}
@@ -28,20 +28,19 @@ def _send_text(phone_number: str, message: str) -> None:
         print("❌ Falha no _send_text:", e)
 
 def _extract_incoming_text(msg: dict) -> str:
-    """Extrai texto do WhatsApp, incluindo botões."""
+    """Extrai texto de mensagem normal e de botões (interactive)."""
     if not isinstance(msg, dict):
         return ""
-    # texto normal
+    # texto simples
     t = (msg.get("text") or {}).get("body")
     if t:
         return t
-    # botões (interactive)
+    # botões
     inter = msg.get("interactive") or {}
-    # button_reply (common)
     btn = inter.get("button_reply") or {}
     if isinstance(btn, dict):
         return btn.get("id") or btn.get("title") or ""
-    # nfm_reply (alguns fluxos)
+    # outros tipos (nfm_reply)
     nfm = inter.get("nfm_reply") or {}
     if isinstance(nfm, dict):
         return nfm.get("response_json") or nfm.get("id") or ""
@@ -49,7 +48,7 @@ def _extract_incoming_text(msg: dict) -> str:
 
 @app.route("/webhook", methods=["GET", "POST"])
 def webhook():
-    # Verificação da Meta
+    # Verificação (Meta)
     if request.method == "GET":
         mode = request.args.get("hub.mode")
         token = request.args.get("hub.verify_token")
@@ -64,6 +63,7 @@ def webhook():
     try:
         data = request.get_json(silent=True) or {}
         print("➡️  Incoming:", json.dumps(data, ensure_ascii=False))
+
         entry = (data.get("entry") or [{}])[0]
         changes = (entry.get("changes") or [{}])[0]
         value = changes.get("value") or {}
@@ -81,23 +81,21 @@ def webhook():
         text = _extract_incoming_text(msg)
         print(f"👤 {phone} | {name} → {text!r}")
 
-        # Chama seu motor de respostas (compatível com as duas assinaturas)
+        # Chama seu motor de respostas (duas assinaturas possíveis)
         try:
             if hasattr(responder, "gerar_resposta"):
                 responder.gerar_resposta(msg, phone, name)
             else:
-                # Fallback p/ versões antigas: enviar como {"text":{"body":...}}
                 responder.responder(phone, {"text": {"body": text}}, name)
         except Exception as e:
             print("❌ CRASH dentro do responder:", e)
-            # Fallback para não ficar mudo
             _send_text(phone, "Tive um erro momentâneo, mas estou online. Digite *menu*.")
 
         return jsonify({"status": "ok"}), 200
 
     except Exception as e:
         print("❌ ERRO no webhook:", e)
-        # Ainda assim responde 200 para o WhatsApp não reencaminhar
+        # responder 200 evita reentrega em loop pelo WhatsApp
         return jsonify({"status": "error"}), 200
 
 if __name__ == "__main__":
