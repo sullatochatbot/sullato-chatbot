@@ -1,65 +1,90 @@
+import os
+import traceback
+from datetime import datetime, timezone, timedelta
+
 import gspread
 from google.oauth2.service_account import Credentials
-from datetime import datetime, timezone, timedelta
-import traceback
-import os
-from dotenv import load_dotenv
 
-# ===== Fuso SP robusto =====
-def _agora_sp_factory():
+# ====== Horário SP (com fallback) ======
+def _agora_sp():
     try:
-        from zoneinfo import ZoneInfo  # type: ignore
-        try:
-            tz = ZoneInfo("America/Sao_Paulo")
-            return lambda: datetime.now(tz)
-        except Exception:
-            pass
-        try:
-            import tzdata  # noqa: F401
-            tz = ZoneInfo("America/Sao_Paulo")
-            return lambda: datetime.now(tz)
-        except Exception:
-            pass
+        from zoneinfo import ZoneInfo
+        return datetime.now(ZoneInfo("America/Sao_Paulo"))
     except Exception:
-        pass
-    tz_fallback = timezone(timedelta(hours=-3))
-    return lambda: datetime.now(tz_fallback)
+        return datetime.now(timezone(timedelta(hours=-3)))
 
-agora_sp = _agora_sp_factory()
+# ====== CONFIG - mesmas VARS do Render ======
+SHEETS_CREDENTIALS_PATH = os.getenv("SHEETS_CREDENTIALS_PATH", "credenciais_sheets.json")
+SHEET_ID = os.getenv("PLANILHA_ID", "1Xke33HzOXW78CjX7sVm9O0RZmw7dvUN2YzjBXcVQ0II")
+ABA = os.getenv("SHEET_TAB_PAGINA1", "Página1")
 
-# 🔁 Carregar variáveis do .env
-load_dotenv()
-
-# Fallbacks de nome de variável para o caminho das credenciais
-CAMINHO_CREDENCIAL = (
-    os.getenv("GOOGLE_SHEETS_CREDENTIALS_PATH")
-    or os.getenv("GOOGLE_SHEETS_CREDENCIALS_PATH")
-    or os.getenv("GOOGLE_SHEETS_CREDENTIALS")
-    or os.getenv("GOOGLE_SHEETS_JSON")
-)
-
-SHEET_ID = '1Xke33HzOXW78CjX7sVm9O0RZmw7dvUN2YzjBXcVQ0II'
-NOME_ABA = 'Página1'
-
-def salvar_em_google_sheets(numero, nome, interesse='-', data=None):
-    if data is None:
-        data = agora_sp().strftime('%d/%m/%Y')
-
+def _carregar_client():
     try:
-        SCOPES = ['https://www.googleapis.com/auth/spreadsheets']
-        creds = Credentials.from_service_account_file(CAMINHO_CREDENCIAL, scopes=SCOPES)
-        client = gspread.authorize(creds)
-        planilha = client.open_by_key(SHEET_ID)
-        aba = planilha.worksheet(NOME_ABA)
+        if not os.path.exists(SHEETS_CREDENTIALS_PATH):
+            print(f"⚠️ Credencial não encontrada: {SHEETS_CREDENTIALS_PATH}")
+            return None
+        scopes = ["https://www.googleapis.com/auth/spreadsheets"]
+        creds = Credentials.from_service_account_file(SHEETS_CREDENTIALS_PATH, scopes=scopes)
+        return gspread.authorize(creds)
+    except Exception:
+        print("❌ Falha ao carregar credenciais/autorizar:")
+        traceback.print_exc()
+        return None
 
-        numeros_existentes = [n.strip() for n in aba.col_values(1)]
-        if numero.strip() in numeros_existentes:
-            print("📌 Número já registrado.")
+def salvar_em_google_sheets(numero: str, nome: str, interesse: str = "-", data: str | None = None):
+    """
+    Registra o contato na aba Página1. À prova de falhas:
+    - Se já existir o número, não duplica.
+    - Se algo falhar, apenas loga e segue (não quebra o bot).
+    Colunas: [Número, Nome, Interesse, Data]
+    """
+    try:
+        if data is None:
+            data = _agora_sp().strftime("%d/%m/%Y")  # só data
+
+        client = _carregar_client()
+        if not client:
+            print("⚠️ salvar_em_google_sheets: sem client; pulando gravação.")
             return
 
-        print(f"🟡 Tentando gravar: {numero}, {nome}, {interesse}, {data}")
-        aba.append_row([numero, nome, interesse, data], value_input_option="USER_ENTERED")
-        print("✅ Contato salvo com sucesso no Google Sheets.")
+        sh = client.open_by_key(SHEET_ID)
+        try:
+            ws = sh.worksheet(ABA)
+        except gspread.exceptions.WorksheetNotFound:
+            ws = sh.add_worksheet(title=ABA, rows=1000, cols=4)
+            ws.append_row(["numero", "nome", "interesse", "data"], value_input_option="USER_ENTERED")
+
+        # evita duplicado por número
+        numeros = [n.strip() for n in ws.col_values(1)]
+        if numero.strip() in numeros:
+            print("📎 Número já existente na Página1.")
+            return
+
+        ws.append_row([numero, nome, interesse, data], value_input_option="USER_ENTERED")
+        print(f"✅ Página1 ok: {numero}, {nome}, {interesse}, {data}")
     except Exception:
-        print("❌ Erro ao salvar no Google Sheets:")
+        print("❌ salvar_em_google_sheets: erro (ignorado):")
+        traceback.print_exc()
+
+def atualizar_interesse_google_sheets(numero: str, interesse: str):
+    """
+    Atualiza a coluna 'interesse' (coluna 3) da Página1, se o número existir.
+    """
+    try:
+        client = _carregar_client()
+        if not client:
+            print("⚠️ atualizar_interesse: sem client; pulando.")
+            return
+
+        sh = client.open_by_key(SHEET_ID)
+        ws = sh.worksheet(ABA)
+
+        cel = ws.find(numero)
+        if cel:
+            ws.update_cell(cel.row, 3, interesse)
+            print(f"✏️ Interesse atualizado para {numero}: {interesse}")
+        else:
+            print("ℹ️ Número não encontrado para update de interesse.")
+    except Exception:
+        print("❌ atualizar_interesse_google_sheets: erro (ignorado):")
         traceback.print_exc()
