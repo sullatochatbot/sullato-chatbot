@@ -388,14 +388,16 @@ def responder(numero: str, mensagem: Any, nome_contato: Optional[str] = None) ->
             registrar_interacao(numero, nome_final, "Menu - Oficina/Peças")
         except Exception as e:
             print("⚠️ registro menu 2 falhou:", e)
+        # Como estava antes: abrir Passeio / Utilitário e também Endereço Oficina
         enviar_botoes(numero, "Escolha uma opção sobre oficina/peças:", [
-            {"type": "reply", "reply": {"id": "2.1", "title": "Oficina e Peças"}},
-            {"type": "reply", "reply": {"id": "2.2", "title": "Endereço Oficina"}},
+            {"type": "reply", "reply": {"id": "3.2.1", "title": "Passeio"}},
+            {"type": "reply", "reply": {"id": "3.2.2", "title": "Utilitário"}},
+            {"type": "reply", "reply": {"id": "2.2",   "title": "Endereço Oficina"}},
         ])
         return
 
     # 3) MAIS OPÇÕES (compat: aceita "3" e "mais1")
-    if id_normalizado in ("3", "mais1"):
+    if id_normalizado in ("mais1",):
         try:
             atualizar_interesse(numero, "Menu - Mais opções (1)")
             registrar_interacao(numero, nome_final, "Menu - Mais opções (1)")
@@ -450,6 +452,25 @@ def responder(numero: str, mensagem: Any, nome_contato: Optional[str] = None) ->
         return
 
     # ===== Folhas / Blocos =====
+    # Oficina e Peças (acesso direto se algum botão antigo enviar 2.1)
+    if id_normalizado == "2.1":
+        try:
+            atualizar_interesse(numero, "Interesse - Oficina e Peças")
+            registrar_interacao(numero, nome_final, "Interesse - Oficina e Peças")
+        except Exception as e:
+            print("⚠️ registro 2.1 falhou:", e)
+        enviar_mensagem(numero, BLOCOS["2.1"])  # contatos da oficina/peças
+        return
+
+    # Endereço da Oficina
+    if id_normalizado == "2.2":
+        try:
+            atualizar_interesse(numero, "Interesse - Endereço Oficina")
+            registrar_interacao(numero, nome_final, "Interesse - Endereço Oficina")
+        except Exception as e:
+            print("⚠️ registro 2.2 falhou:", e)
+        enviar_mensagem(numero, BLOCOS["2.2"])  # endereço da oficina
+        return
     if id_normalizado == "1.1":
         try:
             atualizar_interesse(numero, "Interesse - Passeio")
@@ -585,6 +606,8 @@ def responder(numero: str, mensagem: Any, nome_contato: Optional[str] = None) ->
 
     if intencao:
         mapa = {
+            "credito": (BLOCOS.get("3", "💰 Opções de crédito flexíveis. Fale com nossa equipe."), "Interesse - Crédito"),
+            "endereco": (BLOCOS.get("1.3", "📍 Endereços atualizados das lojas."), "Interesse - Endereço Loja"),
             "credito": ("💰 Aqui na Sullato temos opções de crédito flexíveis...", "Interesse - Crédito"),
             "endereco": ("📍 Estamos em dois endereços: Av. São Miguel, 7900 e 4049/4084 – São Paulo.", "Interesse - Endereço Loja"),
             "comprar": ("🚗 Temos vans, utilitários e veículos de passeio esperando por você!", "Interesse - Comprar"),
