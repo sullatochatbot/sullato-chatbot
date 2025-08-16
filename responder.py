@@ -198,15 +198,12 @@ def _extrair_id_ou_texto(msg) -> str:
         if isinstance(msg, dict):
             inter = msg.get("interactive") or {}
             if inter.get("type") == "button":
-                # button_reply.title/id, nfm_reply.id (algumas contas)
                 br = inter.get("button_reply") or inter.get("nfm_reply") or {}
                 return br.get("id") or br.get("title") or ""
-            # mensagens de texto padrão
             if "text" in msg and isinstance(msg["text"], dict):
                 return msg["text"].get("body", "")
             if "type" in msg and msg["type"] == "text" and "text" in msg:
                 return msg["text"].get("body", "")
-            # variações aninhadas
             if "messages" in msg and isinstance(msg["messages"], list) and msg["messages"]:
                 return _extrair_id_ou_texto(msg["messages"][0])
         return ""
@@ -313,7 +310,6 @@ Para veículos **utilitários**:
 }
 
 # ===== Menus (compatível com as duas versões) =====
-# Menu inicial (3 botões)
 BOTOES_MENU_INICIAL = [
     {"type": "reply", "reply": {"id": "1",     "title": "Comprar/Vender"}},
     {"type": "reply", "reply": {"id": "2",     "title": "Oficina/Peças"}},
@@ -322,23 +318,20 @@ BOTOES_MENU_INICIAL = [
 
 # ===== Handler principal =====
 def responder(numero: str, mensagem: Any, nome_contato: Optional[str] = None) -> None:
-    """Handler unificado: mantém rotação 6h dos vendedores e restaura todos os menus/botões."""
-    # Imports tardios (evita crash se módulos não existirem)
+    """Handler unificado: rotação 6h e menus completos."""
+    # Imports tardios
     try:
         from salvar_em_google_sheets import salvar_em_google_sheets
     except Exception:
         def salvar_em_google_sheets(*_args, **_kwargs): pass
-
     try:
         from registrar_historico import registrar_interacao
     except Exception:
         def registrar_interacao(*_args, **_kwargs): pass
-
     try:
         from salvar_em_mala_direta import salvar_em_mala_direta
     except Exception:
         def salvar_em_mala_direta(*_args, **_kwargs): pass
-
     try:
         from responder_ia import responder_com_ia
     except Exception:
@@ -399,7 +392,7 @@ def responder(numero: str, mensagem: Any, nome_contato: Optional[str] = None) ->
         ])
         return
 
-    # 3) MAIS OPÇÕES (compat: aceita só 'mais1' para não conflitar com crédito)
+    # 3) MAIS OPÇÕES
     if id_normalizado in ("mais1",):
         try:
             atualizar_interesse(numero, "Menu - Mais opções (1)")
@@ -466,13 +459,34 @@ def responder(numero: str, mensagem: Any, nome_contato: Optional[str] = None) ->
         return
 
     # Endereço da Oficina
-    if id_normalizado == "2.2":
+    if id_normalizado in ("2.2", "endereco oficina", "endereço oficina"):
         try:
             atualizar_interesse(numero, "Interesse - Endereço Oficina")
             registrar_interacao(numero, nome_final, "Interesse - Endereço Oficina")
         except Exception as e:
             print("⚠️ registro 2.2 falhou:", e)
         enviar_mensagem(numero, BLOCOS["2.2"])
+        return
+
+    # ====== IMPORTANTE: cobrir quando a Meta envia o TÍTULO do botão ======
+    if id_normalizado in ("passeio",):
+        # Mostrar info de Oficina/Peças – Passeio (usado também em Pós-venda)
+        try:
+            atualizar_interesse(numero, "Interesse - Oficina/Peças - Passeio")
+            registrar_interacao(numero, nome_final, "Interesse - Oficina/Peças - Passeio")
+        except Exception as e:
+            print("⚠️ registro passeio peças falhou:", e)
+        enviar_mensagem(numero, BLOCOS["3.2.1"])
+        return
+
+    if id_normalizado in ("utilitario", "utilitário"):
+        # Mostrar info de Oficina/Peças – Utilitário (usado também em Pós-venda)
+        try:
+            atualizar_interesse(numero, "Interesse - Oficina/Peças - Utilitário")
+            registrar_interacao(numero, nome_final, "Interesse - Oficina/Peças - Utilitário")
+        except Exception as e:
+            print("⚠️ registro utilitário peças falhou:", e)
+        enviar_mensagem(numero, BLOCOS["3.2.2"])
         return
 
     if id_normalizado == "1.1":
@@ -536,7 +550,7 @@ def responder(numero: str, mensagem: Any, nome_contato: Optional[str] = None) ->
             registrar_interacao(numero, nome_final, "Interesse - Governamentais (alias)")
         except Exception as e:
             print("⚠️ registro gov alias falhou:", e)
-        enviar_mensagem(numero, BLOCOS["4.1"])  # mesmo bloco das vendas governamentais
+        enviar_mensagem(numero, BLOCOS["4.1"])
         return
 
     if id_normalizado in ("garantia", "btn-garantia"):
@@ -562,7 +576,7 @@ def responder(numero: str, mensagem: Any, nome_contato: Optional[str] = None) ->
         enviar_mensagem(
             numero,
             "*Trabalhe Conosco – Grupo Sullato*\n\n"
-            "Sullato Micros e Vans – Anderson: +55 11 98878-0161\n"
+            "Sullato Micros e Vans – Anderson: +55 11 98878-0161 | anderson@sullato.com.br\n"
             "Sullato Veículos – Alex: +55 11 99637-1559 | alex@sullato.com.br\n"
             "Peças e Oficina – Érico: +55 11 94049-7678 | erico@sullato.com.br\n\n"
             "Envie seu nome completo, e-mail e um breve resumo da sua experiência.\n"
