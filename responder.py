@@ -381,77 +381,32 @@ def responder(numero: str, mensagem: Any, nome_contato: Optional[str] = None) ->
         )
         return
 
-    # ===== IA RÁPIDA para TEXTO digitado (antes dos menus) =====
-    # Se a mensagem é texto "solto" (não clique de botão) e não é um comando conhecido, usamos heurística/quick menu.
+        # ===== IA RÁPIDA para TEXTO digitado (antes dos menus) =====
+    # Se a mensagem é texto "solto" (não clique de botão) e não é comando conhecido, NÃO usamos heurística.
+    # Em vez disso, respondemos com "não entendi" e mostramos SEMPRE o menu inicial.
     comandos_conhecidos = {
         "1","2","3","4.1","4.2","1.1","1.2","1.3","2.1","2.2","3.2.1","3.2.2",
         "passeio","utilitario","utilitário","comprar","mais1","mais2","mais3","btn-oficina",
         "btn-pos-venda","btn-trabalhe","btn-endereco","venda direta","venda-direta",
         "governamental","governamentais","garantia","menu","endereco oficina","endereço oficina"
     }
+
     if _is_text_payload(mensagem) and id_normalizado not in comandos_conhecidos:
-        # tenta IA externa; se vier vazia, heurística; se ainda vazio, quick menu
         try:
-            resposta_ia = interpretar_mensagem(id_normalizado)
+            registrar_interacao(numero, nome_final, "Texto livre → Não entendi + Menu inicial")
+            atualizar_interesse(numero, "Texto livre → Menu inicial")
         except Exception:
-            resposta_ia = None
-        if resposta_ia:
-            enviar_mensagem(numero, resposta_ia)
-            try:
-                registrar_interacao(numero, nome_final, "IA externa - texto livre")
-            except Exception: pass
-            return
+            pass
 
-        intent = detectar_intencao_basica(id_normalizado)
-        if intent in ("oficina_passeio", "oficina_utilitario", "governamentais", "assinatura", "trabalhe"):
-            if intent == "oficina_passeio":
-                enviar_mensagem(numero, BLOCOS["3.2.1"])
-            elif intent == "oficina_utilitario":
-                enviar_mensagem(numero, BLOCOS["3.2.2"])
-            elif intent == "governamentais":
-                enviar_mensagem(numero, BLOCOS["4.1"])
-            elif intent == "assinatura":
-                enviar_mensagem(numero, BLOCOS["4.2"])
-            else:  # trabalhe
-                enviar_mensagem(
-                    numero,
-                    "*Trabalhe Conosco – Grupo Sullato*\n\n"
-                    "Sullato Micros e Vans – Anderson: https://wa.me/5511988780161 | anderson@sullato.com.br\n"
-                    "Sullato Veículos – Alex: https://wa.me/5511996371559 | alex@sullato.com.br\n"
-                    "Peças e Oficina – Érico: https://wa.me/5511940497678 | erico@sullato.com.br\n\n"
-                    "Envie seu nome completo, e-mail e um breve resumo da sua experiência.\n"
-                    "Se preferir, cole seu currículo (texto)."
-                )
-            try:
-                atualizar_interesse(numero, f"Heurística - {intent}")
-                registrar_interacao(numero, nome_final, f"Heurística - {intent}")
-            except Exception: pass
-            return
-
-        # Quick menu aleatório
-        quick_menus = [
-            ("Posso te ajudar com algo específico? Escolha abaixo:", [
-                {"type": "reply", "reply": {"id": "1", "title": "Comprar/Vender"}},
-                {"type": "reply", "reply": {"id": "2", "title": "Oficina/Peças"}},
-                {"type": "reply", "reply": {"id": "mais1", "title": "Mais opções"}},
-            ]),
-            ("Assistência técnica ou peças?", [
-                {"type": "reply", "reply": {"id": "3.2.1", "title": "Passeio"}},
-                {"type": "reply", "reply": {"id": "3.2.2", "title": "Utilitário"}},
-                {"type": "reply", "reply": {"id": "2.2",   "title": "Endereço Oficina"}},
-            ]),
-            ("Quer ver opções financeiras ou suporte?", [
-                {"type": "reply", "reply": {"id": "3",             "title": "Crédito"}},
-                {"type": "reply", "reply": {"id": "btn-pos-venda", "title": "Pós-venda"}},
-                {"type": "reply", "reply": {"id": "4.2",           "title": "Assinatura"}},
-            ]),
-        ]
-        titulo, botoes = random.choice(quick_menus)
-        enviar_botoes(numero, titulo, botoes)
-        try:
-            atualizar_interesse(numero, "Fallback texto → QuickMenu")
-            registrar_interacao(numero, nome_final, "Fallback texto → QuickMenu")
-        except Exception: pass
+        enviar_mensagem(
+            numero,
+            f"Não entendi sua mensagem, {primeiro_nome}. Posso te ajudar por aqui 👇"
+        )
+        enviar_botoes(
+            numero,
+            "Escolha uma opção:",
+            BOTOES_MENU_INICIAL,
+        )
         return
 
     # ===== Menus topo (cliques de botões) =====
