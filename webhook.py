@@ -1,6 +1,7 @@
 # webhook.py
 import os
 import json
+import re               # ✅ novo
 import requests
 from flask import Flask, request, jsonify
 import responder  # seu módulo principal de respostas
@@ -8,6 +9,7 @@ import responder  # seu módulo principal de respostas
 VERIFY_TOKEN = os.getenv("VERIFY_TOKEN", "sullato_token_verificacao")
 ACCESS_TOKEN = os.getenv("ACCESS_TOKEN")
 PHONE_NUMBER_ID = os.getenv("PHONE_NUMBER_ID")
+ADS_API_KEY = os.getenv("ADS_API_KEY")  # ✅ novo: chave para autorizar /ads-broadcast
 
 app = Flask(__name__)
 
@@ -45,6 +47,76 @@ def _extract_incoming_text(msg: dict) -> str:
     if isinstance(nfm, dict):
         return nfm.get("response_json") or nfm.get("id") or ""
     return ""
+
+# ========== NOVO: helpers e rota para disparo vindo da planilha ==========
+
+def _to_e164_br(raw: str) -> str:
+    """Normaliza número BR para E.164: +55XXXXXXXXXXX (DDD + 9 dígitos)."""
+    if not raw:
+        return ""
+    digits = re.sub(r"\D+", "", str(raw))
+    if not digits:
+        return ""
+    if digits.startswith("55"):
+        return "+" + digits
+    if len(digits) >= 11:
+        return "+55" + digits[-11:]
+    return ""
+
+@app.route("/ads-broadcast", methods=["POST"])
+def ads_broadcast():
+    """
+    Endpoint para disparo de template via planilha (Apps Script).
+    Segurança: header X-API-KEY deve bater com ADS_API_KEY.
+    Body esperado (JSON):
+      {
+        "to": "+5511999999999",
+        "template": "nome_do_template",
+        "lang": "pt_BR",
+        "site_url": "https://sullato.com.br",
+        "components": [ ... ]  # opcional; se ausente, criamos botão URL com site_url
+      }
+    """
+    try:
+        if request.headers.get("X-API-KEY") != (ADS_API_KEY or ""):
+            return jsonify({"error": "unauthorized"}), 401
+
+        body = request.get_json(force=True) or {}
+        to = _to_e164_br(body.get("to"))
+        if not to:
+            return jsonify({"ok": False, "msg": "numero invalido"}), 400
+
+        template = body.get("template") or "convite_chatbot_ads"
+        lang = body.get("lang") or "pt_BR"
+        site_url = body.get("site_url") or "https://sullato.com.br"
+        components = body.get("components") or [{
+            "type": "button",
+            "sub_type": "url",
+            "index": "0",
+            "parameters": [{"type": "text", "text": site_url}]
+        }]
+
+        url = f"https://graph.facebook.com/v20.0/{PHONE_NUMBER_ID}/messages"
+        payload = {
+            "messaging_product": "whatsapp",
+            "to": to,
+            "type": "template",
+            "template": {
+                "name": template,
+                "language": {"code": lang},
+                "components": components
+            }
+        }
+        r = requests.post(url, json=payload, headers={"Authorization": f"Bearer {ACCESS_TOKEN}"}, timeout=30)
+        ok = 200 <= r.status_code < 300
+        print("📤 ADS broadcast:", r.status_code, r.text)
+        return jsonify({"ok": ok, "status": r.status_code, "body": r.text}), (200 if ok else 400)
+
+    except Exception as e:
+        print("❌ ERRO /ads-broadcast:", e)
+        return jsonify({"ok": False, "msg": str(e)}), 400
+
+# ======================= webhook WhatsApp existente =======================
 
 @app.route("/webhook", methods=["GET", "POST"])
 def webhook():
