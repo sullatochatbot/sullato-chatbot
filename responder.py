@@ -244,7 +244,7 @@ VENDEDORES_PASSEIO_BASE = [
 VENDEDORES_UTIL_BASE = [
     ("👩🏻‍💼 Magali",  "https://wa.me/5511940215082"),
     ("👨🏻‍💼 Silvano", "https://wa.me/5511988598736"),
-    ("👨🏻‍💼 Thiago",  "https://wa.me/5511986122905"),
+    ("👩🏻‍💼 Solange Ap.",  "https://wa.me/5511974595799"),
 ]
 
 def _embaralhar_por_janela(lista, dt=None, horas_janela=6):
@@ -282,7 +282,7 @@ BLOCOS = {
     "2.1": """*Oficina e Peças*
 
 Para veículos de **passeio**:
-🔧 Leandro: https://wa.me/5511981892900
+🔧 Leandro: https://wa.me/5511940443566
 
 Para veículos **utilitários**:
 🔧 Érico: https://wa.me/5511940497678
@@ -304,7 +304,7 @@ Para veículos **utilitários**:
 
 ✉️ Fale com nosso consultor.
 
-🔧 Leandro: https://wa.me/5511981892900""",
+🔧 Leandro: https://wa.me/5511940443566""",
 
     "3.2.2": """*Oficina e Peças – Utilitário*
 
