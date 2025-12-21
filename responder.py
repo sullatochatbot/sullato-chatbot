@@ -281,16 +281,16 @@ BLOCOS = {
 
     "2.1": """*Oficina e Peças*
 
-Para veículos de **passeio**:
-🔧 Leandro: https://wa.me/5511940443566
+📲 Atendimento centralizado pelo WhatsApp oficial da Oficina Sullato:
 
-Para veículos **utilitários**:
-🔧 Érico: https://wa.me/5511940497678
-📧 E-mail: erico@sullato.com.br""",
+👉 https://wa.me/5511912115717
+
+Por aqui conseguimos registrar sua solicitação
+e direcionar corretamente para o setor responsável.""",
 
     "2.2": """*Endereço da Oficina*
 
-🏢 Loja 02: Av. São Miguel, 4049 – cep. 03871-000 - SP
+🏢 Av. Amador Bueno da Veiga, 4222 – cep. 03652-000 - SP
 📞 (11) 2542-3332 | (11) 2542-3333""",
 
     "3": """*Crédito e Financiamento*
@@ -302,16 +302,15 @@ Para veículos **utilitários**:
 
     "3.2.1": """*Oficina e Peças – Passeio*
 
-✉️ Fale com nosso consultor.
+📲 Atendimento pelo WhatsApp oficial da Oficina Sullato:
 
-🔧 Leandro: https://wa.me/5511940443566""",
+👉 https://wa.me/5511912115717""",
 
     "3.2.2": """*Oficina e Peças – Utilitário*
 
-✉️ Fale com nosso consultor.
+📲 Atendimento pelo WhatsApp oficial da Oficina Sullato:
 
-🔧 Érico: https://wa.me/5511940497678
-📧 E-mail: erico@sullato.com.br""",
+👉 https://wa.me/5511912115717""",
 
     "4.1": """*Vendas Governamentais*
 
