@@ -235,7 +235,6 @@ def detectar_intencao_basica(txt: str) -> Optional[str]:
 VENDEDORES_PASSEIO_BASE = [
     ("👨🏻‍💼 Alexandre", "https://wa.me/5511940559880"),
     ("👨🏻‍💼 Jeferson",  "https://wa.me/5511941006862"),
-    ("👩🏻‍💼 Marcela",   "https://wa.me/5511912115673"),
     ("👨🏻‍💼 Pedro",     "https://wa.me/5511992037103"),
     ("👨🏻‍💼 Thiago",    "https://wa.me/5511986122905"),
     ("👩🏻‍💼 Vanessa",   "https://wa.me/5511947954378"),
@@ -291,7 +290,7 @@ e direcionar corretamente para o setor responsável.""",
     "2.2": """*Endereço da Oficina*
 
 🏢 Av. Amador Bueno da Veiga, 4222 – cep. 03652-000 - SP
-📞 (11) 2542-3332 | (11) 2542-3333""",
+📞 (11) 2542-3330 | (11) 11994081931""",
 
     "3": """*Crédito e Financiamento*
 
