@@ -233,12 +233,12 @@ def detectar_intencao_basica(txt: str) -> Optional[str]:
 
 # ===== Rodízio de vendedores (varia a cada 6h) =====
 VENDEDORES_PASSEIO_BASE = [
-    ("👨🏻‍💼 Alexandre", "https://wa.me/5511940559880"),
+    ("👨🏻‍💼 Alexandre", "https://wa.me/5511988628961"),
     ("👨🏻‍💼 Jeferson",  "https://wa.me/5511941006862"),
     ("👨🏻‍💼 Pedro",     "https://wa.me/5511992037103"),
     ("👨🏻‍💼 Thiago",    "https://wa.me/5511986122905"),
     ("👩🏻‍💼 Vanessa",   "https://wa.me/5511947954378"),
-    ("👨🏻‍💼 Vinicius",  "https://wa.me/5511911260469"),
+    ("👨🏻‍💼 Vinicius",  "https://wa.me/5511992419382"),
 ]
 VENDEDORES_UTIL_BASE = [
     ("👩🏻‍💼 Magali",  "https://wa.me/5511940215082"),
