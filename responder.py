@@ -275,8 +275,11 @@ BLOCOS = {
 🏢 Loja 01: Av. São Miguel, 7900 – cep. 08070-001 - SP
 📞 (11) 2030-5081 | (11) 2031-5081
 
-🏢 Loja 02/03: Av. São Miguel, 4049/4084 – cep. 03871-000 - SP
-📞 (11) 2542-3332 | (11) 2542-3333""",
+🏢 Loja 02: Av. São Miguel, 4049 – cep. 03871-000 - SP
+📞 (11) 2542-3332 | (11) 2542-3333
+
+🏢 Loja 03: Av. São Miguel, 4084 – cep. 03871-000 - SP
+📞 (11) 2045-2753""",
 
     "2.1": """*Oficina e Peças*
 
@@ -290,7 +293,7 @@ e direcionar corretamente para o setor responsável.""",
     "2.2": """*Endereço da Oficina*
 
 🏢 Av. Amador Bueno da Veiga, 4222 – cep. 03652-000 - SP
-📞 (11) 2542-3330 | (11) 11994081931""",
+📞 (11) 20922304 | (11) 11994081931""",
 
     "3": """*Crédito e Financiamento*
 
