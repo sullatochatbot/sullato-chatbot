@@ -395,10 +395,12 @@ def responder(numero: str, mensagem: Any, nome_contato: Optional[str] = None) ->
 
     # Registros básicos
     try:
+        # 🔥 SEMPRE envia para o Google Sheets
+        enviar_para_google_sheets(numero, nome_final, "chatbot")
+
         if id_normalizado in ["oi", "olá", "ola", "menu", "inicio", "início"]:
             salvar_em_mala_direta(numero, nome_final)
-            enviar_para_google_sheets(numero, nome_final, "entrada")
-        
+
         if id_recebido and id_normalizado in comandos_conhecidos:
             registrar_interacao(numero, nome_final, id_normalizado)
 
