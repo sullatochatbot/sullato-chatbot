@@ -9,6 +9,34 @@ from datetime import datetime, timezone, timedelta
 from dotenv import load_dotenv
 from typing import Optional, List, Dict, Any
 
+# ✅ CARREGA .ENV
+load_dotenv()
+
+# ✅ CONFIG SHEETS
+SHEETS_WEBHOOK_URL = os.getenv("SHEETS_WEBHOOK_URL")
+SHEETS_SECRET = os.getenv("SHEETS_SECRET")
+
+def enviar_para_google_sheets(numero, nome, origem="chatbot"):
+    try:
+        if not SHEETS_WEBHOOK_URL:
+            print("⚠️ SHEETS_WEBHOOK_URL não configurado")
+            return
+
+        payload = {
+            "route": "chatbot",
+            "secret": SHEETS_SECRET,
+            "numero": numero,
+            "nome": nome,
+            "origem": origem
+        }
+
+        r = requests.post(SHEETS_WEBHOOK_URL, json=payload, timeout=10)
+
+        print("📤 Sheets:", r.status_code, r.text)
+
+    except Exception as e:
+        print("❌ Erro ao enviar para Sheets:", e)
+
 # ===== Fuso horário SP robusto (com fallback) =====
 def _agora_sp_factory():
     try:
@@ -367,9 +395,13 @@ def responder(numero: str, mensagem: Any, nome_contato: Optional[str] = None) ->
 
     # Registros básicos
     try:
-        salvar_em_mala_direta(numero, nome_final)
-        salvar_em_google_sheets(numero, nome_final, "Primeiro contato")
-        registrar_interacao(numero, nome_final, "Primeiro contato")
+        if id_normalizado in ["oi", "olá", "ola", "menu", "inicio", "início"]:
+            salvar_em_mala_direta(numero, nome_final)
+            enviar_para_google_sheets(numero, nome_final, "entrada")
+        
+        if id_recebido and id_normalizado in comandos_conhecidos:
+            registrar_interacao(numero, nome_final, id_normalizado)
+
     except Exception as e:
         print("⚠️ Falha em algum registro inicial:", e)
 
