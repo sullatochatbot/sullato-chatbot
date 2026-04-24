@@ -395,13 +395,26 @@ def responder(numero: str, mensagem: Any, nome_contato: Optional[str] = None) ->
 
     # Registros básicos
     try:
-        # 🔥 ENVIA PARA GOOGLE SHEETS (Página1)
-        enviar_para_google_sheets(numero, nome_final, "entrada")
+        # ==============================
+        # 🔥 ENVIA PARA GOOGLE SHEETS (Página1 - DINÂMICO)
+        # ==============================
+        origem_evento = id_normalizado if id_normalizado else "entrada"
 
+        # evita poluir a planilha com textos muito grandes
+        if len(origem_evento) > 50:
+            origem_evento = "texto_livre"
+
+        enviar_para_google_sheets(numero, nome_final, origem_evento)
+
+        # ==============================
+        # 📇 SALVA NA MALA DIRETA (gatilhos iniciais)
+        # ==============================
         if id_normalizado in ["oi", "olá", "ola", "menu", "inicio", "início"]:
             salvar_em_mala_direta(numero, nome_final)
 
-        # 🔥 GARANTE QUE comandos_conhecidos EXISTE ANTES DE USAR
+        # ==============================
+        # 🧠 COMANDOS CONHECIDOS
+        # ==============================
         comandos_conhecidos = {
             "1","2","3","4.1","4.2","1.1","1.2","1.3","2.1","2.2","3.2.1","3.2.2",
             "passeio","utilitario","utilitário","comprar","mais1","mais2","mais3",
@@ -410,6 +423,9 @@ def responder(numero: str, mensagem: Any, nome_contato: Optional[str] = None) ->
             "garantia","menu","endereco oficina","endereço oficina"
         }
 
+        # ==============================
+        # 📊 REGISTRO DE INTERAÇÃO
+        # ==============================
         if id_recebido and id_normalizado in comandos_conhecidos:
             registrar_interacao(numero, nome_final, id_normalizado)
 
