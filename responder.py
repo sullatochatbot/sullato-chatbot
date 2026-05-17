@@ -453,20 +453,26 @@ def responder(numero: str, mensagem: Any, nome_contato: Optional[str] = None) ->
 
     if _is_text_payload(mensagem) and id_normalizado not in comandos_conhecidos:
         try:
-            registrar_interacao(numero, nome_final, "Texto livre → Não entendi + Menu inicial")
-            atualizar_interesse(numero, "Texto livre → Menu inicial")
+            registrar_interacao(numero, nome_final, "Texto livre → IA conversacional")
+            atualizar_interesse(numero, "Texto livre → IA")
         except Exception:
             pass
 
-        enviar_mensagem(
-            numero,
-            f"Não entendi sua mensagem, {primeiro_nome}. Posso te ajudar por aqui 👇"
-        )
-        enviar_botoes(
-            numero,
-            "Escolha uma opção:",
-            BOTOES_MENU_INICIAL,
-        )
+        resposta_ia = None
+        try:
+            resposta_ia = responder_com_ia(id_recebido, primeiro_nome)
+        except Exception:
+            pass
+
+        if resposta_ia:
+            enviar_mensagem(numero, resposta_ia)
+            enviar_botoes(numero, "Posso ajudar com algo mais?", BOTOES_MENU_INICIAL)
+        else:
+            enviar_mensagem(
+                numero,
+                f"Não entendi sua mensagem, {primeiro_nome}. Posso te ajudar por aqui 👇"
+            )
+            enviar_botoes(numero, "Escolha uma opção:", BOTOES_MENU_INICIAL)
         return
 
     # ===== Menus topo (cliques de botões) =====

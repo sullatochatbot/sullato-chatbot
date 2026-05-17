@@ -6,3 +6,4 @@ google-auth
 openai
 tzdata
 gunicorn
+anthropic
