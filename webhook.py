@@ -151,6 +151,20 @@ def webhook():
         name = (contacts[0].get("profile", {}).get("name") if contacts else None) or "Cliente"
 
         text = _extract_incoming_text(msg)
+
+        # Áudio: transcreve antes de responder
+        if msg.get("type") == "audio":
+            try:
+                from transcrever_audio import transcrever_audio
+                media_id = (msg.get("audio") or {}).get("id", "")
+                if media_id:
+                    texto_audio = transcrever_audio(media_id, ACCESS_TOKEN)
+                    if texto_audio:
+                        text = texto_audio
+                        print(f"🎙️ Áudio transcrito: {text!r}")
+            except Exception as e:
+                print("❌ Erro ao transcrever áudio:", e)
+
         print(f"👤 {phone} | {name} → {text!r}")
 
         # Chama seu motor de respostas (duas assinaturas possíveis)
