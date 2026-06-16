@@ -277,6 +277,26 @@ def _add_hist_ia(numero, user_msg, assistant_msg):
     msgs.append({"role": "assistant", "content": assistant_msg})
     _HIST_IA[numero] = {"msgs": msgs[-10:], "ts": time.time()}
 
+_HANDOFF_NUMERO = "5511988780161"
+_GATILHOS_HANDOFF = ["atendente", "falar com humano", "falar com pessoa", "quero falar com alguem", "quero falar com alguem"]
+
+def _enviar_alerta_handoff(numero_cliente, nome_cliente):
+    try:
+        url = f"https://graph.facebook.com/v19.0/{PHONE_NUMBER_ID}/messages"
+        msg = (
+            f"🔔 *Solicitação de Atendimento Humano*\n\n"
+            f"Cliente: {nome_cliente}\n"
+            f"WhatsApp: +{numero_cliente}\n"
+            f"Via: ChatBot Sullato\n\n"
+            "Por favor, entre em contato!"
+        )
+        headers = {"Authorization": f"Bearer {ACCESS_TOKEN}", "Content-Type": "application/json"}
+        payload = {"messaging_product": "whatsapp", "to": _HANDOFF_NUMERO, "text": {"body": msg}}
+        requests.post(url, headers=headers, json=payload, timeout=10)
+        print("🔔 Alerta handoff Sullato enviado")
+    except Exception as e:
+        print("❌ Erro alerta handoff:", e)
+
 VENDEDORES_PASSEIO_BASE = [
     ("👨🏻‍💼 Alexandre", "https://wa.me/5511988628961"),
     ("👨🏻‍💼 Jeferson",  "https://wa.me/5511941006862"),
@@ -448,6 +468,18 @@ def responder(numero: str, mensagem: Any, nome_contato: Optional[str] = None) ->
 
     except Exception as e:
         print("⚠️ Falha em algum registro inicial:", e)
+
+    # HANDOFF — detectar antes de qualquer outra lógica
+    if _is_text_payload(mensagem) and any(g in id_normalizado for g in _GATILHOS_HANDOFF):
+        _enviar_alerta_handoff(numero, nome_final)
+        enviar_mensagem(
+            numero,
+            f"Entendido, {primeiro_nome}! 👍 Já avisamos nossa equipe.\n\n"
+            "Em breve um consultor vai entrar em contato com você.\n\n"
+            "Se preferir, pode chamar agora:\n"
+            "👉 https://wa.me/5511988780161"
+        )
+        return
 
     # Menu gatilho
     if _tem_trigger_menu(id_normalizado) or id_normalizado == "menu":
