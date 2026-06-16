@@ -1,7 +1,7 @@
 import os
 from typing import Optional
 
-def responder_com_ia(mensagem: str, nome: Optional[str] = None) -> Optional[str]:
+def responder_com_ia(mensagem: str, nome: Optional[str] = None, historico: list = None) -> Optional[str]:
     api_key = os.getenv("ANTHROPIC_API_KEY", "").strip()
     if not api_key:
         return None
@@ -33,11 +33,14 @@ def responder_com_ia(mensagem: str, nome: Optional[str] = None) -> Optional[str]
 
         usuario = mensagem if not nome else f"[Cliente: {nome}]\n{mensagem}"
 
+        msgs = list(historico) if historico else []
+        msgs.append({"role": "user", "content": usuario})
+
         resp = client.messages.create(
             model="claude-haiku-4-5-20251001",
             max_tokens=300,
             system=sistema,
-            messages=[{"role": "user", "content": usuario}],
+            messages=msgs,
         )
         texto = (resp.content[0].text or "").strip()
         return texto if texto else None

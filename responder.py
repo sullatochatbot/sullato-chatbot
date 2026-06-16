@@ -5,6 +5,7 @@ import unicodedata
 import re
 import smtplib
 import ssl
+import time
 from datetime import datetime, timezone, timedelta
 from dotenv import load_dotenv
 from typing import Optional, List, Dict, Any
@@ -260,6 +261,22 @@ def detectar_intencao_basica(txt: str) -> Optional[str]:
     return None
 
 # ===== Rodízio de vendedores (varia a cada 6h) =====
+_HIST_IA: dict = {}
+_HIST_TTL = 3600
+
+def _get_hist_ia(numero):
+    h = _HIST_IA.get(numero, {})
+    if time.time() - h.get("ts", 0) > _HIST_TTL:
+        return []
+    return list(h.get("msgs", []))
+
+def _add_hist_ia(numero, user_msg, assistant_msg):
+    h = _HIST_IA.get(numero, {})
+    msgs = list(h.get("msgs", []))
+    msgs.append({"role": "user", "content": user_msg})
+    msgs.append({"role": "assistant", "content": assistant_msg})
+    _HIST_IA[numero] = {"msgs": msgs[-10:], "ts": time.time()}
+
 VENDEDORES_PASSEIO_BASE = [
     ("👨🏻‍💼 Alexandre", "https://wa.me/5511988628961"),
     ("👨🏻‍💼 Jeferson",  "https://wa.me/5511941006862"),
@@ -460,11 +477,13 @@ def responder(numero: str, mensagem: Any, nome_contato: Optional[str] = None) ->
 
         resposta_ia = None
         try:
-            resposta_ia = responder_com_ia(id_recebido, primeiro_nome)
+            hist = _get_hist_ia(numero)
+            resposta_ia = responder_com_ia(id_recebido, primeiro_nome, historico=hist)
         except Exception:
             pass
 
         if resposta_ia:
+            _add_hist_ia(numero, id_recebido, resposta_ia)
             enviar_mensagem(numero, resposta_ia)
             enviar_botoes(numero, "Posso ajudar com algo mais?", BOTOES_MENU_INICIAL)
         else:
