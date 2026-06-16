@@ -167,6 +167,15 @@ def webhook():
 
         print(f"👤 {phone} | {name} → {text!r}")
 
+        # Imagem — resposta direta, sem passar pelo motor
+        if msg.get("type") == "image":
+            _send_text(phone,
+                "Recebemos sua imagem! 📸\n\n"
+                "Infelizmente não consigo visualizar fotos por aqui.\n\n"
+                "Pode descrever em texto o que você procura? Será um prazer ajudar! 😊"
+            )
+            return jsonify({"status": "ok"}), 200
+
         # Chama seu motor de respostas (duas assinaturas possíveis)
         try:
             if hasattr(responder, "gerar_resposta"):
