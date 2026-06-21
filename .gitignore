@@ -3,6 +3,7 @@ venv/
 
 # Ignorar variáveis de ambiente
 .env
+credenciais_sheets.json
 
 # Ignorar credenciais sensíveis
 credenciais_sheets.json

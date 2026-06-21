@@ -485,7 +485,11 @@ def responder(numero: str, mensagem: Any, nome_contato: Optional[str] = None) ->
     if _tem_trigger_menu(id_normalizado) or id_normalizado == "menu":
         enviar_botoes(
             numero,
-            f"Olá, {primeiro_nome}! 😃 Seja bem-vindo ao atendimento virtual do Grupo Sullato. Como posso te ajudar?",
+            (
+                f"Olá, {primeiro_nome}! 😃 Seja bem-vindo ao atendimento virtual do Grupo Sullato.\n\n"
+                "Como posso te ajudar?\n\n"
+                "💬 Você também pode escrever sua dúvida ou enviar um áudio explicando o que precisa."
+            ),
             BOTOES_MENU_INICIAL,
         )
         return
