@@ -300,7 +300,7 @@ def _enviar_alerta_handoff(numero_cliente, nome_cliente):
 VENDEDORES_PASSEIO_BASE = [
     ("👨🏻‍💼 Alexandre", "https://wa.me/5511988628961"),
     ("👨🏻‍💼 Jeferson",  "https://wa.me/5511941006862"),
-    ("👨🏻‍💼 Pedro",     "https://wa.me/5511992037103"),
+    ("👨🏻‍💼 Pedro",     "https://wa.me/5511996564815"),
     ("👨🏻‍💼 Thiago",    "https://wa.me/5511986122905"),
     ("👩🏻‍💼 Vanessa",   "https://wa.me/5511947954378"),
     ("👨🏻‍💼 Vinicius",  "https://wa.me/5511992419382"),
