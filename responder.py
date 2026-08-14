@@ -350,7 +350,7 @@ BLOCOS = {
 
 📲 Atendimento centralizado pelo WhatsApp oficial da Oficina Sullato:
 
-👉 https://wa.me/5511912115717
+👉 https://wa.me/5511917027705
 
 Por aqui conseguimos registrar sua solicitação
 e direcionar corretamente para o setor responsável.""",
@@ -371,13 +371,13 @@ e direcionar corretamente para o setor responsável.""",
 
 📲 Atendimento pelo WhatsApp oficial da Oficina Sullato:
 
-👉 https://wa.me/5511912115717""",
+👉 https://wa.me/5511917027705""",
 
     "3.2.2": """*Oficina e Peças – Utilitário*
 
 📲 Atendimento pelo WhatsApp oficial da Oficina Sullato:
 
-👉 https://wa.me/5511912115717""",
+👉 https://wa.me/5511917027705""",
 
     "4.1": """*Vendas Governamentais*
 
