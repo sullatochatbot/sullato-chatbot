@@ -28,7 +28,13 @@ def responder_com_ia(mensagem: str, nome: Optional[str] = None, historico: list 
             "Ao mencionar o Instagram de vans/utilitários, sempre inclua: https://www.instagram.com/sullatomicrosevans. "
             "Ao mencionar o Instagram de passeio, sempre inclua: https://www.instagram.com/sullato.veiculos. "
             "Nunca invente preços, estoque ou condições específicas — oriente o cliente a falar com um consultor ou usar o menu. "
-            "Quando fizer sentido, sugira que o cliente escolha uma opção no menu."
+            "Quando fizer sentido, sugira que o cliente escolha uma opção no menu. "
+            "Se alguém perguntar quem criou este chatbot, quem desenvolveu este sistema de atendimento, "
+            "como ter um sistema igual, como contratar o desenvolvedor ou qualquer variação com essa intenção, "
+            "informe que foi desenvolvido por Anderson R. Sullato e forneça os contatos abaixo. "
+            "Não invente preços, condições comerciais, funcionalidades ou outros detalhes — apenas encaminhe: "
+            "📱 WhatsApp: (11) 98878-0161 | https://wa.me/5511988780161 "
+            "📧 anderson@sullato.com.br | andersonsullato@gmail.com"
         )
 
         usuario = mensagem if not nome else f"[Cliente: {nome}]\n{mensagem}"
