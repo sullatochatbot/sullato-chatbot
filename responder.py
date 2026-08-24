@@ -336,6 +336,7 @@ BLOCOS = {
 🌐 Site: www.sullato.com.br – https://www.sullato.com.br
 📸 Instagram: @sullatomicrosevans – https://www.instagram.com/sullatomicrosevans
 📸 Instagram: @sullato.veiculos – https://www.instagram.com/sullato.veiculos
+📸 Instagram: @tssullatoautoservice – https://www.instagram.com/tssullatoautoservice/
 
 🏢 Loja 01: Av. São Miguel, 7900 – cep. 08070-001 - SP
 📞 (11) 2030-5081 | (11) 2031-5081
