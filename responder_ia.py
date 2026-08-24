@@ -46,7 +46,7 @@ def responder_com_ia(mensagem: str, nome: Optional[str] = None, historico: list 
 
         resp = client.messages.create(
             model="claude-haiku-4-5-20251001",
-            max_tokens=300,
+            max_tokens=600,
             system=sistema,
             messages=msgs,
         )
