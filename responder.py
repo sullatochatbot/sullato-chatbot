@@ -421,6 +421,10 @@ def responder(numero: str, mensagem: Any, nome_contato: Optional[str] = None) ->
         from responder_ia import responder_com_ia
     except Exception:
         def responder_com_ia(_msg: str, _nome: Optional[str] = None): return None
+    try:
+        import assistente_comercial
+    except Exception:
+        assistente_comercial = None
 
     # Extrai ID/Texto e normaliza
     id_recebido = _extrair_id_ou_texto(mensagem)
@@ -512,17 +516,35 @@ def responder(numero: str, mensagem: Any, nome_contato: Optional[str] = None) ->
         except Exception:
             pass
 
+        # ===== Fase 3.1C: camada comercial (aditiva, controlada por feature flag) =====
+        estado_comercial = None
+        if assistente_comercial is not None:
+            try:
+                if assistente_comercial.assistente_comercial_ativo():
+                    estado_comercial = assistente_comercial.processar_mensagem(numero, id_recebido)
+            except Exception as e:
+                print("⚠️ Falha no assistente comercial (ignorada):", e)
+                estado_comercial = None
+
+        contexto_comercial_ativo = bool(estado_comercial and estado_comercial.get("ativo"))
+
         resposta_ia = None
         try:
             hist = _get_hist_ia(numero)
-            resposta_ia = responder_com_ia(id_recebido, primeiro_nome, historico=hist)
+            resposta_ia = responder_com_ia(
+                id_recebido,
+                primeiro_nome,
+                historico=hist,
+                contexto_comercial=estado_comercial if contexto_comercial_ativo else None,
+            )
         except Exception:
             pass
 
         if resposta_ia:
             _add_hist_ia(numero, id_recebido, resposta_ia)
             enviar_mensagem(numero, resposta_ia)
-            enviar_botoes(numero, "Posso ajudar com algo mais?", BOTOES_MENU_INICIAL)
+            if not contexto_comercial_ativo:
+                enviar_botoes(numero, "Posso ajudar com algo mais?", BOTOES_MENU_INICIAL)
         else:
             enviar_mensagem(
                 numero,

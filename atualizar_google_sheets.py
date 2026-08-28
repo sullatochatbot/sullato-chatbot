@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 CAMINHO_CREDENCIAL = os.getenv("GOOGLE_SHEETS_CREDENTIALS_PATH")
-SHEET_ID = '1Xke33HzOXW78CjX7sVm9OORZmw7dvUN2YzjBXcVQ0II'
+SHEET_ID = '1Xke33HzOXW78CjX7sVm9O0RZmw7dvUN2YzjBXcVQ0II'
 NOME_ABA = 'Página1'
 
 def atualizar_interesse_google_sheets(numero, novo_interesse):
