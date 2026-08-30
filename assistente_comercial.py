@@ -199,14 +199,41 @@ def _eh_disponibilidade_para_visita(texto_norm: str) -> bool:
     return tem_dia and tem_ida
 
 
+# Padrões (regex) para reconhecer variações naturais de intenção comercial
+# forte (contato humano, visita, proposta/fechamento) além das frases
+# literais das listas acima — tolera pequenas variações (artigo, verbo
+# sinônimo) sem virar análise semântica. Cada padrão continua exigindo a
+# combinação de palavras-chave específica do domínio (vendedor/consultor,
+# visita, proposta/oferta, comprar/fechar) — não dispara com interesse ou
+# dúvida comercial comuns (ex.: "quero saber mais", "qual o valor?").
+_PADROES_TRANSFERENCIA = (
+    r"falar com (um |uma |o |a )?(vendedor|consultor|alguem)\b",
+    r"conversar com (um |uma |o |a )?(vendedor|consultor|alguem)\b",
+    r"com quem (eu )?(posso |devo |vou )?(falar|conversar)",
+    r"me (passa|manda|indica) (o |um )?(vendedor|consultor|contato|telefone|numero)",
+    r"tem algum vendedor",
+    r"quero (ir )?(ver|conhecer) (o |esse |este )?carro\b",
+    r"\b(agendar|marcar) (uma )?visita\b",
+    r"\bquero agendar\b",
+    r"fazer (uma )?(proposta|oferta)\b",
+    r"\bquero fechar\b",
+    r"\bquero comprar\b",
+)
+
+
+def _eh_sinal_transferencia_regex(texto_norm: str) -> bool:
+    return any(re.search(p, texto_norm) for p in _PADROES_TRANSFERENCIA)
+
+
 def _eh_sinal_transferencia(texto_norm: str) -> bool:
     """
     Sinal inequívoco de avançar para atendimento humano: aceitar/agendar
     visita, informar dia/disponibilidade para comparecer, pedir para falar
     com vendedor/consultor, perguntar quem vai atendê-lo, pedir
-    telefone/contato do responsável, ou aceitar que a equipe dê
-    continuidade. Deliberadamente conservador, mesmo estilo das outras
-    heurísticas deste módulo.
+    telefone/contato do responsável, aceitar que a equipe dê continuidade,
+    ou sinalizar intenção de proposta/fechamento/compra. Deliberadamente
+    conservador, mesmo estilo das outras heurísticas deste módulo — não
+    deve disparar em interesse/dúvida comercial comum.
     """
     grupos = (
         _GATILHOS_VISITA, _GATILHOS_FALAR_VENDEDOR, _GATILHOS_QUEM_ATENDE,
@@ -216,11 +243,20 @@ def _eh_sinal_transferencia(texto_norm: str) -> bool:
         return True
     if _eh_pedido_identificacao_vendedor(texto_norm):
         return True
+    if _eh_sinal_transferencia_regex(texto_norm):
+        return True
     return _eh_disponibilidade_para_visita(texto_norm)
 
 
-# Classificação utilitário/passeio a partir do texto do veículo já
-# identificado (nome do modelo e/ou da loja no anúncio).
+# Classificação utilitário/passeio. A ORIGEM explícita do lead (domínio do
+# link do anúncio, ou nome da loja no texto bruto da mensagem) tem
+# prioridade sobre o modelo do veículo — o modelo só decide quando a
+# origem não dá nenhum sinal (fallback). Isso evita que extrair_veiculo()
+# perder a linha com o nome da loja (quando ela vem separada da linha com
+# o ano) resulte em categoria errada.
+_DOMINIO_UTILITARIO = "sullatomicrosevans"
+_NOMES_LOJA_UTILITARIO = ("sullato micros e vans", "micros e vans")
+
 _PALAVRAS_UTILITARIO = (
     "van", "kombi", "jumper", "jumpy", "boxer", "ducato", "sprinter", "master",
     "furgao", "utilitario", "micro-onibus", "micro onibus", "minibus",
@@ -228,12 +264,22 @@ _PALAVRAS_UTILITARIO = (
 )
 
 
-def _classificar_categoria(veiculo_texto: Optional[str]) -> str:
+def _classificar_categoria(
+    veiculo_texto: Optional[str],
+    url: Optional[str] = None,
+    texto_bruto: Optional[str] = None,
+) -> str:
     """
-    Classificação conservadora utilitário/passeio. Default "passeio" quando
-    nenhuma palavra de utilitário é encontrada — é o segmento padrão da
-    concessionária quando não há sinal claro no texto do veículo.
+    Classificação utilitário/passeio priorizando a origem explícita do lead
+    (domínio do link do anúncio, ou nome da loja no texto bruto da
+    mensagem) sobre o modelo do veículo. O modelo (texto já extraído por
+    extrair_veiculo) só decide quando a origem não dá nenhum sinal —
+    fallback conservador, default "passeio" quando nada é encontrado.
     """
+    sinais_origem = _normalizar(f"{url or ''} {texto_bruto or ''}")
+    if _DOMINIO_UTILITARIO in sinais_origem or any(n in sinais_origem for n in _NOMES_LOJA_UTILITARIO):
+        return "utilitario"
+
     if not veiculo_texto:
         return "passeio"
     t = _normalizar(veiculo_texto)
@@ -398,7 +444,9 @@ def processar_mensagem(numero: str, texto: str) -> Optional[Dict[str, Any]]:
             estado_existente["qualificado"] = True
             estado_existente["intencao_visita"] = texto.strip()[:200]
             if not estado_existente.get("categoria"):
-                estado_existente["categoria"] = _classificar_categoria(estado_existente.get("veiculo"))
+                estado_existente["categoria"] = _classificar_categoria(
+                    estado_existente.get("veiculo"), url=estado_existente.get("url"), texto_bruto=texto
+                )
             estado_existente["ultima_atualizacao"] = time.time()
             _ESTADOS[numero] = estado_existente
             return dict(estado_existente)
@@ -415,7 +463,9 @@ def processar_mensagem(numero: str, texto: str) -> Optional[Dict[str, Any]]:
             veiculo = extrair_veiculo(texto, url=url_msg) or texto.strip()[:200]
             estado_existente["veiculo"] = veiculo
             estado_existente["estagio"] = "veiculo_identificado"
-            estado_existente["categoria"] = _classificar_categoria(veiculo)
+            estado_existente["categoria"] = _classificar_categoria(
+                veiculo, url=url_msg or estado_existente.get("url"), texto_bruto=texto
+            )
         # resposta indefinida/negativa: mantém estagio "aguardando_veiculo"
 
         estado_existente["ultima_atualizacao"] = time.time()
@@ -435,7 +485,7 @@ def processar_mensagem(numero: str, texto: str) -> Optional[Dict[str, Any]]:
         if veiculo:
             estado["veiculo"] = veiculo
             estado["estagio"] = "veiculo_identificado"
-            estado["categoria"] = _classificar_categoria(veiculo)
+            estado["categoria"] = _classificar_categoria(veiculo, url=url, texto_bruto=texto)
         else:
             estado["estagio"] = "aguardando_veiculo"
         estado["ultima_atualizacao"] = time.time()
