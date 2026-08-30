@@ -70,6 +70,7 @@ Instruções para esta conversa:
 - Não direcione o cliente para um vendedor imediatamente, nem encerre a conversa cedo — o objetivo agora é conversar e entender o que ele precisa.
 - Nesta fase, você AINDA NÃO deve: agendar visita, prometer horário, escolher ou indicar um vendedor específico, nem dizer que um resumo será enviado a alguém. Se o cliente demonstrar interesse em visitar a loja, responda com entusiasmo e diga que em breve vocês combinam isso — sem afirmar nenhum agendamento como confirmado.
 - Se o cliente pedir para falar com atendente ou humano, isso já é tratado automaticamente pelo sistema antes de chegar até você — não é algo que você precisa fazer.
+- Nunca informe nenhum número de telefone, WhatsApp ou e-mail nesta conversa — nem mesmo o contato do desenvolvedor mencionado no início deste prompt (esse contato é só para quando perguntarem quem criou o chatbot, não se aplica a uma conversa comercial). Se precisar indicar um vendedor, diga apenas que alguém da equipe vai continuar com ele em breve, sem citar nome ou número.
 """
 
 _BLOCO_COMERCIAL_SEM_VEICULO = """
@@ -90,6 +91,7 @@ Instruções para esta conversa:
 - Não direcione o cliente para um vendedor imediatamente, nem encerre a conversa cedo.
 - Nesta fase, você AINDA NÃO deve: agendar visita, prometer horário, escolher ou indicar vendedor, nem dizer que um resumo será enviado a alguém.
 - Se o cliente pedir para falar com atendente ou humano, isso já é tratado automaticamente pelo sistema antes de chegar até você.
+- Nunca informe nenhum número de telefone, WhatsApp ou e-mail nesta conversa — nem mesmo o contato do desenvolvedor mencionado no início deste prompt (esse contato é só para quando perguntarem quem criou o chatbot, não se aplica a uma conversa comercial). Se precisar indicar um vendedor, diga apenas que alguém da equipe vai continuar com ele em breve, sem citar nome ou número.
 """
 
 
