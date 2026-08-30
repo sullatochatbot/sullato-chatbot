@@ -621,6 +621,19 @@ def responder(numero: str, mensagem: Any, nome_contato: Optional[str] = None) ->
 
         contexto_comercial_ativo = bool(estado_comercial and estado_comercial.get("ativo"))
 
+        # ===== Fase 3.1D: sinal de transferência já detectado nesta mensagem
+        # (assistente_comercial.processar_mensagem já rodou acima) — o
+        # backend assume o controle ANTES de deixar a IA responder
+        # livremente, para ela não "enrolar" quando o cliente já pediu
+        # vendedor/contato explicitamente.
+        if (
+            contexto_comercial_ativo
+            and estado_comercial.get("qualificado")
+            and not estado_comercial.get("vendedor")
+        ):
+            _processar_transferencia_vendedor(numero, nome_final, estado_comercial)
+            return
+
         resposta_ia = None
         try:
             hist = _get_hist_ia(numero)
@@ -644,11 +657,6 @@ def responder(numero: str, mensagem: Any, nome_contato: Optional[str] = None) ->
                 f"Não entendi sua mensagem, {primeiro_nome}. Posso te ajudar por aqui 👇"
             )
             enviar_botoes(numero, "Escolha uma opção:", BOTOES_MENU_INICIAL)
-
-        # ===== Fase 3.1D: fechamento do lead (backend seleciona vendedor) =====
-        if contexto_comercial_ativo:
-            _processar_transferencia_vendedor(numero, nome_final, estado_comercial)
-
         return
 
     # ===== Menus topo (cliques de botões) =====

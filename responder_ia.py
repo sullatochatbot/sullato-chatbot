@@ -50,6 +50,16 @@ def _origem_label(origem: Optional[str]) -> Optional[str]:
     return None
 
 
+# Mesmos endereços já presentes em _SISTEMA_BASE (linhas 12-13) — reaproveitados
+# aqui, não duplicados como novo dado. Usados para restringir a resposta de
+# endereço à loja de origem do lead comercial, em vez da regra genérica do
+# prompt-base (que lista todas as lojas).
+_ENDERECO_POR_CATEGORIA = {
+    "utilitario": "Sullato Micros e Vans – Av. São Miguel, 7900, São Paulo, SP | Maps: https://maps.google.com/?q=Av.+São+Miguel,+7900,+São+Paulo,+SP",
+    "passeio": "Sullato Veículos – Av. São Miguel, 4049/4084, São Paulo, SP | Maps: https://maps.google.com/?q=Av.+São+Miguel,+4049,+São+Paulo,+SP",
+}
+
+
 _BLOCO_COMERCIAL_COM_VEICULO = """
 
 --- CONTEXTO COMERCIAL DESTA CONVERSA ---
@@ -71,6 +81,7 @@ Instruções para esta conversa:
 - Nesta fase, você AINDA NÃO deve: agendar visita, prometer horário, escolher ou indicar um vendedor específico, nem dizer que um resumo será enviado a alguém. Se o cliente demonstrar interesse em visitar a loja, responda com entusiasmo e diga que em breve vocês combinam isso — sem afirmar nenhum agendamento como confirmado.
 - Se o cliente pedir para falar com atendente ou humano, isso já é tratado automaticamente pelo sistema antes de chegar até você — não é algo que você precisa fazer.
 - Nunca informe nenhum número de telefone, WhatsApp ou e-mail nesta conversa — nem mesmo o contato do desenvolvedor mencionado no início deste prompt (esse contato é só para quando perguntarem quem criou o chatbot, não se aplica a uma conversa comercial). Se precisar indicar um vendedor, diga apenas que alguém da equipe vai continuar com ele em breve, sem citar nome ou número.
+{linha_endereco}
 """
 
 _BLOCO_TRANSFERENCIA_CONCLUIDA = """
@@ -119,7 +130,14 @@ def _montar_system_prompt(contexto_comercial: Optional[Dict[str, Any]] = None) -
 
     veiculo = contexto_comercial.get("veiculo")
     if veiculo:
-        bloco = _BLOCO_COMERCIAL_COM_VEICULO.format(veiculo=veiculo, linha_origem=linha_origem)
+        endereco_loja = _ENDERECO_POR_CATEGORIA.get(contexto_comercial.get("categoria"))
+        linha_endereco = (
+            f"- Se o cliente perguntar sobre endereço, como chegar ou qual loja, responda SOMENTE com este endereço — é a loja de origem deste lead — e NÃO mencione nem envie os endereços das outras lojas do Grupo Sullato nesta conversa: {endereco_loja}"
+            if endereco_loja else ""
+        )
+        bloco = _BLOCO_COMERCIAL_COM_VEICULO.format(
+            veiculo=veiculo, linha_origem=linha_origem, linha_endereco=linha_endereco
+        )
     else:
         bloco = _BLOCO_COMERCIAL_SEM_VEICULO.format(linha_origem=linha_origem)
 

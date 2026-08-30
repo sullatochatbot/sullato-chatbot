@@ -150,22 +150,41 @@ _GATILHOS_VISITA = (
 _GATILHOS_FALAR_VENDEDOR = (
     "falar com vendedor", "falar com consultor", "falar com um vendedor",
     "falar com o vendedor", "quero falar com vendedor", "quero falar com consultor",
-    "passar pro vendedor", "passar para o vendedor", "me passa pro vendedor",
+    "quero falar com alguem", "passar pro vendedor", "passar para o vendedor",
+    "me passa pro vendedor", "me passa um vendedor",
 )
 _GATILHOS_QUEM_ATENDE = (
-    "quem vai me atender", "quem e o vendedor", "quem vai cuidar do meu",
-    "quem que vai me atender", "com quem eu falo agora", "quem vai falar comigo",
+    "quem vai me atender", "quem me atende", "quem e o vendedor",
+    "quem vai cuidar do meu", "quem vai cuidar de mim", "quem que vai me atender",
+    "com quem eu falo", "quem vai falar comigo", "quem eu procuro", "quem procuro",
+    "qual vendedor", "quem e meu consultor",
 )
 _GATILHOS_CONTATO_RESPONSAVEL = (
     "telefone do vendedor", "telefone do responsavel", "contato do vendedor",
-    "numero do vendedor", "contato do responsavel", "pode me passar o contato",
-    "pode me passar o telefone do vendedor",
+    "numero do vendedor", "contato do responsavel", "nome do vendedor",
+    "pode me passar o contato", "me passa o contato",
+    "pode me passar o telefone do vendedor", "vendedor especifico",
+    "vendedor em especifico", "consultor especifico", "tem algum vendedor",
 )
 _GATILHOS_ACEITA_CONTINUIDADE = (
     "pode passar meu contato", "pode passar meu numero", "pode passar para ele",
     "pode passar para ela", "tudo bem alguem da equipe continuar",
     "aceito que a equipe entre em contato", "pode me colocar em contato com o vendedor",
 )
+
+# Reconhecimento por co-ocorrência (mais tolerante a variações de frase do
+# que as listas acima): "vendedor"/"consultor" + palavra de pergunta na
+# mesma mensagem — cobre formas não previstas exatamente (ex.: "tem um
+# vendedor em específico pra me mandar?"), continuando conservador por
+# exigir as duas partes juntas.
+_PALAVRA_VENDEDOR_CONSULTOR = ("vendedor", "consultor")
+_PALAVRAS_PERGUNTA_IDENTIFICACAO = ("quem", "qual", "nome", "especifico", "tem algum", "tem um")
+
+
+def _eh_pedido_identificacao_vendedor(texto_norm: str) -> bool:
+    tem_vendedor = any(p in texto_norm for p in _PALAVRA_VENDEDOR_CONSULTOR)
+    tem_pergunta = any(p in texto_norm for p in _PALAVRAS_PERGUNTA_IDENTIFICACAO)
+    return tem_vendedor and tem_pergunta
 _PALAVRAS_DIA_DISPONIBILIDADE = (
     "hoje", "amanha", "segunda", "terca", "quarta", "quinta", "sexta",
     "sabado", "domingo", "essa semana", "neste fim de semana",
@@ -195,13 +214,15 @@ def _eh_sinal_transferencia(texto_norm: str) -> bool:
     )
     if any(any(g in texto_norm for g in grupo) for grupo in grupos):
         return True
+    if _eh_pedido_identificacao_vendedor(texto_norm):
+        return True
     return _eh_disponibilidade_para_visita(texto_norm)
 
 
 # Classificação utilitário/passeio a partir do texto do veículo já
 # identificado (nome do modelo e/ou da loja no anúncio).
 _PALAVRAS_UTILITARIO = (
-    "van", "kombi", "jumper", "boxer", "ducato", "sprinter", "master",
+    "van", "kombi", "jumper", "jumpy", "boxer", "ducato", "sprinter", "master",
     "furgao", "utilitario", "micro-onibus", "micro onibus", "minibus",
     "micros e vans",
 )
