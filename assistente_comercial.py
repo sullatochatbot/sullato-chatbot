@@ -109,6 +109,34 @@ def _eh_interesse_generico(texto_norm: str) -> bool:
     return False
 
 
+# Frases do CTA "Simular" do site atreladas a um veículo específico. Cobre o
+# caso real em que a mensagem descreve o veículo (com ano) mas a URL não é
+# reconhecida por detectar_url (ex.: link não veio embutido no texto).
+_GATILHOS_SIMULACAO_VEICULO = (
+    "simulacao desse carro",
+    "simulacao deste carro",
+    "simulacao desse veiculo",
+    "simulacao deste veiculo",
+    "quero fazer a simulacao desse carro",
+    "quero fazer a simulacao deste carro",
+    "fazer a simulacao desse carro",
+    "fazer a simulacao deste carro",
+)
+
+
+def _eh_entrada_forte_veiculo(texto_norm: str) -> bool:
+    """
+    Sinal forte de entrada vinda de anúncio/site com veículo específico, mesmo
+    sem URL detectada no texto. Conservador: frase de simulação atrelada a
+    "esse/este carro/veículo", OU ano de veículo (####) junto com marcador de
+    preço ("r$") na mesma mensagem — combinação característica de descrição
+    de anúncio colada no WhatsApp, dificilmente digitada por acaso.
+    """
+    if any(g in texto_norm for g in _GATILHOS_SIMULACAO_VEICULO):
+        return True
+    return bool(_ANO_RE.search(texto_norm) and "r$" in texto_norm)
+
+
 def _eh_resposta_indefinida(texto_norm: str) -> bool:
     """
     True quando a mensagem não traz informação mínima de veículo/interesse
@@ -251,13 +279,15 @@ def processar_mensagem(numero: str, texto: str) -> Optional[Dict[str, Any]]:
         _ESTADOS[numero] = estado_existente
         return dict(estado_existente)
 
-    # Entrada comercial vinda de site/anúncio com URL (cenário A)
+    # Entrada comercial vinda de site/anúncio, com URL ou sinal forte de
+    # veículo mesmo sem URL reconhecida (cenário A)
     url = detectar_url(texto)
-    if url:
+    if url or _eh_entrada_forte_veiculo(texto_norm):
         estado = estado_existente or _novo_estado(numero)
         estado["ativo"] = True
         estado["origem"] = "site"
-        estado["url"] = url
+        if url:
+            estado["url"] = url
         veiculo = extrair_veiculo(texto, url=url)
         if veiculo:
             estado["veiculo"] = veiculo
