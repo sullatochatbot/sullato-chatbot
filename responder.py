@@ -189,6 +189,24 @@ def enviar_mensagem(numero: str, texto: str) -> None:
     except Exception as e:
         print("❌ Erro ao enviar mensagem:", e)
 
+def _enviar_mensagem_com_status(numero: str, texto: str) -> bool:
+    """
+    Variante de enviar_mensagem() que informa se o envio teve sucesso.
+    Usada só na notificação de lead ao vendedor (Fase 3.1D) — ali
+    precisamos saber se a transferência realmente aconteceu antes de
+    confirmar isso ao cliente. enviar_mensagem() não é alterada.
+    """
+    try:
+        url = f"https://graph.facebook.com/v19.0/{PHONE_NUMBER_ID}/messages"
+        headers = {"Authorization": f"Bearer {ACCESS_TOKEN}", "Content-Type": "application/json"}
+        payload = {"messaging_product": "whatsapp", "to": numero, "text": {"preview_url": True, "body": texto}}
+        r = requests.post(url, headers=headers, json=payload, timeout=30)
+        print("🟢 Meta message (lead vendedor):", r.status_code, r.text)
+        return 200 <= r.status_code < 300
+    except Exception as e:
+        print("❌ Erro ao enviar mensagem ao vendedor:", e)
+        return False
+
 def enviar_botoes(numero: str, texto: str, botoes: List[Dict[str, Any]]) -> None:
     url = f"https://graph.facebook.com/v19.0/{PHONE_NUMBER_ID}/messages"
     headers = {"Authorization": f"Bearer {ACCESS_TOKEN}", "Content-Type": "application/json"}
@@ -328,6 +346,81 @@ def vendedores_util(dt=None):
 
 def _bloco_vendedores(lista):
     return "\n".join([f"{nome}: {link}" for nome, link in lista])
+
+# ===== Fase 3.1D: fechamento do lead comercial (backend seleciona o vendedor) =====
+def _processar_transferencia_vendedor(numero: str, nome_cliente: str, estado_comercial: Dict[str, Any]) -> None:
+    """
+    Quando o cliente sinaliza intenção clara de avançar (assistente_comercial
+    já marcou qualificado=True), seleciona UM vendedor pelo rodízio já
+    existente, envia o resumo do lead a ele e só então informa esse MESMO
+    vendedor ao cliente. Idempotente por telefone: se já existe vendedor no
+    estado, não faz nada; se o envio ao vendedor falhar, não confirma nada
+    ao cliente e a próxima mensagem tenta de novo (vendedor continua None).
+    """
+    if not estado_comercial or not estado_comercial.get("qualificado"):
+        return
+    if estado_comercial.get("vendedor"):
+        return  # já transferido nesta sessão — não seleciona nem envia de novo
+
+    try:
+        import assistente_comercial
+    except Exception:
+        return
+
+    try:
+        categoria = estado_comercial.get("categoria") or "passeio"
+        lista = vendedores_util() if categoria == "utilitario" else vendedores_passeio()
+        if not lista:
+            return
+        vendedor_nome, vendedor_link = lista[0]
+
+        try:
+            from responder_ia import gerar_resumo_lead
+        except Exception:
+            gerar_resumo_lead = None
+
+        resumo = None
+        if gerar_resumo_lead:
+            try:
+                resumo = gerar_resumo_lead(_get_hist_ia(numero), estado_comercial)
+            except Exception as e:
+                print("⚠️ Falha ao gerar resumo do lead:", e)
+        if not resumo:
+            resumo = "Sem resumo detalhado disponível — cliente demonstrou interesse e intenção de avançar."
+
+        texto_lead = (
+            "🔔 NOVO LEAD QUALIFICADO — CHATBOT SULLATO\n\n"
+            f"Cliente: {nome_cliente}\n"
+            f"Telefone: +{numero}\n\n"
+            f"Veículo de interesse:\n{estado_comercial.get('veiculo') or 'não especificado'}\n"
+        )
+        if estado_comercial.get("url"):
+            texto_lead += f"\nURL do anúncio:\n{estado_comercial['url']}\n"
+        texto_lead += (
+            f"\nOrigem: {estado_comercial.get('origem') or 'não identificada'}\n\n"
+            f"RESUMO DA IA:\n{resumo}\n\n"
+            f"Intenção/urgência do cliente:\n{estado_comercial.get('intencao_visita') or 'não especificada'}\n\n"
+            "Status: LEAD QUALIFICADO / CONTATO COMERCIAL"
+        )
+
+        numero_vendedor = vendedor_link.replace("https://wa.me/", "").strip()
+        enviado_ok = _enviar_mensagem_com_status(numero_vendedor, texto_lead)
+        if not enviado_ok:
+            print(f"⚠️ Falha ao notificar vendedor {vendedor_nome} — transferência NÃO concluída, tentará de novo na próxima mensagem.")
+            return
+
+        assistente_comercial.definir_vendedor(numero, vendedor_nome, vendedor_link)
+        assistente_comercial.marcar_transferencia_concluida(numero)
+
+        enviar_mensagem(
+            numero,
+            f"Perfeito! 👍\n\n"
+            f"Vou deixar seu atendimento com {vendedor_nome}, da nossa equipe.\n\n"
+            f"📱 {vendedor_nome}: {vendedor_link}\n\n"
+            "Já vou passar para ele(a) as informações da nossa conversa, para você não precisar explicar tudo de novo."
+        )
+    except Exception as e:
+        print("⚠️ Falha ao processar transferência de vendedor (ignorada):", e)
 
 # ===== Blocos fixos =====
 BLOCOS = {
@@ -551,6 +644,11 @@ def responder(numero: str, mensagem: Any, nome_contato: Optional[str] = None) ->
                 f"Não entendi sua mensagem, {primeiro_nome}. Posso te ajudar por aqui 👇"
             )
             enviar_botoes(numero, "Escolha uma opção:", BOTOES_MENU_INICIAL)
+
+        # ===== Fase 3.1D: fechamento do lead (backend seleciona vendedor) =====
+        if contexto_comercial_ativo:
+            _processar_transferencia_vendedor(numero, nome_final, estado_comercial)
+
         return
 
     # ===== Menus topo (cliques de botões) =====

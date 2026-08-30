@@ -73,6 +73,16 @@ Instruções para esta conversa:
 - Nunca informe nenhum número de telefone, WhatsApp ou e-mail nesta conversa — nem mesmo o contato do desenvolvedor mencionado no início deste prompt (esse contato é só para quando perguntarem quem criou o chatbot, não se aplica a uma conversa comercial). Se precisar indicar um vendedor, diga apenas que alguém da equipe vai continuar com ele em breve, sem citar nome ou número.
 """
 
+_BLOCO_TRANSFERENCIA_CONCLUIDA = """
+
+--- TRANSFERÊNCIA JÁ REALIZADA NESTA CONVERSA ---
+O atendimento deste cliente já foi transferido para {vendedor_nome} ({vendedor_link}), que é quem vai continuar a conversa comercial a partir de agora.
+Instruções:
+- Se o cliente perguntar quem é o vendedor responsável ou pedir o telefone/contato dele de novo, responda com esse mesmo nome e esse mesmo número — nunca invente outro nome, outro número, nem diga que vai verificar.
+- Não repita o resumo nem informe de novo que uma transferência foi feita, a menos que o cliente pergunte diretamente.
+- Continue sendo cordial, mas não reabra a qualificação comercial do zero — o vendedor já está cuidando disso.
+"""
+
 _BLOCO_COMERCIAL_SEM_VEICULO = """
 
 --- CONTEXTO COMERCIAL DESTA CONVERSA ---
@@ -113,6 +123,12 @@ def _montar_system_prompt(contexto_comercial: Optional[Dict[str, Any]] = None) -
     else:
         bloco = _BLOCO_COMERCIAL_SEM_VEICULO.format(linha_origem=linha_origem)
 
+    vendedor = contexto_comercial.get("vendedor")
+    if vendedor:
+        bloco += _BLOCO_TRANSFERENCIA_CONCLUIDA.format(
+            vendedor_nome=vendedor.get("nome", ""), vendedor_link=vendedor.get("link", "")
+        )
+
     return _SISTEMA_BASE + bloco
 
 
@@ -148,4 +164,51 @@ def responder_com_ia(
 
     except Exception as e:
         print("⚠️ Claude indisponível:", e)
+        return None
+
+
+def gerar_resumo_lead(historico: Optional[list], contexto_comercial: Dict[str, Any]) -> Optional[str]:
+    """
+    Gera um resumo objetivo da conversa comercial, exclusivamente a partir
+    do histórico real (_HIST_IA) e do contexto já coletado pelo backend —
+    nunca inventa dado que não esteja na conversa. Usado só para notificar
+    o vendedor selecionado; não participa da escolha do vendedor.
+    """
+    api_key = os.getenv("ANTHROPIC_API_KEY", "").strip()
+    if not api_key or not historico:
+        return None
+
+    try:
+        import anthropic
+        client = anthropic.Anthropic(api_key=api_key)
+
+        veiculo = contexto_comercial.get("veiculo") or "não especificado"
+        intencao = contexto_comercial.get("intencao_visita") or "não especificada"
+
+        sistema_resumo = (
+            "Resuma objetivamente, em português brasileiro, em no máximo 4 frases, "
+            "a conversa comercial abaixo para um vendedor humano que vai continuar o atendimento. "
+            "Use SOMENTE informações que aparecem literalmente na conversa — nunca invente "
+            "preço, prazo, modelo, condição de pagamento ou qualquer dado que não tenha sido dito. "
+            f"Veículo de interesse já identificado pelo sistema: {veiculo}. "
+            f"Sinal de intenção/urgência já identificado pelo sistema: {intencao}."
+        )
+
+        msgs = list(historico)
+        msgs.append({
+            "role": "user",
+            "content": "Com base em toda a conversa acima, gere agora o resumo para o vendedor, seguindo exatamente as instruções do sistema.",
+        })
+
+        resp = client.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=300,
+            system=sistema_resumo,
+            messages=msgs,
+        )
+        texto = (resp.content[0].text or "").strip()
+        return texto if texto else None
+
+    except Exception as e:
+        print("⚠️ Falha ao gerar resumo do lead:", e)
         return None

@@ -137,6 +137,88 @@ def _eh_entrada_forte_veiculo(texto_norm: str) -> bool:
     return bool(_ANO_RE.search(texto_norm) and "r$" in texto_norm)
 
 
+# Sinais inequívocos de intenção de avançar para atendimento humano.
+# Urgência isolada ("tenho pressa", "preciso trabalhar") NÃO entra aqui —
+# só ajuda na qualificação, nunca dispara sozinha a transferência (decisão
+# explícita de Anderson).
+_GATILHOS_VISITA = (
+    "quero visitar", "posso visitar", "posso ir ai", "posso ir na loja",
+    "quero ir ai", "quero ir na loja", "vou ai", "vou passar ai",
+    "posso passar ai", "quero conhecer o carro pessoalmente",
+    "quero ver o carro pessoalmente", "aceito visitar",
+)
+_GATILHOS_FALAR_VENDEDOR = (
+    "falar com vendedor", "falar com consultor", "falar com um vendedor",
+    "falar com o vendedor", "quero falar com vendedor", "quero falar com consultor",
+    "passar pro vendedor", "passar para o vendedor", "me passa pro vendedor",
+)
+_GATILHOS_QUEM_ATENDE = (
+    "quem vai me atender", "quem e o vendedor", "quem vai cuidar do meu",
+    "quem que vai me atender", "com quem eu falo agora", "quem vai falar comigo",
+)
+_GATILHOS_CONTATO_RESPONSAVEL = (
+    "telefone do vendedor", "telefone do responsavel", "contato do vendedor",
+    "numero do vendedor", "contato do responsavel", "pode me passar o contato",
+    "pode me passar o telefone do vendedor",
+)
+_GATILHOS_ACEITA_CONTINUIDADE = (
+    "pode passar meu contato", "pode passar meu numero", "pode passar para ele",
+    "pode passar para ela", "tudo bem alguem da equipe continuar",
+    "aceito que a equipe entre em contato", "pode me colocar em contato com o vendedor",
+)
+_PALAVRAS_DIA_DISPONIBILIDADE = (
+    "hoje", "amanha", "segunda", "terca", "quarta", "quinta", "sexta",
+    "sabado", "domingo", "essa semana", "neste fim de semana",
+)
+_PALAVRAS_IR_LOJA = ("ir", "passar", "visitar", "loja", "aparecer", "chegar")
+
+
+def _eh_disponibilidade_para_visita(texto_norm: str) -> bool:
+    """Dia/horário + verbo de comparecer na mesma mensagem (ex.: 'posso ir amanha')."""
+    tem_dia = any(p in texto_norm for p in _PALAVRAS_DIA_DISPONIBILIDADE)
+    tem_ida = any(p in texto_norm for p in _PALAVRAS_IR_LOJA)
+    return tem_dia and tem_ida
+
+
+def _eh_sinal_transferencia(texto_norm: str) -> bool:
+    """
+    Sinal inequívoco de avançar para atendimento humano: aceitar/agendar
+    visita, informar dia/disponibilidade para comparecer, pedir para falar
+    com vendedor/consultor, perguntar quem vai atendê-lo, pedir
+    telefone/contato do responsável, ou aceitar que a equipe dê
+    continuidade. Deliberadamente conservador, mesmo estilo das outras
+    heurísticas deste módulo.
+    """
+    grupos = (
+        _GATILHOS_VISITA, _GATILHOS_FALAR_VENDEDOR, _GATILHOS_QUEM_ATENDE,
+        _GATILHOS_CONTATO_RESPONSAVEL, _GATILHOS_ACEITA_CONTINUIDADE,
+    )
+    if any(any(g in texto_norm for g in grupo) for grupo in grupos):
+        return True
+    return _eh_disponibilidade_para_visita(texto_norm)
+
+
+# Classificação utilitário/passeio a partir do texto do veículo já
+# identificado (nome do modelo e/ou da loja no anúncio).
+_PALAVRAS_UTILITARIO = (
+    "van", "kombi", "jumper", "boxer", "ducato", "sprinter", "master",
+    "furgao", "utilitario", "micro-onibus", "micro onibus", "minibus",
+    "micros e vans",
+)
+
+
+def _classificar_categoria(veiculo_texto: Optional[str]) -> str:
+    """
+    Classificação conservadora utilitário/passeio. Default "passeio" quando
+    nenhuma palavra de utilitário é encontrada — é o segmento padrão da
+    concessionária quando não há sinal claro no texto do veículo.
+    """
+    if not veiculo_texto:
+        return "passeio"
+    t = _normalizar(veiculo_texto)
+    return "utilitario" if any(p in t for p in _PALAVRAS_UTILITARIO) else "passeio"
+
+
 def _eh_resposta_indefinida(texto_norm: str) -> bool:
     """
     True quando a mensagem não traz informação mínima de veículo/interesse
@@ -168,7 +250,8 @@ def _novo_estado(numero: str) -> Dict[str, Any]:
         "intencao_visita": None,    # não preenchido nesta etapa
         "data_visita": None,        # não preenchido nesta etapa
         "horario_visita": None,     # não preenchido nesta etapa
-        "vendedor": None,           # não preenchido nesta etapa
+        "vendedor": None,           # {"nome":..., "link":...} quando selecionado pelo backend
+        "transferencia_concluida": False,
         "ultima_atualizacao": time.time(),
     }
 
@@ -249,6 +332,31 @@ def limpar_estado(numero: str) -> None:
     _ESTADOS.pop(numero, None)
 
 
+def definir_vendedor(numero: str, nome: str, link: str) -> bool:
+    """
+    Grava, no estado do telefone, o vendedor selecionado pelo BACKEND
+    (nunca pela IA). Idempotência é responsabilidade de quem chama: só deve
+    ser invocada quando estado["vendedor"] ainda estiver None.
+    """
+    estado = _ESTADOS.get(numero)
+    if not estado or _expirado(estado):
+        return False
+    estado["vendedor"] = {"nome": nome, "link": link}
+    estado["ultima_atualizacao"] = time.time()
+    return True
+
+
+def marcar_transferencia_concluida(numero: str) -> bool:
+    """Marca a transferência como concluída — só deve ser chamada após o
+    envio ao vendedor ter sido confirmado com sucesso."""
+    estado = _ESTADOS.get(numero)
+    if not estado or _expirado(estado):
+        return False
+    estado["transferencia_concluida"] = True
+    estado["ultima_atualizacao"] = time.time()
+    return True
+
+
 def processar_mensagem(numero: str, texto: str) -> Optional[Dict[str, Any]]:
     """
     Processa uma mensagem recebida e cria/atualiza o estado comercial do
@@ -260,6 +368,19 @@ def processar_mensagem(numero: str, texto: str) -> Optional[Dict[str, Any]]:
     texto_norm = _normalizar(texto)
 
     estado_existente = obter_estado(numero)  # já expira/limpa sozinho se vencido
+
+    # Sinal inequívoco de avançar para atendimento humano (aprovado por
+    # Anderson: urgência isolada não entra aqui). Só roda enquanto ainda não
+    # qualificado — depois disso a seleção de vendedor cuida da idempotência.
+    if estado_existente and estado_existente.get("ativo") and not estado_existente.get("qualificado"):
+        if _eh_sinal_transferencia(texto_norm):
+            estado_existente["qualificado"] = True
+            estado_existente["intencao_visita"] = texto.strip()[:200]
+            if not estado_existente.get("categoria"):
+                estado_existente["categoria"] = _classificar_categoria(estado_existente.get("veiculo"))
+            estado_existente["ultima_atualizacao"] = time.time()
+            _ESTADOS[numero] = estado_existente
+            return dict(estado_existente)
 
     # Continuação de uma sessão que está aguardando o veículo (cenário D)
     if estado_existente and estado_existente.get("estagio") == "aguardando_veiculo":
@@ -273,6 +394,7 @@ def processar_mensagem(numero: str, texto: str) -> Optional[Dict[str, Any]]:
             veiculo = extrair_veiculo(texto, url=url_msg) or texto.strip()[:200]
             estado_existente["veiculo"] = veiculo
             estado_existente["estagio"] = "veiculo_identificado"
+            estado_existente["categoria"] = _classificar_categoria(veiculo)
         # resposta indefinida/negativa: mantém estagio "aguardando_veiculo"
 
         estado_existente["ultima_atualizacao"] = time.time()
@@ -292,6 +414,7 @@ def processar_mensagem(numero: str, texto: str) -> Optional[Dict[str, Any]]:
         if veiculo:
             estado["veiculo"] = veiculo
             estado["estagio"] = "veiculo_identificado"
+            estado["categoria"] = _classificar_categoria(veiculo)
         else:
             estado["estagio"] = "aguardando_veiculo"
         estado["ultima_atualizacao"] = time.time()
