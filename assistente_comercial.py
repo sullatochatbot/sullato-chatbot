@@ -233,6 +233,9 @@ _PADROES_VISITA = (
     r"quero (ir )?(ver|conhecer) (o |esse |este )?carro\b",
     r"\b(agendar|marcar) (uma )?visita\b",
     r"\bquero agendar\b",
+    r"quando (eu )?(posso|devo) (ir|passar)\b",
+    r"que dia (eu )?(posso|devo) (ir|passar)\b",
+    r"quando (eu )?for\b",
 )
 
 
