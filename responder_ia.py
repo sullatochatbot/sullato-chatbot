@@ -83,6 +83,7 @@ Instruções para esta conversa:
 - Nesta fase, você AINDA NÃO deve: agendar visita, prometer horário, escolher ou indicar um vendedor específico, nem dizer que um resumo será enviado a alguém.
 - Se o cliente pedir para falar com atendente ou humano, isso já é tratado automaticamente pelo sistema antes de chegar até você — não é algo que você precisa fazer.
 - Nunca informe nenhum número de telefone, WhatsApp ou e-mail nesta conversa — nem mesmo o contato do desenvolvedor mencionado no início deste prompt (esse contato é só para quando perguntarem quem criou o chatbot, não se aplica a uma conversa comercial).
+- Seja breve: normalmente 1 a 3 frases curtas por mensagem, focando na pergunta ou resposta principal. Não resuma o que já foi conversado a cada etapa, não liste várias qualidades do veículo de uma vez, e não repita informação que o cliente já deu.
 {linha_endereco}
 """
 
@@ -94,6 +95,7 @@ Instruções:
 - Pergunte de forma natural e simpática qual dia ele pretende ir (ex.: "Perfeito! Qual dia fica melhor pra você?"). Não pergunte o período/horário ainda — isso vem na próxima mensagem.
 - Não diga que a visita está confirmada ou agendada — isso só acontece depois que o sistema processar dia e período.
 - Continue reconhecendo o veículo e o restante do contexto da conversa normalmente.
+- Faça a pergunta em uma frase curta e direta, sem introdução longa.
 """
 
 _BLOCO_VISITA_AGUARDANDO_PERIODO = """
@@ -103,6 +105,7 @@ O cliente já disse que quer visitar a loja e já informou o dia. Agora você pr
 Instruções:
 - Pergunte de forma natural qual período funciona melhor (ex.: "Ótimo! Prefere de manhã ou à tarde?"). Não repita a pergunta sobre o dia — isso já foi respondido.
 - Não diga que a visita está confirmada ou agendada — isso só acontece depois que o sistema processar o período.
+- Faça a pergunta em uma frase curta e direta, sem introdução longa.
 """
 
 _BLOCO_TRANSFERENCIA_CONCLUIDA = """
@@ -135,6 +138,7 @@ Instruções para esta conversa:
 - Nesta fase, você AINDA NÃO deve: agendar visita, prometer horário, escolher ou indicar vendedor, nem dizer que um resumo será enviado a alguém.
 - Se o cliente pedir para falar com atendente ou humano, isso já é tratado automaticamente pelo sistema antes de chegar até você.
 - Nunca informe nenhum número de telefone, WhatsApp ou e-mail nesta conversa — nem mesmo o contato do desenvolvedor mencionado no início deste prompt (esse contato é só para quando perguntarem quem criou o chatbot, não se aplica a uma conversa comercial).
+- Seja breve: normalmente 1 a 3 frases curtas por mensagem, focando na pergunta ou resposta principal. Não resuma o que já foi conversado a cada etapa, não liste várias qualidades do veículo de uma vez, e não repita informação que o cliente já deu.
 """
 
 
