@@ -347,6 +347,22 @@ def vendedores_util(dt=None):
 def _bloco_vendedores(lista):
     return "\n".join([f"{nome}: {link}" for nome, link in lista])
 
+# Formatação em linguagem natural do dia/período coletados, usada só na
+# confirmação ao CLIENTE (o valor bruto gravado no estado e enviado ao
+# vendedor no resumo não muda).
+_DIAS_SEMANA_NATURAL = {
+    "segunda": "segunda-feira", "terca": "terça-feira", "quarta": "quarta-feira",
+    "quinta": "quinta-feira", "sexta": "sexta-feira", "sabado": "sábado",
+    "domingo": "domingo", "hoje": "hoje", "amanha": "amanhã",
+}
+_PERIODOS_NATURAL = {"manha": "de manhã", "tarde": "à tarde", "noite": "à noite"}
+
+def _formatar_dia_natural(dia: str) -> str:
+    return _DIAS_SEMANA_NATURAL.get(dia, dia)
+
+def _formatar_periodo_natural(periodo: str) -> str:
+    return _PERIODOS_NATURAL.get(periodo, f"às {periodo}")
+
 # ===== Fase 3.1D: fechamento do lead comercial (backend seleciona o vendedor) =====
 def _processar_transferencia_vendedor(numero: str, nome_cliente: str, estado_comercial: Dict[str, Any]) -> None:
     """
@@ -396,9 +412,15 @@ def _processar_transferencia_vendedor(numero: str, nome_cliente: str, estado_com
         )
         if estado_comercial.get("url"):
             texto_lead += f"\nURL do anúncio:\n{estado_comercial['url']}\n"
+        texto_lead += f"\nOrigem: {estado_comercial.get('origem') or 'não identificada'}\n"
+        if estado_comercial.get("data_visita") or estado_comercial.get("horario_visita"):
+            texto_lead += (
+                f"\nVisita:\n"
+                f"Dia: {estado_comercial.get('data_visita') or 'não informado'}\n"
+                f"Período: {estado_comercial.get('horario_visita') or 'não informado'}\n"
+            )
         texto_lead += (
-            f"\nOrigem: {estado_comercial.get('origem') or 'não identificada'}\n\n"
-            f"RESUMO DA IA:\n{resumo}\n\n"
+            f"\nRESUMO DA IA:\n{resumo}\n\n"
             f"Intenção/urgência do cliente:\n{estado_comercial.get('intencao_visita') or 'não especificada'}\n\n"
             "Status: LEAD QUALIFICADO / CONTATO COMERCIAL"
         )
@@ -412,9 +434,20 @@ def _processar_transferencia_vendedor(numero: str, nome_cliente: str, estado_com
         assistente_comercial.definir_vendedor(numero, vendedor_nome, vendedor_link)
         assistente_comercial.marcar_transferencia_concluida(numero)
 
+        dia = estado_comercial.get("data_visita")
+        periodo = estado_comercial.get("horario_visita")
+        linha_visita = ""
+        if dia and periodo:
+            linha_visita = f"Vou deixar sua visita organizada para {_formatar_dia_natural(dia)} {_formatar_periodo_natural(periodo)}.\n\n"
+        elif dia:
+            linha_visita = f"Vou deixar sua visita organizada para {_formatar_dia_natural(dia)}.\n\n"
+        elif periodo:
+            linha_visita = f"Vou deixar sua visita organizada {_formatar_periodo_natural(periodo)}.\n\n"
+
         enviar_mensagem(
             numero,
             f"Perfeito! 👍\n\n"
+            f"{linha_visita}"
             f"Vou deixar seu atendimento com {vendedor_nome}, da nossa equipe.\n\n"
             f"📱 {vendedor_nome}: {vendedor_link}\n\n"
             "Já vou passar para ele(a) as informações da nossa conversa, para você não precisar explicar tudo de novo."

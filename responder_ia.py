@@ -86,6 +86,25 @@ Instruções para esta conversa:
 {linha_endereco}
 """
 
+_BLOCO_VISITA_AGUARDANDO_DIA = """
+
+--- CLIENTE QUER VISITAR A LOJA ---
+O cliente já demonstrou que quer visitar a loja pessoalmente. Antes de confirmar qualquer coisa, você precisa saber qual dia funciona melhor para ele.
+Instruções:
+- Pergunte de forma natural e simpática qual dia ele pretende ir (ex.: "Perfeito! Qual dia fica melhor pra você?"). Não pergunte o período/horário ainda — isso vem na próxima mensagem.
+- Não diga que a visita está confirmada ou agendada — isso só acontece depois que o sistema processar dia e período.
+- Continue reconhecendo o veículo e o restante do contexto da conversa normalmente.
+"""
+
+_BLOCO_VISITA_AGUARDANDO_PERIODO = """
+
+--- CLIENTE JÁ CONFIRMOU O DIA DA VISITA ---
+O cliente já disse que quer visitar a loja e já informou o dia. Agora você precisa saber o período ou horário.
+Instruções:
+- Pergunte de forma natural qual período funciona melhor (ex.: "Ótimo! Prefere de manhã ou à tarde?"). Não repita a pergunta sobre o dia — isso já foi respondido.
+- Não diga que a visita está confirmada ou agendada — isso só acontece depois que o sistema processar o período.
+"""
+
 _BLOCO_TRANSFERENCIA_CONCLUIDA = """
 
 --- TRANSFERÊNCIA JÁ REALIZADA NESTA CONVERSA ---
@@ -143,6 +162,12 @@ def _montar_system_prompt(contexto_comercial: Optional[Dict[str, Any]] = None) -
         )
     else:
         bloco = _BLOCO_COMERCIAL_SEM_VEICULO.format(linha_origem=linha_origem)
+
+    estagio_visita = contexto_comercial.get("estagio_visita")
+    if estagio_visita == "aguardando_dia":
+        bloco += _BLOCO_VISITA_AGUARDANDO_DIA
+    elif estagio_visita == "aguardando_periodo":
+        bloco += _BLOCO_VISITA_AGUARDANDO_PERIODO
 
     vendedor = contexto_comercial.get("vendedor")
     if vendedor:

@@ -225,6 +225,77 @@ def _eh_sinal_transferencia_regex(texto_norm: str) -> bool:
     return any(re.search(p, texto_norm) for p in _PADROES_TRANSFERENCIA)
 
 
+# Sinais especificamente de VISITA (rota D) — precisam de dia+período antes
+# de transferir. Distinto de contato humano direto (rota E: "quero falar com
+# vendedor", "me passa o contato" etc.), que continua transferindo na hora,
+# sem passar por essa coleta — aprovado por Anderson.
+_PADROES_VISITA = (
+    r"quero (ir )?(ver|conhecer) (o |esse |este )?carro\b",
+    r"\b(agendar|marcar) (uma )?visita\b",
+    r"\bquero agendar\b",
+)
+
+
+def _eh_sinal_visita(texto_norm: str) -> bool:
+    if any(g in texto_norm for g in _GATILHOS_VISITA):
+        return True
+    if any(re.search(p, texto_norm) for p in _PADROES_VISITA):
+        return True
+    return _eh_disponibilidade_para_visita(texto_norm)
+
+
+# Extração leve de dia/período informados pelo cliente (texto literal, sem
+# resolver para uma data de calendário real — fora de escopo por decisão de
+# Anderson, ver REGRA "AGENDAMENTO"). Mesmo estilo conservador das outras
+# heurísticas deste módulo.
+_DIAS_SEMANA = (
+    "hoje", "amanha", "segunda", "terca", "quarta", "quinta", "sexta",
+    "sabado", "domingo",
+)
+_EXPRESSOES_DIA_EXTRA = ("essa semana", "neste fim de semana", "fim de semana")
+_DATA_RE = re.compile(r"\b(\d{1,2})[/\-](\d{1,2})\b")
+
+_PERIODOS = ("manha", "tarde", "noite")
+_PERIODOS_RE = tuple(re.compile(rf"\b{p}\b") for p in _PERIODOS)
+_HORARIO_RE = re.compile(r"\b([01]?\d|2[0-3])[:h](\d{2})?\b")
+
+
+def _extrair_dia(texto_norm: str) -> Optional[str]:
+    """Extrai dia da semana, 'hoje'/'amanha' ou data numérica (ex.: 15/09)."""
+    m = _DATA_RE.search(texto_norm)
+    if m:
+        return m.group(0)
+    for palavra in _DIAS_SEMANA + _EXPRESSOES_DIA_EXTRA:
+        if palavra in texto_norm:
+            return palavra
+    return None
+
+
+def _extrair_periodo(texto_norm: str) -> Optional[str]:
+    """
+    Extrai período (manhã/tarde/noite) ou horário específico (ex.: 10h, 14:30).
+    Usa fronteira de palavra (\\b) para não confundir "manha" com a
+    substring dentro de "amanha".
+    """
+    m = _HORARIO_RE.search(texto_norm)
+    if m:
+        return m.group(0)
+    for p, regex in zip(_PERIODOS, _PERIODOS_RE):
+        if regex.search(texto_norm):
+            return p
+    return None
+
+
+def _proximo_estagio_visita(estado: Dict[str, Any]) -> str:
+    tem_dia = bool(estado.get("data_visita"))
+    tem_periodo = bool(estado.get("horario_visita"))
+    if tem_dia and tem_periodo:
+        return "completo"
+    if tem_dia:
+        return "aguardando_periodo"
+    return "aguardando_dia"
+
+
 def _eh_sinal_transferencia(texto_norm: str) -> bool:
     """
     Sinal inequívoco de avançar para atendimento humano: aceitar/agendar
@@ -314,9 +385,10 @@ def _novo_estado(numero: str) -> Dict[str, Any]:
         "categoria": None,          # não preenchido nesta etapa (fase futura)
         "estagio": "novo",          # "aguardando_veiculo" | "veiculo_identificado"
         "qualificado": False,       # não calculado nesta etapa (fase futura)
-        "intencao_visita": None,    # não preenchido nesta etapa
-        "data_visita": None,        # não preenchido nesta etapa
-        "horario_visita": None,     # não preenchido nesta etapa
+        "intencao_visita": None,    # texto bruto que sinalizou a intenção comercial forte
+        "estagio_visita": None,     # None | "aguardando_dia" | "aguardando_periodo" | "completo"
+        "data_visita": None,        # texto literal do dia informado (ex.: "quarta")
+        "horario_visita": None,     # texto literal do período/horário informado (ex.: "manha")
         "vendedor": None,           # {"nome":..., "link":...} quando selecionado pelo backend
         "transferencia_concluida": False,
         "ultima_atualizacao": time.time(),
@@ -436,10 +508,61 @@ def processar_mensagem(numero: str, texto: str) -> Optional[Dict[str, Any]]:
 
     estado_existente = obter_estado(numero)  # já expira/limpa sozinho se vencido
 
+    # Fase 3.1E — fluxo de VISITA (rota D): dia + período antes de transferir.
+    # Continuação de uma coleta já em andamento tem prioridade sobre qualquer
+    # nova detecção de sinal nesta mensagem.
+    if (
+        estado_existente
+        and estado_existente.get("ativo")
+        and not estado_existente.get("qualificado")
+        and estado_existente.get("estagio_visita") in ("aguardando_dia", "aguardando_periodo")
+    ):
+        dia = _extrair_dia(texto_norm)
+        periodo = _extrair_periodo(texto_norm)
+        if dia and not estado_existente.get("data_visita"):
+            estado_existente["data_visita"] = dia
+        if periodo and not estado_existente.get("horario_visita"):
+            estado_existente["horario_visita"] = periodo
+        estado_existente["estagio_visita"] = _proximo_estagio_visita(estado_existente)
+        if estado_existente["estagio_visita"] == "completo":
+            estado_existente["qualificado"] = True
+            if not estado_existente.get("categoria"):
+                estado_existente["categoria"] = _classificar_categoria(
+                    estado_existente.get("veiculo"), url=estado_existente.get("url"), texto_bruto=texto
+                )
+        estado_existente["ultima_atualizacao"] = time.time()
+        _ESTADOS[numero] = estado_existente
+        return dict(estado_existente)
+
     # Sinal inequívoco de avançar para atendimento humano (aprovado por
     # Anderson: urgência isolada não entra aqui). Só roda enquanto ainda não
     # qualificado — depois disso a seleção de vendedor cuida da idempotência.
     if estado_existente and estado_existente.get("ativo") and not estado_existente.get("qualificado"):
+        # Rota D (visita): entra na coleta de dia/período em vez de
+        # transferir na hora — pode já vir com dia e/ou período na mesma
+        # mensagem (ex.: "posso ir quarta de manha"), sem forçar formulário.
+        if _eh_sinal_visita(texto_norm):
+            dia = _extrair_dia(texto_norm)
+            periodo = _extrair_periodo(texto_norm)
+            if dia:
+                estado_existente["data_visita"] = dia
+            if periodo:
+                estado_existente["horario_visita"] = periodo
+            estado_existente["estagio_visita"] = _proximo_estagio_visita(estado_existente)
+            estado_existente["intencao_visita"] = texto.strip()[:200]
+            if estado_existente["estagio_visita"] == "completo":
+                estado_existente["qualificado"] = True
+                if not estado_existente.get("categoria"):
+                    estado_existente["categoria"] = _classificar_categoria(
+                        estado_existente.get("veiculo"), url=estado_existente.get("url"), texto_bruto=texto
+                    )
+            estado_existente["ultima_atualizacao"] = time.time()
+            _ESTADOS[numero] = estado_existente
+            return dict(estado_existente)
+
+        # Rota E (contato humano direto): transfere imediatamente, sem
+        # passar pela coleta de dia/período — comportamento já aprovado e
+        # testado anteriormente, preservado sem mudança.
         if _eh_sinal_transferencia(texto_norm):
             estado_existente["qualificado"] = True
             estado_existente["intencao_visita"] = texto.strip()[:200]
