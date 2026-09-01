@@ -219,6 +219,18 @@ def _telefone_para_template(numero: str) -> str:
         return n[2:]
     return n
 
+def _sanitizar_parametro_template(texto: str) -> str:
+    """
+    Sanitiza um valor antes de enviá-lo como variável de corpo de um
+    template da Meta: quebras de linha/tabs não são aceitas em parâmetros
+    de template, então são colapsadas em espaço único; o tamanho também é
+    limitado a um valor seguro.
+    """
+    if not texto:
+        return ""
+    t = re.sub(r"\s+", " ", str(texto)).strip()
+    return t[:1024]
+
 def _enviar_template_novo_lead_vendedor(
     numero_vendedor: str,
     nome_cliente: str,
@@ -249,11 +261,11 @@ def _enviar_template_novo_lead_vendedor(
                     {
                         "type": "body",
                         "parameters": [
-                            {"type": "text", "text": nome_cliente},
-                            {"type": "text", "text": telefone_cliente},
-                            {"type": "text", "text": veiculo},
-                            {"type": "text", "text": resumo},
-                            {"type": "text", "text": visita_texto},
+                            {"type": "text", "text": _sanitizar_parametro_template(nome_cliente)},
+                            {"type": "text", "text": _sanitizar_parametro_template(telefone_cliente)},
+                            {"type": "text", "text": _sanitizar_parametro_template(veiculo)},
+                            {"type": "text", "text": _sanitizar_parametro_template(resumo)},
+                            {"type": "text", "text": _sanitizar_parametro_template(visita_texto)},
                         ],
                     }
                 ],
@@ -380,7 +392,7 @@ VENDEDORES_PASSEIO_BASE = [
     ("👨🏻‍💼 Pedro",     "https://wa.me/5511996564815"),
     ("👨🏻‍💼 Thiago",    "https://wa.me/5511986122905"),
     ("👩🏻‍💼 Vanessa",   "https://wa.me/5511947954378"),
-    ("👨🏻‍💼 Vinicius",  "https://wa.me/5511992419382"),
+    ("👨🏻‍💼 Vinicius",  "https://wa.me/5511911260469"),
 ]
 VENDEDORES_UTIL_BASE = [
     ("👩🏻‍💼 Magali",  "https://wa.me/5511940215082"),
