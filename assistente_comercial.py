@@ -172,6 +172,17 @@ _GATILHOS_ACEITA_CONTINUIDADE = (
     "aceito que a equipe entre em contato", "pode me colocar em contato com o vendedor",
 )
 
+# Pedido explícito de desconto/negociação — mesma camada de contato humano
+# direto (rota E): quem pede desconto/melhor preço quer negociar com uma
+# pessoa, não continuar sendo entrevistado pela IA. A IA nunca inventa ou
+# promete desconto; isso é responsabilidade do vendedor.
+_GATILHOS_DESCONTO_NEGOCIACAO = (
+    "quero desconto", "tem desconto", "consegue desconto", "algum desconto",
+    "qual o melhor preco", "faz um preco melhor", "melhor condicao a vista",
+    "tem negociacao", "consegue melhorar o valor", "consegue melhorar o preco",
+    "consegue fazer um preco melhor",
+)
+
 # Reconhecimento por co-ocorrência (mais tolerante a variações de frase do
 # que as listas acima): "vendedor"/"consultor" + palavra de pergunta na
 # mesma mensagem — cobre formas não previstas exatamente (ex.: "tem um
@@ -499,6 +510,7 @@ def _eh_sinal_transferencia(texto_norm: str) -> bool:
     grupos = (
         _GATILHOS_VISITA, _GATILHOS_FALAR_VENDEDOR, _GATILHOS_QUEM_ATENDE,
         _GATILHOS_CONTATO_RESPONSAVEL, _GATILHOS_ACEITA_CONTINUIDADE,
+        _GATILHOS_DESCONTO_NEGOCIACAO,
     )
     if any(any(g in texto_norm for g in grupo) for grupo in grupos):
         return True
