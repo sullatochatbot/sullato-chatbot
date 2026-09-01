@@ -157,7 +157,7 @@ _GATILHOS_QUEM_ATENDE = (
     "quem vai me atender", "quem me atende", "quem e o vendedor",
     "quem vai cuidar do meu", "quem vai cuidar de mim", "quem que vai me atender",
     "com quem eu falo", "quem vai falar comigo", "quem eu procuro", "quem procuro",
-    "qual vendedor", "quem e meu consultor",
+    "qual vendedor", "quem e meu consultor", "quem pode me atender",
 )
 _GATILHOS_CONTATO_RESPONSAVEL = (
     "telefone do vendedor", "telefone do responsavel", "contato do vendedor",
@@ -210,7 +210,7 @@ _PADROES_TRANSFERENCIA = (
     r"falar com (um |uma |o |a )?(vendedor|consultor|alguem)\b",
     r"conversar com (um |uma |o |a )?(vendedor|consultor|alguem)\b",
     r"com quem (eu )?(posso |devo |vou )?(falar|conversar)",
-    r"me (passa|manda|indica) (o |um )?(vendedor|consultor|contato|telefone|numero)",
+    r"me (passa|passe|manda|indica) (o |um )?(vendedor|consultor|contato|telefone|numero)",
     r"tem algum vendedor",
     r"quero (ir )?(ver|conhecer) (o |esse |este )?carro\b",
     r"\b(agendar|marcar) (uma )?visita\b",
@@ -245,6 +245,33 @@ def _eh_sinal_visita(texto_norm: str) -> bool:
     if any(re.search(p, texto_norm) for p in _PADROES_VISITA):
         return True
     return _eh_disponibilidade_para_visita(texto_norm)
+
+
+# Resposta afirmativa curta ("sim", "quero") só conta como aceite de visita
+# quando a ÚLTIMA mensagem da própria IA claramente convidou o cliente a
+# conhecer o veículo na loja — evita presumir isso de um "sim" isolado
+# respondendo a qualquer outra pergunta.
+_RESPOSTAS_AFIRMATIVAS_CURTAS = {
+    "sim", "quero", "quero sim", "claro", "pode ser", "vamos",
+    "bora", "com certeza", "isso", "isso mesmo",
+}
+_SINAIS_CONVITE_VISITA_IA = (
+    ("conhecer", "pessoalmente"),
+    ("conhecer", "loja"),
+    ("visitar", "loja"),
+    ("vir", "loja"),
+)
+
+
+def _eh_resposta_afirmativa_curta(texto_norm: str) -> bool:
+    return texto_norm.strip() in _RESPOSTAS_AFIRMATIVAS_CURTAS
+
+
+def _ia_convidou_para_visita(ultima_mensagem_ia: Optional[str]) -> bool:
+    if not ultima_mensagem_ia:
+        return False
+    t = _normalizar(ultima_mensagem_ia)
+    return any(p1 in t and p2 in t for p1, p2 in _SINAIS_CONVITE_VISITA_IA)
 
 
 # Extração leve de dia/período informados pelo cliente (texto literal, sem
@@ -661,12 +688,20 @@ def marcar_transferencia_concluida(numero: str) -> bool:
     return True
 
 
-def processar_mensagem(numero: str, texto: str) -> Optional[Dict[str, Any]]:
+def processar_mensagem(
+    numero: str, texto: str, ultima_mensagem_ia: Optional[str] = None
+) -> Optional[Dict[str, Any]]:
     """
     Processa uma mensagem recebida e cria/atualiza o estado comercial do
     telefone. Retorna uma cópia do estado atualizado, ou None quando a
     mensagem não tem relação comercial e não existe sessão aberta
     (ex.: um "Olá" isolado — cenário C, não deve virar lead).
+
+    ultima_mensagem_ia (opcional): último texto da própria IA nesta
+    conversa (já existe em _HIST_IA, responder.py). Usado só para
+    interpretar uma resposta afirmativa curta ("sim") como aceite de
+    visita quando a IA acabou de convidar o cliente a conhecer o veículo
+    na loja — nunca presumido de um "sim" isolado sem esse contexto.
     """
     texto = texto or ""
     texto_norm = _normalizar(texto)
@@ -699,7 +734,9 @@ def processar_mensagem(numero: str, texto: str) -> Optional[Dict[str, Any]]:
         # Rota D (visita): entra na coleta de dia/período em vez de
         # transferir na hora — pode já vir com dia e/ou período na mesma
         # mensagem (ex.: "posso ir quarta de manha"), sem forçar formulário.
-        if _eh_sinal_visita(texto_norm):
+        if _eh_sinal_visita(texto_norm) or (
+            _eh_resposta_afirmativa_curta(texto_norm) and _ia_convidou_para_visita(ultima_mensagem_ia)
+        ):
             dia = _extrair_dia(texto_norm)
             periodo = _extrair_periodo(texto_norm)
             _capturar_dia(estado_existente, dia)

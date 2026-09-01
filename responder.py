@@ -746,7 +746,14 @@ def responder(numero: str, mensagem: Any, nome_contato: Optional[str] = None) ->
         if assistente_comercial is not None:
             try:
                 if assistente_comercial.assistente_comercial_ativo():
-                    estado_comercial = assistente_comercial.processar_mensagem(numero, id_recebido)
+                    _hist_atual = _get_hist_ia(numero)
+                    _ultima_ia = next(
+                        (m.get("content") for m in reversed(_hist_atual) if m.get("role") == "assistant"),
+                        None,
+                    )
+                    estado_comercial = assistente_comercial.processar_mensagem(
+                        numero, id_recebido, ultima_mensagem_ia=_ultima_ia
+                    )
             except Exception as e:
                 print("⚠️ Falha no assistente comercial (ignorada):", e)
                 estado_comercial = None
