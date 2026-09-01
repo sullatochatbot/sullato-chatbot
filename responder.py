@@ -207,6 +207,65 @@ def _enviar_mensagem_com_status(numero: str, texto: str) -> bool:
         print("❌ Erro ao enviar mensagem ao vendedor:", e)
         return False
 
+def _telefone_para_template(numero: str) -> str:
+    """
+    Formata o telefone do cliente para a variável {{2}} do template
+    novo_lead_vendedor, no padrão do exemplo aprovado na Meta (sem "+" e
+    sem o código do país "55"). Não altera o número usado internamente
+    pelo restante do sistema — só o valor enviado nessa variável.
+    """
+    n = (numero or "").strip()
+    if n.startswith("55") and len(n) > 11:
+        return n[2:]
+    return n
+
+def _enviar_template_novo_lead_vendedor(
+    numero_vendedor: str,
+    nome_cliente: str,
+    telefone_cliente: str,
+    veiculo: str,
+    resumo: str,
+    visita_texto: str,
+) -> bool:
+    """
+    Envia o template aprovado na Meta "novo_lead_vendedor" (Utilidade,
+    pt_BR, 5 variáveis de corpo, sem cabeçalho) para o vendedor, abrindo
+    ou reabrindo a janela de conversa antes do texto livre com o resumo
+    completo. Falha aqui NUNCA deve quebrar a transferência — ver
+    _processar_transferencia_vendedor(), que só loga e segue com o
+    mecanismo de texto livre já existente.
+    """
+    try:
+        url = f"https://graph.facebook.com/v19.0/{PHONE_NUMBER_ID}/messages"
+        headers = {"Authorization": f"Bearer {ACCESS_TOKEN}", "Content-Type": "application/json"}
+        payload = {
+            "messaging_product": "whatsapp",
+            "to": numero_vendedor,
+            "type": "template",
+            "template": {
+                "name": "novo_lead_vendedor",
+                "language": {"code": "pt_BR"},
+                "components": [
+                    {
+                        "type": "body",
+                        "parameters": [
+                            {"type": "text", "text": nome_cliente},
+                            {"type": "text", "text": telefone_cliente},
+                            {"type": "text", "text": veiculo},
+                            {"type": "text", "text": resumo},
+                            {"type": "text", "text": visita_texto},
+                        ],
+                    }
+                ],
+            },
+        }
+        r = requests.post(url, headers=headers, json=payload, timeout=30)
+        print("🟢 Meta template novo_lead_vendedor:", r.status_code, r.text)
+        return 200 <= r.status_code < 300
+    except Exception as e:
+        print("❌ Erro ao enviar template novo_lead_vendedor:", e)
+        return False
+
 def enviar_botoes(numero: str, texto: str, botoes: List[Dict[str, Any]]) -> None:
     url = f"https://graph.facebook.com/v19.0/{PHONE_NUMBER_ID}/messages"
     headers = {"Authorization": f"Bearer {ACCESS_TOKEN}", "Content-Type": "application/json"}
@@ -426,6 +485,35 @@ def _processar_transferencia_vendedor(numero: str, nome_cliente: str, estado_com
         )
 
         numero_vendedor = vendedor_link.replace("https://wa.me/", "").strip()
+
+        # Template aprovado na Meta (Utilidade, pt_BR) — abre/reabre a janela
+        # de conversa com o vendedor antes do texto livre com o resumo
+        # completo. Falha aqui é só logada; NUNCA bloqueia a transferência.
+        dia_tpl = estado_comercial.get("data_visita")
+        periodo_tpl = estado_comercial.get("horario_visita")
+        if dia_tpl and periodo_tpl:
+            visita_texto = f"{_formatar_dia_natural(dia_tpl)} {_formatar_periodo_natural(periodo_tpl)}"
+        elif dia_tpl:
+            visita_texto = _formatar_dia_natural(dia_tpl)
+        elif periodo_tpl:
+            visita_texto = _formatar_periodo_natural(periodo_tpl)
+        else:
+            visita_texto = "Não informada"
+
+        try:
+            template_ok = _enviar_template_novo_lead_vendedor(
+                numero_vendedor,
+                nome_cliente,
+                _telefone_para_template(numero),
+                estado_comercial.get("veiculo") or "não especificado",
+                resumo,
+                visita_texto,
+            )
+            if not template_ok:
+                print(f"⚠️ Falha ao enviar template novo_lead_vendedor para {vendedor_nome} — seguindo com o texto livre (mecanismo já existente).")
+        except Exception as e:
+            print("⚠️ Erro inesperado ao enviar template novo_lead_vendedor (ignorado, seguindo com texto livre):", e)
+
         enviado_ok = _enviar_mensagem_com_status(numero_vendedor, texto_lead)
         if not enviado_ok:
             print(f"⚠️ Falha ao notificar vendedor {vendedor_nome} — transferência NÃO concluída, tentará de novo na próxima mensagem.")
