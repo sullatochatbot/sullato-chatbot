@@ -108,6 +108,18 @@ Instruções:
 - Faça a pergunta em uma frase curta e direta, sem introdução longa.
 """
 
+_BLOCO_VISITA_HORARIO_INVALIDO = """
+
+--- HORÁRIO PEDIDO ESTÁ FORA DO EXPEDIENTE ---
+O cliente pediu um horário de visita que não está dentro do funcionamento desta operação para o dia informado. O expediente correto é: {horario_operacao}.
+Instruções:
+- Informe educadamente que esse horário não está dentro do expediente e diga o horário correto ({horario_operacao}) para aquele dia.
+- Peça que ele escolha um novo horário dentro desse período.
+- Não diga que a visita está confirmada ou agendada.
+- Não invente disponibilidade de agenda — só informe o horário de funcionamento.
+- Faça isso em uma frase curta e direta, sem introdução longa.
+"""
+
 _BLOCO_TRANSFERENCIA_CONCLUIDA = """
 
 --- TRANSFERÊNCIA JÁ REALIZADA NESTA CONVERSA ---
@@ -168,7 +180,10 @@ def _montar_system_prompt(contexto_comercial: Optional[Dict[str, Any]] = None) -
         bloco = _BLOCO_COMERCIAL_SEM_VEICULO.format(linha_origem=linha_origem)
 
     estagio_visita = contexto_comercial.get("estagio_visita")
-    if estagio_visita == "aguardando_dia":
+    aviso_horario = contexto_comercial.get("aviso_horario")
+    if aviso_horario:
+        bloco += _BLOCO_VISITA_HORARIO_INVALIDO.format(horario_operacao=aviso_horario)
+    elif estagio_visita == "aguardando_dia":
         bloco += _BLOCO_VISITA_AGUARDANDO_DIA
     elif estagio_visita == "aguardando_periodo":
         bloco += _BLOCO_VISITA_AGUARDANDO_PERIODO

@@ -299,6 +299,116 @@ def _proximo_estagio_visita(estado: Dict[str, Any]) -> str:
     return "aguardando_dia"
 
 
+# Horário de funcionamento por operação (abre, fecha), em hora cheia.
+# "oficina" está aqui por completude/documentação, mas HOJE não é
+# alcançável: _classificar_categoria() só produz "utilitario"/"passeio" —
+# o atendimento de oficina/peças roda por um fluxo de menu totalmente
+# separado (BLOCOS "2.1"/"2.2"/"3.2.1"/"3.2.2" em responder.py), que não
+# passa pela coleta de visita (estagio_visita) do assistente comercial.
+# Ver observação no relatório antes de qualquer tentativa de ligar isso.
+_HORARIOS_OPERACAO = {
+    "utilitario": {"semana": (9, 18), "sabado": (9, 14)},
+    "passeio":    {"semana": (9, 18), "sabado": (9, 17)},
+    "oficina":    {"semana": (9, 18), "sabado": (9, 13)},
+}
+_DIAS_UTEIS = ("segunda", "terca", "quarta", "quinta", "sexta")
+
+
+def _tipo_dia_semana(dia: Optional[str]) -> Optional[str]:
+    """
+    Classifica um dia já extraído (_extrair_dia) como 'semana' ou 'sabado'
+    para validar horário de funcionamento. "domingo" e referências
+    relativas ("hoje", "amanha", "essa semana", data numérica) retornam
+    None — não resolvido para uma data de calendário real (fora de
+    escopo), então não é possível validar com segurança nesses casos.
+    """
+    if dia in _DIAS_UTEIS:
+        return "semana"
+    if dia == "sabado":
+        return "sabado"
+    return None
+
+
+def _horario_especifico_para_hora(periodo: Optional[str]) -> Optional[float]:
+    """Converte um horário específico já extraído (ex.: '10h', '14:30') em hora decimal."""
+    if not periodo:
+        return None
+    m = _HORARIO_RE.search(periodo)
+    if not m:
+        return None
+    hora = int(m.group(1))
+    minuto = int(m.group(2)) if m.group(2) else 0
+    return hora + minuto / 60
+
+
+def _validar_horario_visita(
+    categoria: Optional[str], dia: Optional[str], periodo: Optional[str]
+) -> Dict[str, Any]:
+    """
+    Valida dia+período contra o horário de funcionamento conhecido da
+    operação (categoria). NÃO resolve calendário real nem inventa
+    disponibilidade de agenda — só verifica se está dentro do expediente.
+    Quando não é possível validar com segurança (categoria desconhecida,
+    ou dia não classificado — "hoje"/"amanhã"/domingo/etc.), retorna
+    válido=True para não bloquear o fluxo por engano.
+    """
+    if not categoria or categoria not in _HORARIOS_OPERACAO:
+        return {"valido": True}
+
+    tipo_dia = _tipo_dia_semana(dia)
+    if tipo_dia is None:
+        return {"valido": True}
+
+    abre, fecha = _HORARIOS_OPERACAO[categoria][tipo_dia]
+    horario_operacao = f"{abre}h às {fecha}h"
+
+    if not periodo:
+        return {"valido": True}
+
+    hora = _horario_especifico_para_hora(periodo)
+    if hora is not None:
+        if abre <= hora < fecha:
+            return {"valido": True}
+        return {"valido": False, "horario_operacao": horario_operacao}
+
+    # Período genérico (manhã/tarde/noite): "manhã" sempre cabe (abre às
+    # 9h em todas as operações); "noite" nunca cabe (fecham no máximo às
+    # 18h); "tarde" só é aceito genericamente se o fechamento permitir
+    # uma janela real de tarde (>= 15h) — do contrário pede horário exato.
+    if periodo == "noite":
+        return {"valido": False, "horario_operacao": horario_operacao}
+    if periodo == "tarde" and fecha < 15:
+        return {"valido": False, "horario_operacao": horario_operacao}
+    return {"valido": True}
+
+
+def _finalizar_estagio_visita(estado: Dict[str, Any], texto: str) -> None:
+    """
+    Calcula o próximo estagio_visita e, se completo, valida o horário
+    contra o expediente da operação antes de qualificar. Se estiver fora
+    do expediente, NÃO qualifica — volta para "aguardando_periodo" e
+    grava estado["aviso_horario"] com o expediente correto, para a IA
+    informar o cliente e pedir um horário válido.
+    """
+    novo_estagio = _proximo_estagio_visita(estado)
+    if novo_estagio == "completo":
+        if not estado.get("categoria"):
+            estado["categoria"] = _classificar_categoria(
+                estado.get("veiculo"), url=estado.get("url"), texto_bruto=texto
+            )
+        validacao = _validar_horario_visita(
+            estado.get("categoria"), estado.get("data_visita"), estado.get("horario_visita")
+        )
+        if not validacao.get("valido"):
+            estado["aviso_horario"] = validacao.get("horario_operacao")
+            estado["horario_visita"] = None
+            novo_estagio = "aguardando_periodo"
+        else:
+            estado["aviso_horario"] = None
+            estado["qualificado"] = True
+    estado["estagio_visita"] = novo_estagio
+
+
 def _eh_sinal_transferencia(texto_norm: str) -> bool:
     """
     Sinal inequívoco de avançar para atendimento humano: aceitar/agendar
@@ -392,6 +502,7 @@ def _novo_estado(numero: str) -> Dict[str, Any]:
         "estagio_visita": None,     # None | "aguardando_dia" | "aguardando_periodo" | "completo"
         "data_visita": None,        # texto literal do dia informado (ex.: "quarta")
         "horario_visita": None,     # texto literal do período/horário informado (ex.: "manha")
+        "aviso_horario": None,      # expediente correto quando o horário pedido está fora (ex.: "9h às 14h")
         "vendedor": None,           # {"nome":..., "link":...} quando selecionado pelo backend
         "transferencia_concluida": False,
         "ultima_atualizacao": time.time(),
@@ -526,13 +637,7 @@ def processar_mensagem(numero: str, texto: str) -> Optional[Dict[str, Any]]:
             estado_existente["data_visita"] = dia
         if periodo and not estado_existente.get("horario_visita"):
             estado_existente["horario_visita"] = periodo
-        estado_existente["estagio_visita"] = _proximo_estagio_visita(estado_existente)
-        if estado_existente["estagio_visita"] == "completo":
-            estado_existente["qualificado"] = True
-            if not estado_existente.get("categoria"):
-                estado_existente["categoria"] = _classificar_categoria(
-                    estado_existente.get("veiculo"), url=estado_existente.get("url"), texto_bruto=texto
-                )
+        _finalizar_estagio_visita(estado_existente, texto)
         estado_existente["ultima_atualizacao"] = time.time()
         _ESTADOS[numero] = estado_existente
         return dict(estado_existente)
@@ -551,14 +656,8 @@ def processar_mensagem(numero: str, texto: str) -> Optional[Dict[str, Any]]:
                 estado_existente["data_visita"] = dia
             if periodo:
                 estado_existente["horario_visita"] = periodo
-            estado_existente["estagio_visita"] = _proximo_estagio_visita(estado_existente)
             estado_existente["intencao_visita"] = texto.strip()[:200]
-            if estado_existente["estagio_visita"] == "completo":
-                estado_existente["qualificado"] = True
-                if not estado_existente.get("categoria"):
-                    estado_existente["categoria"] = _classificar_categoria(
-                        estado_existente.get("veiculo"), url=estado_existente.get("url"), texto_bruto=texto
-                    )
+            _finalizar_estagio_visita(estado_existente, texto)
             estado_existente["ultima_atualizacao"] = time.time()
             _ESTADOS[numero] = estado_existente
             return dict(estado_existente)
