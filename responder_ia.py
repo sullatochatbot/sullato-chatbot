@@ -59,6 +59,15 @@ _ENDERECO_POR_CATEGORIA = {
     "passeio": "Sullato Veículos – Av. São Miguel, 4049/4084, São Paulo, SP | Maps: https://maps.google.com/?q=Av.+São+Miguel,+4049,+São+Paulo,+SP",
 }
 
+# Mesmo padrão do dicionário acima — horário de funcionamento por operação,
+# usado só para a IA responder corretamente perguntas de expediente
+# (inclusive "domingo funciona?"). Não duplica lógica de validação, que
+# fica inteiramente em assistente_comercial.py.
+_HORARIOS_LABEL_POR_CATEGORIA = {
+    "utilitario": "segunda a sexta das 9h às 18h e aos sábados das 9h às 14h",
+    "passeio": "segunda a sexta das 9h às 18h e aos sábados das 9h às 17h",
+}
+
 
 _BLOCO_COMERCIAL_COM_VEICULO = """
 
@@ -83,8 +92,10 @@ Instruções para esta conversa:
 - Nesta fase, você AINDA NÃO deve: agendar visita, prometer horário, escolher ou indicar um vendedor específico, nem dizer que um resumo será enviado a alguém.
 - Se o cliente pedir para falar com atendente ou humano, isso já é tratado automaticamente pelo sistema antes de chegar até você — não é algo que você precisa fazer.
 - Nunca informe nenhum número de telefone, WhatsApp ou e-mail nesta conversa — nem mesmo o contato do desenvolvedor mencionado no início deste prompt (esse contato é só para quando perguntarem quem criou o chatbot, não se aplica a uma conversa comercial).
+- Nunca peça o telefone/WhatsApp do cliente — o sistema já tem esse número automaticamente pelo próprio WhatsApp, não é necessário confirmar isso com ele.
 - Seja breve: normalmente 1 a 3 frases curtas por mensagem, focando na pergunta ou resposta principal. Não resuma o que já foi conversado a cada etapa, não liste várias qualidades do veículo de uma vez, e não repita informação que o cliente já deu.
 {linha_endereco}
+{linha_horario}
 """
 
 _BLOCO_VISITA_AGUARDANDO_DIA = """
@@ -120,6 +131,28 @@ Instruções:
 - Faça isso em uma frase curta e direta, sem introdução longa.
 """
 
+_BLOCO_VISITA_DIA_FECHADO = """
+
+--- CLIENTE PEDIU DOMINGO (FECHADO EM TODAS AS OPERAÇÕES) ---
+O cliente mencionou domingo para a visita, mas não há expediente nesse dia em nenhuma operação.
+Instruções:
+- Informe educadamente, em uma frase curta: {mensagem_dia_fechado}
+- Peça que ele escolha um dia dentro do expediente (segunda a sexta ou sábado).
+- Nunca diga que domingo funciona nem confirme nada para esse dia.
+- Faça isso em uma frase curta e direta, sem introdução longa.
+"""
+
+_BLOCO_VISITA_CONFIRMADA = """
+
+--- DADOS DA VISITA JÁ CONFIRMADOS NESTA CONVERSA ---
+Dia: {dia}
+Período: {periodo}
+Instruções:
+- Esses são os únicos valores corretos da visita. NUNCA diga um dia ou período diferente destes, mesmo que pareça fazer sentido pela conversa.
+- Se o cliente perguntar de novo sobre dia/horário da visita, responda com esses mesmos valores — não invente nem repita de forma diferente.
+- Só mude isso se o cliente pedir uma alteração explícita (ex.: "prefiro outro dia", "troca para tarde") — o sistema já trata essa mudança automaticamente; você só precisa reconhecer isso na conversa, nunca inventar o novo valor sozinha.
+"""
+
 _BLOCO_TRANSFERENCIA_CONCLUIDA = """
 
 --- TRANSFERÊNCIA JÁ REALIZADA NESTA CONVERSA ---
@@ -128,6 +161,10 @@ Instruções:
 - Se o cliente perguntar quem é o vendedor responsável ou pedir o telefone/contato dele de novo, responda com esse mesmo nome e esse mesmo número — nunca invente outro nome, outro número, nem diga que vai verificar.
 - Não repita o resumo nem informe de novo que uma transferência foi feita, a menos que o cliente pergunte diretamente.
 - Continue sendo cordial, mas não reabra a qualificação comercial do zero — o vendedor já está cuidando disso.
+- NÃO inicie uma nova transferência, não escolha nem sugira outro vendedor, e não diga que vai reenviar informações — isso já foi feito uma vez e não deve se repetir.
+- NÃO prometa que o vendedor vai ligar, chamar em breve ou confirmar um horário exato — diga apenas que o atendimento já está com ele(a) e que ele(a) já recebeu as informações da conversa.
+- NÃO diga "deixa eu confirmar" seguido de dados diferentes dos já registrados nesta conversa (veículo, dia, período) — se precisar mencioná-los, use exatamente os valores já confirmados.
+- Continue respondendo normalmente a outras perguntas do cliente (endereço, horário de funcionamento, dúvidas gerais) sem reabrir a qualificação comercial nem pedir dados que o sistema já tem.
 """
 
 _BLOCO_COMERCIAL_SEM_VEICULO = """
@@ -150,7 +187,9 @@ Instruções para esta conversa:
 - Nesta fase, você AINDA NÃO deve: agendar visita, prometer horário, escolher ou indicar vendedor, nem dizer que um resumo será enviado a alguém.
 - Se o cliente pedir para falar com atendente ou humano, isso já é tratado automaticamente pelo sistema antes de chegar até você.
 - Nunca informe nenhum número de telefone, WhatsApp ou e-mail nesta conversa — nem mesmo o contato do desenvolvedor mencionado no início deste prompt (esse contato é só para quando perguntarem quem criou o chatbot, não se aplica a uma conversa comercial).
+- Nunca peça o telefone/WhatsApp do cliente — o sistema já tem esse número automaticamente pelo próprio WhatsApp, não é necessário confirmar isso com ele.
 - Seja breve: normalmente 1 a 3 frases curtas por mensagem, focando na pergunta ou resposta principal. Não resuma o que já foi conversado a cada etapa, não liste várias qualidades do veículo de uma vez, e não repita informação que o cliente já deu.
+{linha_horario}
 """
 
 
@@ -166,27 +205,43 @@ def _montar_system_prompt(contexto_comercial: Optional[Dict[str, Any]] = None) -
     origem_label = _origem_label(contexto_comercial.get("origem"))
     linha_origem = f"- Origem do contato: {origem_label}" if origem_label else ""
 
+    categoria = contexto_comercial.get("categoria")
+    horario_label = _HORARIOS_LABEL_POR_CATEGORIA.get(categoria)
+    linha_horario = (
+        f"- Horário de funcionamento desta operação: {horario_label}. Aos domingos não abrimos em nenhuma operação — se o cliente perguntar sobre domingo ou tentar marcar visita nesse dia, informe isso claramente e nunca diga que domingo funciona."
+        if horario_label else
+        "- Não abrimos aos domingos em nenhuma operação — se o cliente perguntar, informe isso claramente."
+    )
+
     veiculo = contexto_comercial.get("veiculo")
     if veiculo:
-        endereco_loja = _ENDERECO_POR_CATEGORIA.get(contexto_comercial.get("categoria"))
+        endereco_loja = _ENDERECO_POR_CATEGORIA.get(categoria)
         linha_endereco = (
             f"- Se o cliente perguntar sobre endereço, como chegar ou qual loja, responda SOMENTE com este endereço — é a loja de origem deste lead — e NÃO mencione nem envie os endereços das outras lojas do Grupo Sullato nesta conversa: {endereco_loja}"
             if endereco_loja else ""
         )
         bloco = _BLOCO_COMERCIAL_COM_VEICULO.format(
-            veiculo=veiculo, linha_origem=linha_origem, linha_endereco=linha_endereco
+            veiculo=veiculo, linha_origem=linha_origem, linha_endereco=linha_endereco, linha_horario=linha_horario
         )
     else:
-        bloco = _BLOCO_COMERCIAL_SEM_VEICULO.format(linha_origem=linha_origem)
+        bloco = _BLOCO_COMERCIAL_SEM_VEICULO.format(linha_origem=linha_origem, linha_horario=linha_horario)
 
     estagio_visita = contexto_comercial.get("estagio_visita")
     aviso_horario = contexto_comercial.get("aviso_horario")
-    if aviso_horario:
+    aviso_dia = contexto_comercial.get("aviso_dia")
+    if aviso_dia:
+        bloco += _BLOCO_VISITA_DIA_FECHADO.format(mensagem_dia_fechado=aviso_dia)
+    elif aviso_horario:
         bloco += _BLOCO_VISITA_HORARIO_INVALIDO.format(horario_operacao=aviso_horario)
     elif estagio_visita == "aguardando_dia":
         bloco += _BLOCO_VISITA_AGUARDANDO_DIA
     elif estagio_visita == "aguardando_periodo":
         bloco += _BLOCO_VISITA_AGUARDANDO_PERIODO
+
+    data_visita = contexto_comercial.get("data_visita")
+    horario_visita = contexto_comercial.get("horario_visita")
+    if data_visita and horario_visita and not aviso_dia and not aviso_horario:
+        bloco += _BLOCO_VISITA_CONFIRMADA.format(dia=data_visita, periodo=horario_visita)
 
     vendedor = contexto_comercial.get("vendedor")
     if vendedor:

@@ -352,6 +352,9 @@ def _validar_horario_visita(
     ou dia não classificado — "hoje"/"amanhã"/domingo/etc.), retorna
     válido=True para não bloquear o fluxo por engano.
     """
+    if dia == "domingo":
+        return {"valido": False, "horario_operacao": _mensagem_dia_fechado(categoria)}
+
     if not categoria or categoria not in _HORARIOS_OPERACAO:
         return {"valido": True}
 
@@ -407,6 +410,53 @@ def _finalizar_estagio_visita(estado: Dict[str, Any], texto: str) -> None:
             estado["aviso_horario"] = None
             estado["qualificado"] = True
     estado["estagio_visita"] = novo_estagio
+
+
+# Domingo é fechado nas três operações — nenhuma categoria abre. Rejeitado
+# no momento da captura do dia (antes mesmo de gravar em data_visita), não
+# só na validação final de horário.
+_DIA_FECHADO = "domingo"
+
+
+def _mensagem_dia_fechado(categoria: Optional[str]) -> str:
+    """Mensagem factual do expediente, usada quando o cliente pede domingo
+    (fechado) — inclui o sábado da operação quando a categoria é conhecida."""
+    if categoria in _HORARIOS_OPERACAO:
+        _, fecha_sabado = _HORARIOS_OPERACAO[categoria]["sabado"]
+        return f"Domingo não abrimos. Atendemos de segunda a sexta das 9h às 18h e aos sábados das 9h às {fecha_sabado}h."
+    return "Domingo não abrimos. Atendemos de segunda a sexta das 9h às 18h."
+
+
+# Sinal de que o cliente quer MUDAR um dia/período já registrado (não
+# confundir com a detecção inicial de intenção de visita, _eh_sinal_visita).
+# Exige a palavra de mudança E um novo dia/período reconhecido na mesma
+# mensagem — evita disparar em perguntas neutras ("ok", "domingo abre?").
+_PALAVRAS_MUDANCA_VISITA = (
+    "mudar", "trocar", "troca", "prefiro", "melhor",
+    "nao consigo", "ao inves de", "em vez de",
+)
+
+
+def _eh_sinal_mudanca_visita(texto_norm: str, dia_novo: Optional[str], periodo_novo: Optional[str]) -> bool:
+    if not (dia_novo or periodo_novo):
+        return False
+    return any(p in texto_norm for p in _PALAVRAS_MUDANCA_VISITA)
+
+
+def _capturar_dia(estado: Dict[str, Any], dia: Optional[str]) -> None:
+    """
+    Grava o dia informado no estado, só quando ainda não há dia
+    registrado. Rejeita domingo (fechado nas três operações): não grava
+    data_visita e registra aviso_dia, para a IA informar o expediente
+    correto e pedir outro dia — a visita continua pendente.
+    """
+    if not dia or estado.get("data_visita"):
+        return
+    if dia == _DIA_FECHADO:
+        estado["aviso_dia"] = _mensagem_dia_fechado(estado.get("categoria"))
+        return
+    estado["data_visita"] = dia
+    estado["aviso_dia"] = None
 
 
 def _eh_sinal_transferencia(texto_norm: str) -> bool:
@@ -503,6 +553,7 @@ def _novo_estado(numero: str) -> Dict[str, Any]:
         "data_visita": None,        # texto literal do dia informado (ex.: "quarta")
         "horario_visita": None,     # texto literal do período/horário informado (ex.: "manha")
         "aviso_horario": None,      # expediente correto quando o horário pedido está fora (ex.: "9h às 14h")
+        "aviso_dia": None,          # mensagem de expediente quando o cliente pede domingo (fechado)
         "vendedor": None,           # {"nome":..., "link":...} quando selecionado pelo backend
         "transferencia_concluida": False,
         "ultima_atualizacao": time.time(),
@@ -633,8 +684,7 @@ def processar_mensagem(numero: str, texto: str) -> Optional[Dict[str, Any]]:
     ):
         dia = _extrair_dia(texto_norm)
         periodo = _extrair_periodo(texto_norm)
-        if dia and not estado_existente.get("data_visita"):
-            estado_existente["data_visita"] = dia
+        _capturar_dia(estado_existente, dia)
         if periodo and not estado_existente.get("horario_visita"):
             estado_existente["horario_visita"] = periodo
         _finalizar_estagio_visita(estado_existente, texto)
@@ -652,8 +702,7 @@ def processar_mensagem(numero: str, texto: str) -> Optional[Dict[str, Any]]:
         if _eh_sinal_visita(texto_norm):
             dia = _extrair_dia(texto_norm)
             periodo = _extrair_periodo(texto_norm)
-            if dia:
-                estado_existente["data_visita"] = dia
+            _capturar_dia(estado_existente, dia)
             if periodo:
                 estado_existente["horario_visita"] = periodo
             estado_existente["intencao_visita"] = texto.strip()[:200]
@@ -672,6 +721,38 @@ def processar_mensagem(numero: str, texto: str) -> Optional[Dict[str, Any]]:
                 estado_existente["categoria"] = _classificar_categoria(
                     estado_existente.get("veiculo"), url=estado_existente.get("url"), texto_bruto=texto
                 )
+            estado_existente["ultima_atualizacao"] = time.time()
+            _ESTADOS[numero] = estado_existente
+            return dict(estado_existente)
+
+    # Fase 3.1F — pedido explícito de mudar dia/período de uma visita já
+    # qualificada (inclusive após transferência concluída). Atualiza só a
+    # visita — NUNCA reabre seleção de vendedor nem retransfere (isso é
+    # responsabilidade de responder.py, que só transfere quando ainda não
+    # há vendedor gravado no estado). Mensagens neutras ("ok", perguntas
+    # factuais como "domingo abre?") não disparam isso — exige palavra de
+    # mudança explícita junto com um dia/período novo reconhecido.
+    if estado_existente and estado_existente.get("ativo") and estado_existente.get("qualificado"):
+        dia_novo = _extrair_dia(texto_norm)
+        periodo_novo = _extrair_periodo(texto_norm)
+        if _eh_sinal_mudanca_visita(texto_norm, dia_novo, periodo_novo):
+            if dia_novo == _DIA_FECHADO:
+                estado_existente["aviso_dia"] = _mensagem_dia_fechado(estado_existente.get("categoria"))
+            else:
+                dia_candidato = dia_novo or estado_existente.get("data_visita")
+                periodo_candidato = periodo_novo or estado_existente.get("horario_visita")
+                validacao = _validar_horario_visita(
+                    estado_existente.get("categoria"), dia_candidato, periodo_candidato
+                )
+                if validacao.get("valido"):
+                    if dia_novo:
+                        estado_existente["data_visita"] = dia_novo
+                    if periodo_novo:
+                        estado_existente["horario_visita"] = periodo_novo
+                    estado_existente["aviso_horario"] = None
+                    estado_existente["aviso_dia"] = None
+                else:
+                    estado_existente["aviso_horario"] = validacao.get("horario_operacao")
             estado_existente["ultima_atualizacao"] = time.time()
             _ESTADOS[numero] = estado_existente
             return dict(estado_existente)
