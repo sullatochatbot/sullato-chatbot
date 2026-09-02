@@ -840,11 +840,16 @@ def processar_mensagem(
                 estado_existente["origem"] = "site"
 
         if not _eh_resposta_indefinida(texto_norm):
-            veiculo = extrair_veiculo(texto, url=url_msg) or texto.strip()[:200]
-            estado_existente["veiculo"] = veiculo
+            # Preserva o veículo já identificado deterministicamente pelo
+            # anúncio/site — uma mensagem de texto livre posterior NUNCA
+            # sobrescreve um veículo já capturado, só preenche quando ainda
+            # está vazio.
+            if not estado_existente.get("veiculo"):
+                veiculo = extrair_veiculo(texto, url=url_msg) or texto.strip()[:200]
+                estado_existente["veiculo"] = veiculo
             estado_existente["estagio"] = "veiculo_identificado"
             estado_existente["categoria"] = _classificar_categoria(
-                veiculo, url=url_msg or estado_existente.get("url"), texto_bruto=texto
+                estado_existente.get("veiculo"), url=url_msg or estado_existente.get("url"), texto_bruto=texto
             )
             # Fecha o loop da Correção B: se o cliente já tinha pedido
             # vendedor explicitamente (sem saber ainda a categoria), agora

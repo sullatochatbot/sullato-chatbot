@@ -513,10 +513,11 @@ def _processar_transferencia_vendedor(numero: str, nome_cliente: str, estado_com
         if not resumo:
             resumo = "Sem resumo detalhado disponível — cliente demonstrou interesse e intenção de avançar."
 
+        numero_cliente_normalizado = re.sub(r"\D", "", numero or "")
         texto_lead = (
             "🔔 NOVO LEAD QUALIFICADO — CHATBOT SULLATO\n\n"
             f"Cliente: {nome_cliente}\n"
-            f"Telefone: +{numero}\n\n"
+            f"WhatsApp do cliente:\nhttps://wa.me/{numero_cliente_normalizado}\n\n"
             f"Veículo de interesse:\n{estado_comercial.get('veiculo') or 'não especificado'}\n"
         )
         if estado_comercial.get("url"):
