@@ -751,8 +751,20 @@ def responder(numero: str, mensagem: Any, nome_contato: Optional[str] = None) ->
         )
         return
 
-    # Menu gatilho
-    if _tem_trigger_menu(id_normalizado) or id_normalizado == "menu":
+    # Menu gatilho — Correção A (Bloco A comercial): uma saudação embutida
+    # numa mensagem que já carrega sinal comercial estruturado ("Olá, quero
+    # falar com um vendedor") não deve abrir o menu nem interromper o
+    # processamento comercial. Só entra em vigor com o assistente comercial
+    # ativo; sem a flag, comportamento idêntico ao anterior.
+    _saudacao_com_sinal_comercial = False
+    if assistente_comercial is not None:
+        try:
+            if assistente_comercial.assistente_comercial_ativo() and assistente_comercial.contem_sinal_comercial(id_recebido):
+                _saudacao_com_sinal_comercial = True
+        except Exception:
+            _saudacao_com_sinal_comercial = False
+
+    if (_tem_trigger_menu(id_normalizado) or id_normalizado == "menu") and not _saudacao_com_sinal_comercial:
         enviar_botoes(
             numero,
             (

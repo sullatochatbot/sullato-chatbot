@@ -612,6 +612,31 @@ def assistente_comercial_ativo() -> bool:
     return val in ("1", "true", "sim", "yes", "on")
 
 
+def contem_sinal_comercial(texto: str) -> bool:
+    """
+    Correção A (Bloco A comercial): verifica se um texto — mesmo com uma
+    saudação embutida no início ("Olá, quero falar com um vendedor") — já
+    carrega sinal comercial estruturado. Usado por responder.py para não
+    deixar uma saudação embutida abrir o menu inicial quando a mesma
+    mensagem já é uma intenção comercial. Reaproveita só os detectores já
+    existentes; não cria heurística nova.
+    """
+    texto_norm = _normalizar(texto or "")
+    if not texto_norm:
+        return False
+    if detectar_url(texto):
+        return True
+    if _eh_entrada_forte_veiculo(texto_norm):
+        return True
+    if _eh_sinal_visita(texto_norm):
+        return True
+    if _eh_sinal_transferencia(texto_norm):
+        return True
+    if _eh_interesse_generico(texto_norm):
+        return True
+    return False
+
+
 def detectar_url(texto: str) -> Optional[str]:
     """Extrai a primeira URL http(s) presente no texto, ou None."""
     if not texto:
@@ -821,6 +846,12 @@ def processar_mensagem(
             estado_existente["categoria"] = _classificar_categoria(
                 veiculo, url=url_msg or estado_existente.get("url"), texto_bruto=texto
             )
+            # Fecha o loop da Correção B: se o cliente já tinha pedido
+            # vendedor explicitamente (sem saber ainda a categoria), agora
+            # que a categoria é conhecida, qualifica direto — sem perguntar
+            # de novo se ele quer falar com alguém.
+            if estado_existente.get("intencao_visita") and not estado_existente.get("qualificado"):
+                estado_existente["qualificado"] = True
         # resposta indefinida/negativa: mantém estagio "aguardando_veiculo"
 
         estado_existente["ultima_atualizacao"] = time.time()
@@ -854,6 +885,35 @@ def processar_mensagem(
         if not estado.get("origem"):
             estado["origem"] = "social"
         estado["estagio"] = "aguardando_veiculo"
+        estado["ultima_atualizacao"] = time.time()
+        _ESTADOS[numero] = estado
+        return dict(estado)
+
+    # Correção B (Bloco A comercial): pedido explícito de vendedor/contato
+    # direto SEM sessão comercial prévia — não exige veículo/URL mencionado
+    # antes. Não transfere cegamente: se a própria mensagem não permitir
+    # determinar a categoria (utilitário/passeio) com segurança, entra no
+    # fluxo comercial pedindo o veículo primeiro (mesmo padrão do cenário
+    # B acima), guardando a intenção já expressa em intencao_visita — assim
+    # que a categoria for conhecida (cenário D), qualifica direto, sem
+    # pedir de novo. Nunca usa vendedor de categoria errada.
+    if estado_existente is None and _eh_sinal_transferencia(texto_norm):
+        estado = _novo_estado(numero)
+        estado["ativo"] = True
+        estado["origem"] = "social"
+        estado["intencao_visita"] = texto.strip()[:200]
+
+        categoria_conhecida = None
+        if _DOMINIO_UTILITARIO in texto_norm or any(n in texto_norm for n in _NOMES_LOJA_UTILITARIO):
+            categoria_conhecida = "utilitario"
+
+        if categoria_conhecida:
+            estado["categoria"] = categoria_conhecida
+            estado["estagio"] = "veiculo_identificado"
+            estado["qualificado"] = True
+        else:
+            estado["estagio"] = "aguardando_veiculo"
+
         estado["ultima_atualizacao"] = time.time()
         _ESTADOS[numero] = estado
         return dict(estado)
