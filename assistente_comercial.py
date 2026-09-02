@@ -860,7 +860,14 @@ def processar_mensagem(
 
     # Nenhum sinal comercial nesta mensagem
     if estado_existente:
-        # Sessão já ativa (ex.: veículo já identificado) — preserva como está
+        # Sessão já ativa (ex.: veículo já identificado) — preserva como está,
+        # mas renova o TTL (Item 4 do diagnóstico Bloco A): sem isso, uma
+        # sequência de mensagens neutras/factuais pós-transferência ("ok",
+        # "domingo abre?") nunca tocava ultima_atualizacao, podendo expirar
+        # o estado (inclusive o vendedor já atribuído) com a conversa real
+        # ainda em andamento.
+        estado_existente["ultima_atualizacao"] = time.time()
+        _ESTADOS[numero] = estado_existente
         return dict(estado_existente)
 
     # Sem sessão e sem sinal comercial (ex.: "Olá" isolado) — cenário C

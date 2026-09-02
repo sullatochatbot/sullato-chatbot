@@ -367,7 +367,14 @@ def _add_hist_ia(numero, user_msg, assistant_msg):
     _HIST_IA[numero] = {"msgs": msgs[-10:], "ts": time.time()}
 
 _HANDOFF_NUMERO = "5511988780161"
-_GATILHOS_HANDOFF = ["atendente", "falar com humano", "falar com pessoa", "quero falar com alguem", "quero falar com alguem"]
+# "quero falar com alguem" removida daqui (Item 6, diagnóstico Bloco A):
+# essa frase colidia com _GATILHOS_FALAR_VENDEDOR em assistente_comercial.py
+# e o handoff antigo (número fixo, sem categoria/rodízio) sempre vencia por
+# rodar antes do bloco comercial. Agora essa intenção segue só pelo fluxo
+# comercial novo (categoria → rodízio → transferência). As demais frases
+# ("atendente", "falar com humano", "falar com pessoa") não colidem com o
+# sistema novo e continuam aqui, preservando o handoff genérico legítimo.
+_GATILHOS_HANDOFF = ["atendente", "falar com humano", "falar com pessoa"]
 
 def _enviar_alerta_handoff(numero_cliente, nome_cliente):
     try:
@@ -417,6 +424,36 @@ def vendedores_util(dt=None):
 def _bloco_vendedores(lista):
     return "\n".join([f"{nome}: {link}" for nome, link in lista])
 
+# ===== Fase 3.1G: rodízio real por lead (Item 1 do diagnóstico Bloco A) =====
+# _embaralhar_por_janela()/vendedores_util()/vendedores_passeio() NÃO são
+# alteradas — continuam servindo o menu manual "1.1"/"1.2" (mostra a lista
+# inteira para o cliente escolher) exatamente como antes.
+#
+# Para a transferência automática (_processar_transferencia_vendedor), o
+# problema era pegar lista[0] de uma lista reembaralhada por janela de 6h:
+# todo lead da mesma categoria na mesma janela caía no mesmo vendedor. Aqui
+# usamos um índice round-robin real, em memória, avançado só quando um lead
+# é efetivamente transferido com sucesso — sem depender de hora/data e sem
+# nova dependência externa (Redis/DB/Sheets). Listas de utilitário/passeio
+# continuam completamente separadas.
+_RODIZIO_INDICE_CATEGORIA = {"utilitario": 0, "passeio": 0}
+
+def _vendedor_da_vez(categoria: str):
+    """Vendedor que receberia o próximo lead desta categoria, sem avançar o índice."""
+    lista = VENDEDORES_UTIL_BASE if categoria == "utilitario" else VENDEDORES_PASSEIO_BASE
+    if not lista:
+        return None
+    idx = _RODIZIO_INDICE_CATEGORIA.get(categoria, 0) % len(lista)
+    return lista[idx]
+
+def _avancar_rodizio(categoria: str) -> None:
+    """Avança o índice de rodízio da categoria — chamar só após transferência confirmada."""
+    lista = VENDEDORES_UTIL_BASE if categoria == "utilitario" else VENDEDORES_PASSEIO_BASE
+    if not lista:
+        return
+    idx = _RODIZIO_INDICE_CATEGORIA.get(categoria, 0) % len(lista)
+    _RODIZIO_INDICE_CATEGORIA[categoria] = (idx + 1) % len(lista)
+
 # Formatação em linguagem natural do dia/período coletados, usada só na
 # confirmação ao CLIENTE (o valor bruto gravado no estado e enviado ao
 # vendedor no resumo não muda).
@@ -445,8 +482,10 @@ def _processar_transferencia_vendedor(numero: str, nome_cliente: str, estado_com
     """
     if not estado_comercial or not estado_comercial.get("qualificado"):
         return
-    if estado_comercial.get("vendedor"):
-        return  # já transferido nesta sessão — não seleciona nem envia de novo
+    # Idempotência da MESMA oportunidade: se já há vendedor OU a transferência
+    # já foi marcada concluída, não seleciona nem envia de novo (Item 4).
+    if estado_comercial.get("vendedor") or estado_comercial.get("transferencia_concluida"):
+        return
 
     try:
         import assistente_comercial
@@ -455,10 +494,10 @@ def _processar_transferencia_vendedor(numero: str, nome_cliente: str, estado_com
 
     try:
         categoria = estado_comercial.get("categoria") or "passeio"
-        lista = vendedores_util() if categoria == "utilitario" else vendedores_passeio()
-        if not lista:
+        vendedor_selecionado = _vendedor_da_vez(categoria)
+        if not vendedor_selecionado:
             return
-        vendedor_nome, vendedor_link = lista[0]
+        vendedor_nome, vendedor_link = vendedor_selecionado
 
         try:
             from responder_ia import gerar_resumo_lead
@@ -532,6 +571,7 @@ def _processar_transferencia_vendedor(numero: str, nome_cliente: str, estado_com
 
         assistente_comercial.definir_vendedor(numero, vendedor_nome, vendedor_link)
         assistente_comercial.marcar_transferencia_concluida(numero)
+        _avancar_rodizio(categoria)  # só avança o índice após sucesso confirmado
 
         dia = estado_comercial.get("data_visita")
         periodo = estado_comercial.get("horario_visita")
