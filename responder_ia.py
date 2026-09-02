@@ -168,6 +168,17 @@ Instruções:
 - NÃO prometa que o vendedor vai ligar, chamar em breve ou confirmar um horário exato — diga apenas que o atendimento já está com ele(a) e que ele(a) já recebeu as informações da conversa.
 - NÃO diga "deixa eu confirmar" seguido de dados diferentes dos já registrados nesta conversa (veículo, dia, período) — se precisar mencioná-los, use exatamente os valores já confirmados.
 - Continue respondendo normalmente a outras perguntas do cliente (endereço, horário de funcionamento, dúvidas gerais) sem reabrir a qualificação comercial nem pedir dados que o sistema já tem.
+- Se o cliente apenas agradecer ou encerrar o momento (ex.: "obrigado", "obg", "ótimo, obrigado", "valeu", "ok, obrigado", "boa noite"), responda de forma breve e cordial e NÃO faça nenhuma pergunta de qualificação (uso pretendido, passageiros/carga/uso pessoal, financiamento, troca, etc.) — essas perguntas não fazem mais sentido depois que o atendimento já foi transferido, a menos que o próprio cliente traga um assunto comercial novo.
+"""
+
+# Fase 3.1I (item 5 do diagnóstico real): a IA afirmou que um vendedor de
+# uma categoria também atendia a outra ("Alexandre atende vans e passeio").
+# Regra sempre incluída quando há contexto comercial ativo, independente de
+# já haver transferência concluída — a fonte de verdade é sempre o estado
+# determinístico (categoria/vendedor atribuídos pelo backend), nunca uma
+# suposição da IA.
+_REGRA_VENDEDOR_SEM_INVENCAO = """
+- NUNCA afirme ou sugira que um vendedor atende uma categoria de veículo diferente da que está realmente atribuída a ele nesta conversa (ex.: não diga que um vendedor de passeio também atende vans/utilitários, nem o contrário) — cada vendedor atende só a categoria correta, sem exceção. NUNCA diga que um vendedor já recebeu as informações do cliente ou que uma transferência foi concluída se isso não estiver confirmado neste contexto. Não invente atribuições, funções ou especialidades de nenhum vendedor — na dúvida, simplesmente não mencione isso.
 """
 
 _BLOCO_COMERCIAL_SEM_VEICULO = """
@@ -228,6 +239,8 @@ def _montar_system_prompt(contexto_comercial: Optional[Dict[str, Any]] = None) -
         )
     else:
         bloco = _BLOCO_COMERCIAL_SEM_VEICULO.format(linha_origem=linha_origem, linha_horario=linha_horario)
+
+    bloco += _REGRA_VENDEDOR_SEM_INVENCAO
 
     estagio_visita = contexto_comercial.get("estagio_visita")
     aviso_horario = contexto_comercial.get("aviso_horario")

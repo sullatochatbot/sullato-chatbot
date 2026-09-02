@@ -493,7 +493,16 @@ def _processar_transferencia_vendedor(numero: str, nome_cliente: str, estado_com
         return
 
     try:
-        categoria = estado_comercial.get("categoria") or "passeio"
+        categoria = estado_comercial.get("categoria")
+        if not categoria:
+            # Fail-safe (Fase 3.1I, item 3 do diagnóstico real): nunca usar
+            # PASSEIO como default silencioso para categoria desconhecida —
+            # melhor não transferir agora do que mandar para o vendedor
+            # errado. Com a correção em assistente_comercial.py, o estado só
+            # chega "qualificado" sem categoria em cenários residuais; aqui
+            # é só a rede de segurança final.
+            print(f"⚠️ Transferência abortada: categoria comercial ainda não determinada para {numero}.")
+            return
         vendedor_selecionado = _vendedor_da_vez(categoria)
         if not vendedor_selecionado:
             return

@@ -234,7 +234,15 @@ _PADROES_TRANSFERENCIA = (
     r"falar com (um |uma |o |a )?(vendedor|consultor|alguem)\b",
     r"conversar com (um |uma |o |a )?(vendedor|consultor|alguem)\b",
     r"com quem (eu )?(posso |devo |vou )?(falar|conversar)",
-    r"me (passa|passar|passe|manda|indica) (o |um )?(vendedor|consultor|contato|telefone|numero)",
+    # "me" antes do verbo agora é opcional (ex.: real "...e passar o contato
+    # dele", sem "me" imediatamente antes de "passar") — Fase 3.1I, item 2/4
+    # do diagnóstico: essa frase real não disparava a troca de categoria.
+    r"(me\s+)?(passa|passar|passe|manda|indica)\s+(o |um |seu |meu )?(vendedor|consultor|contato|telefone|numero)",
+    # "vendedor/consultor ... me chamar/ligar" (ex.: "pedir pra um vendedor
+    # me chamar") — mesma correção, cobre a forma verbal "chamar/ligar" que
+    # não passava nem por _eh_pedido_falar_com_vendedor_tolerante (exige
+    # "falar"/"conversar") nem pelas frases literais already existentes.
+    r"(vendedor|consultor)\b.{0,30}?\bme\s+(chamar|ligar)\b",
     r"tem algum vendedor",
     r"quero (ir )?(ver|conhecer) (o |esse |este )?carro\b",
     r"\b(agendar|marcar) (uma )?visita\b",
@@ -548,8 +556,15 @@ _NOMES_LOJA_UTILITARIO = ("sullato micros e vans", "micros e vans")
 _PALAVRAS_UTILITARIO = (
     "van", "kombi", "jumper", "jumpy", "boxer", "ducato", "sprinter", "master",
     "furgao", "utilitario", "micro-onibus", "micro onibus", "minibus",
-    "micros e vans",
+    "micros e vans", "transit", "bongo", "fiorino", "effa",
 )
+
+# Sinal explícito de PASSEIO dentro do próprio texto (Fase 3.1I) — "carro"
+# não aparece em _PALAVRAS_UTILITARIO, então não conflita; usado só como
+# reforço conservador quando o cliente descreve o veículo com essa palavra
+# (ex.: "um carro pequeno"), nunca como fallback de mensagem sem nenhuma
+# palavra de veículo.
+_PALAVRAS_PASSEIO_EXPLICITA = ("carro", "carros")
 
 
 def _classificar_categoria(
@@ -590,6 +605,26 @@ def _detectar_categoria_mencionada(texto_norm: str) -> Optional[str]:
     if any(p in texto_norm for p in _PALAVRAS_UTILITARIO):
         return "utilitario"
     if "passeio" in texto_norm:
+        return "passeio"
+    return None
+
+
+def _categoria_com_sinal_no_texto(texto_norm: str) -> Optional[str]:
+    """
+    Sinal explícito e conservador de categoria dentro da PRÓPRIA mensagem
+    (Fase 3.1I), usado só para decidir se já é seguro determinar a
+    categoria a partir do texto atual, sem esperar outra mensagem.
+    Reaproveita _detectar_categoria_mencionada (utilitário por palavra-chave
+    de modelo/loja, ou "passeio" literal) e soma "carro"/"carros" como sinal
+    explícito de passeio. Ausência de sinal aqui retorna None — NUNCA vira
+    "passeio" por padrão (esse default silencioso era o bug corrigido nesta
+    fase; ver _processar_transferencia_vendedor em responder.py e as rotas
+    B/E abaixo).
+    """
+    categoria = _detectar_categoria_mencionada(texto_norm)
+    if categoria:
+        return categoria
+    if any(p in texto_norm for p in _PALAVRAS_PASSEIO_EXPLICITA):
         return "passeio"
     return None
 
@@ -854,14 +889,29 @@ def processar_mensagem(
 
         # Rota E (contato humano direto): transfere imediatamente, sem
         # passar pela coleta de dia/período — comportamento já aprovado e
-        # testado anteriormente, preservado sem mudança.
+        # testado anteriormente, preservado sem mudança QUANDO já há
+        # veículo/URL/categoria conhecidos.
+        # Fase 3.1I (item 3 do diagnóstico real): quando nada disso existe
+        # ainda (ex.: cliente só disse "tenho interesse" e já emenda "quem
+        # pode me atender" sem descrever veículo), não usa mais o default
+        # silencioso de _classificar_categoria (que assumia "passeio" sem
+        # nenhuma evidência) — aguarda a próxima mensagem trazer o
+        # veículo/categoria, igual ao cenário B, em vez de arriscar
+        # transferir para o vendedor da categoria errada.
         if _eh_sinal_transferencia(texto_norm):
-            estado_existente["qualificado"] = True
+            categoria_atual = estado_existente.get("categoria")
+            if not categoria_atual:
+                categoria_atual = _categoria_com_sinal_no_texto(texto_norm)
+                if not categoria_atual and (estado_existente.get("veiculo") or estado_existente.get("url")):
+                    categoria_atual = _classificar_categoria(
+                        estado_existente.get("veiculo"), url=estado_existente.get("url"), texto_bruto=texto
+                    )
             estado_existente["intencao_visita"] = texto.strip()[:200]
-            if not estado_existente.get("categoria"):
-                estado_existente["categoria"] = _classificar_categoria(
-                    estado_existente.get("veiculo"), url=estado_existente.get("url"), texto_bruto=texto
-                )
+            if categoria_atual:
+                estado_existente["categoria"] = categoria_atual
+                estado_existente["qualificado"] = True
+            else:
+                estado_existente["estagio"] = "aguardando_veiculo"
             estado_existente["ultima_atualizacao"] = time.time()
             _ESTADOS[numero] = estado_existente
             return dict(estado_existente)
@@ -994,9 +1044,12 @@ def processar_mensagem(
         estado["origem"] = "social"
         estado["intencao_visita"] = texto.strip()[:200]
 
-        categoria_conhecida = None
-        if _DOMINIO_UTILITARIO in texto_norm or any(n in texto_norm for n in _NOMES_LOJA_UTILITARIO):
-            categoria_conhecida = "utilitario"
+        # Fase 3.1I (item 1 do diagnóstico real): antes só verificava
+        # domínio/nome da loja, ignorando palavras de modelo já presentes na
+        # própria mensagem (ex.: "queria falar sobre vans" não classificava
+        # como utilitário). Agora reaproveita o mesmo detector usado na
+        # troca de categoria (_categoria_com_sinal_no_texto).
+        categoria_conhecida = _categoria_com_sinal_no_texto(texto_norm)
 
         if categoria_conhecida:
             estado["categoria"] = categoria_conhecida
