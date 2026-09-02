@@ -247,7 +247,10 @@ def _montar_system_prompt(contexto_comercial: Optional[Dict[str, Any]] = None) -
         bloco += _BLOCO_VISITA_CONFIRMADA.format(dia=data_visita, periodo=horario_visita)
 
     vendedor = contexto_comercial.get("vendedor")
-    if vendedor:
+    # Fase 3.1H: só afirma handoff concluído com evidência real de que a
+    # transferência DESTA categoria foi de fato concluída — presença de
+    # "vendedor" sozinha não basta (pode ser de outra categoria/atendimento).
+    if vendedor and contexto_comercial.get("transferencia_concluida"):
         bloco += _BLOCO_TRANSFERENCIA_CONCLUIDA.format(
             vendedor_nome=vendedor.get("nome", ""), vendedor_link=vendedor.get("link", "")
         )

@@ -234,7 +234,7 @@ _PADROES_TRANSFERENCIA = (
     r"falar com (um |uma |o |a )?(vendedor|consultor|alguem)\b",
     r"conversar com (um |uma |o |a )?(vendedor|consultor|alguem)\b",
     r"com quem (eu )?(posso |devo |vou )?(falar|conversar)",
-    r"me (passa|passe|manda|indica) (o |um )?(vendedor|consultor|contato|telefone|numero)",
+    r"me (passa|passar|passe|manda|indica) (o |um )?(vendedor|consultor|contato|telefone|numero)",
     r"tem algum vendedor",
     r"quero (ir )?(ver|conhecer) (o |esse |este )?carro\b",
     r"\b(agendar|marcar) (uma )?visita\b",
@@ -574,6 +574,57 @@ def _classificar_categoria(
     return "utilitario" if any(p in t for p in _PALAVRAS_UTILITARIO) else "passeio"
 
 
+# ===== Fase 3.1H: atendimento comercial independente por categoria =====
+def _detectar_categoria_mencionada(texto_norm: str) -> Optional[str]:
+    """
+    Detecta menção explícita de categoria (utilitário/passeio) em texto
+    livre, usada só para identificar pedido de TROCA de categoria numa
+    conversa já qualificada/transferida (ver _trocar_categoria_ativa).
+    Diferente de _classificar_categoria: aqui a AUSÊNCIA de sinal deve
+    significar "nenhuma categoria mencionada" (retorna None) — não usa o
+    fallback default "passeio", que só faz sentido ao classificar um
+    veículo já identificado.
+    """
+    if _DOMINIO_UTILITARIO in texto_norm or any(n in texto_norm for n in _NOMES_LOJA_UTILITARIO):
+        return "utilitario"
+    if any(p in texto_norm for p in _PALAVRAS_UTILITARIO):
+        return "utilitario"
+    if "passeio" in texto_norm:
+        return "passeio"
+    return None
+
+
+def _trocar_categoria_ativa(estado: Dict[str, Any], nova_categoria: str) -> None:
+    """
+    Troca a categoria ativa de uma conversa já qualificada (Fase 3.1H):
+    salva vendedor/qualificado/transferencia_concluida atuais em
+    "atendimentos" sob a categoria antiga (preservando esse atendimento
+    sem alteração) e carrega o atendimento da categoria nova — restaurado
+    de "atendimentos" se o cliente já tinha passado por ela antes (sem
+    novo sorteio de vendedor), ou zerado para permitir uma seleção nova
+    quando é a primeira vez que essa categoria aparece na conversa.
+    """
+    atendimentos = estado.setdefault("atendimentos", {})
+    categoria_anterior = estado.get("categoria")
+    if categoria_anterior:
+        atendimentos[categoria_anterior] = {
+            "vendedor": estado.get("vendedor"),
+            "qualificado": estado.get("qualificado", False),
+            "transferencia_concluida": estado.get("transferencia_concluida", False),
+        }
+
+    estado["categoria"] = nova_categoria
+    dados = atendimentos.get(nova_categoria)
+    if dados:
+        estado["vendedor"] = dados.get("vendedor")
+        estado["qualificado"] = dados.get("qualificado", False)
+        estado["transferencia_concluida"] = dados.get("transferencia_concluida", False)
+    else:
+        estado["vendedor"] = None
+        estado["qualificado"] = True
+        estado["transferencia_concluida"] = False
+
+
 def _eh_resposta_indefinida(texto_norm: str) -> bool:
     """
     True quando a mensagem não traz informação mínima de veículo/interesse
@@ -610,6 +661,7 @@ def _novo_estado(numero: str) -> Dict[str, Any]:
         "aviso_dia": None,          # mensagem de expediente quando o cliente pede domingo (fechado)
         "vendedor": None,           # {"nome":..., "link":...} quando selecionado pelo backend
         "transferencia_concluida": False,
+        "atendimentos": {},         # Fase 3.1H: histórico por categoria — {categoria: {"vendedor", "qualificado", "transferencia_concluida"}}
         "ultima_atualizacao": time.time(),
     }
 
@@ -822,6 +874,25 @@ def processar_mensagem(
     # factuais como "domingo abre?") não disparam isso — exige palavra de
     # mudança explícita junto com um dia/período novo reconhecido.
     if estado_existente and estado_existente.get("ativo") and estado_existente.get("qualificado"):
+        # Fase 3.1H — pedido explícito de vendedor para uma CATEGORIA
+        # diferente da já qualificada/transferida nesta conversa (ex.:
+        # cliente já tem vendedor no utilitário e passa a perguntar sobre
+        # passeio). Abre um atendimento independente para a categoria nova
+        # sem apagar nem sobrescrever o atendimento anterior — ver
+        # _trocar_categoria_ativa. Exige sinal de categoria E sinal de
+        # transferência juntos, para não disparar em menção incidental.
+        categoria_mencionada = _detectar_categoria_mencionada(texto_norm)
+        if (
+            categoria_mencionada
+            and categoria_mencionada != estado_existente.get("categoria")
+            and _eh_sinal_transferencia(texto_norm)
+        ):
+            _trocar_categoria_ativa(estado_existente, categoria_mencionada)
+            estado_existente["intencao_visita"] = texto.strip()[:200]
+            estado_existente["ultima_atualizacao"] = time.time()
+            _ESTADOS[numero] = estado_existente
+            return dict(estado_existente)
+
         dia_novo = _extrair_dia(texto_norm)
         periodo_novo = _extrair_periodo(texto_norm)
         if _eh_sinal_mudanca_visita(texto_norm, dia_novo, periodo_novo):
