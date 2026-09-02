@@ -180,7 +180,8 @@ _GATILHOS_DESCONTO_NEGOCIACAO = (
     "quero desconto", "tem desconto", "consegue desconto", "algum desconto",
     "qual o melhor preco", "faz um preco melhor", "melhor condicao a vista",
     "tem negociacao", "consegue melhorar o valor", "consegue melhorar o preco",
-    "consegue fazer um preco melhor",
+    "consegue fazer um preco melhor", "condicao diferenciada", "condicao especial",
+    "uma condicao melhor",
 )
 
 # Reconhecimento por co-ocorrência (mais tolerante a variações de frase do
@@ -196,6 +197,18 @@ def _eh_pedido_identificacao_vendedor(texto_norm: str) -> bool:
     tem_vendedor = any(p in texto_norm for p in _PALAVRA_VENDEDOR_CONSULTOR)
     tem_pergunta = any(p in texto_norm for p in _PALAVRAS_PERGUNTA_IDENTIFICACAO)
     return tem_vendedor and tem_pergunta
+
+
+# Co-ocorrência tolerante a erro de digitação na preposição (ex.: "falar
+# ocm um vendedor"): exige "vendedor"/"consultor" + um verbo de contato
+# ("falar"/"conversar"), sem depender de acertar "com" literalmente.
+_PALAVRAS_VERBO_CONTATO = ("falar", "conversar")
+
+
+def _eh_pedido_falar_com_vendedor_tolerante(texto_norm: str) -> bool:
+    tem_vendedor = any(p in texto_norm for p in _PALAVRA_VENDEDOR_CONSULTOR)
+    tem_verbo = any(p in texto_norm for p in _PALAVRAS_VERBO_CONTATO)
+    return tem_vendedor and tem_verbo
 _PALAVRAS_DIA_DISPONIBILIDADE = (
     "hoje", "amanha", "segunda", "terca", "quarta", "quinta", "sexta",
     "sabado", "domingo", "essa semana", "neste fim de semana",
@@ -515,6 +528,8 @@ def _eh_sinal_transferencia(texto_norm: str) -> bool:
     if any(any(g in texto_norm for g in grupo) for grupo in grupos):
         return True
     if _eh_pedido_identificacao_vendedor(texto_norm):
+        return True
+    if _eh_pedido_falar_com_vendedor_tolerante(texto_norm):
         return True
     if _eh_sinal_transferencia_regex(texto_norm):
         return True
