@@ -170,6 +170,10 @@ _GATILHOS_QUEM_ATENDE = (
     "quem vai cuidar do meu", "quem vai cuidar de mim", "quem que vai me atender",
     "com quem eu falo", "quem vai falar comigo", "quem eu procuro", "quem procuro",
     "qual vendedor", "quem e meu consultor", "quem pode me atender",
+    # Fase 3.1K (Causa B): "quem atende [categoria/veículo]?" — mesma
+    # intenção de identificar o responsável, sem exigir a palavra
+    # "vendedor" na frase (ex.: "quem atende carros de passeio?").
+    "quem atende",
 )
 _GATILHOS_CONTATO_RESPONSAVEL = (
     "telefone do vendedor", "telefone do responsavel", "contato do vendedor",
@@ -252,7 +256,11 @@ _PADROES_TRANSFERENCIA = (
     # Fase 3.1J: "pra"/"para" opcional entre o verbo e o artigo/objeto (ex.:
     # real "me passe PRA um vendedor") — antes exigia o objeto logo em
     # seguida do verbo, sem preposição no meio, e não reconhecia essa forma.
-    r"(me\s+)?(passa|passar|passe|manda|indica)\s+(pra\s+|para\s+)?(o |um |seu |meu )?(vendedor|consultor|contato|telefone|numero)",
+    # Fase 3.1K (Causa B): até 2 palavras soltas entre o artigo e o
+    # substantivo (ex.: "um DESSES vendedores"), e sufixo livre no
+    # substantivo (\w* cobre o plural "vendedorES", "contatoS" etc.) — antes
+    # exigia o substantivo IMEDIATAMENTE após o artigo, no singular exato.
+    r"(me\s+)?(passa|passar|passe|manda|indica)\s+(pra\s+|para\s+)?(?:\w+\s+){0,2}(vendedor|consultor|contato|telefone|numero)\w*",
     # "vendedor/consultor ... me chamar/ligar" (ex.: "pedir pra um vendedor
     # me chamar") — mesma correção, cobre a forma verbal "chamar/ligar" que
     # não passava nem por _eh_pedido_falar_com_vendedor_tolerante (exige
@@ -605,6 +613,16 @@ def _classificar_categoria(
 
 
 # ===== Fase 3.1H: atendimento comercial independente por categoria =====
+def _ultima_posicao_utilitario(texto_norm: str) -> int:
+    """Índice (rfind) da menção de utilitário mais à direita no texto —
+    domínio/nome da loja ou qualquer palavra de _PALAVRAS_UTILITARIO. -1 se
+    nenhuma aparecer."""
+    posicoes = [texto_norm.rfind(_DOMINIO_UTILITARIO)]
+    posicoes += [texto_norm.rfind(n) for n in _NOMES_LOJA_UTILITARIO]
+    posicoes += [texto_norm.rfind(p) for p in _PALAVRAS_UTILITARIO]
+    return max(posicoes)
+
+
 def _detectar_categoria_mencionada(texto_norm: str) -> Optional[str]:
     """
     Detecta menção explícita de categoria (utilitário/passeio) em texto
@@ -614,14 +632,27 @@ def _detectar_categoria_mencionada(texto_norm: str) -> Optional[str]:
     significar "nenhuma categoria mencionada" (retorna None) — não usa o
     fallback default "passeio", que só faz sentido ao classificar um
     veículo já identificado.
+
+    Fase 3.1K (item Causa A do diagnóstico real): quando a mensagem
+    menciona AS DUAS categorias (comum quando o cliente contrasta uma com a
+    outra, ex.: "de van, ok, mas nos carros de passeio..." ou "passeio não,
+    quero utilitário"), não usa mais prioridade fixa (utilitário sempre
+    vencia por ser checado primeiro no código, mesmo quando a intenção real
+    da frase era claramente a outra). Em vez disso, compara a POSIÇÃO da
+    menção mais à direita de cada categoria — na prática, a categoria
+    associada ao pedido/pergunta atual normalmente vem depois do contraste
+    ("de van, ok, mas..." → o "mas" introduz o assunto atual). Ambíguo
+    (None) só quando nenhuma das duas aparece.
     """
-    if _DOMINIO_UTILITARIO in texto_norm or any(n in texto_norm for n in _NOMES_LOJA_UTILITARIO):
+    idx_utilitario = _ultima_posicao_utilitario(texto_norm)
+    idx_passeio = texto_norm.rfind("passeio")
+    if idx_utilitario == -1 and idx_passeio == -1:
+        return None
+    if idx_passeio == -1:
         return "utilitario"
-    if any(p in texto_norm for p in _PALAVRAS_UTILITARIO):
-        return "utilitario"
-    if "passeio" in texto_norm:
+    if idx_utilitario == -1:
         return "passeio"
-    return None
+    return "utilitario" if idx_utilitario > idx_passeio else "passeio"
 
 
 def _categoria_com_sinal_no_texto(texto_norm: str) -> Optional[str]:
