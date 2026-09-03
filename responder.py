@@ -766,10 +766,21 @@ def responder(numero: str, mensagem: Any, nome_contato: Optional[str] = None) ->
     # falar com um vendedor") não deve abrir o menu nem interromper o
     # processamento comercial. Só entra em vigor com o assistente comercial
     # ativo; sem a flag, comportamento idêntico ao anterior.
+    # Fase 3.1J (item 3 do diagnóstico real): _tem_trigger_menu casa qualquer
+    # ocorrência de "oi/ola/menu/inicio/start/ajuda/help/voltar" em qualquer
+    # parte da mensagem, sem checar se já existe uma negociação comercial em
+    # andamento — uma mensagem no meio do atendimento contendo, por exemplo,
+    # "ajuda" ou "voltar" sequestrava a conversa para o menu genérico. Agora
+    # também conta como "sinal comercial" já existir uma sessão comercial
+    # ATIVA para este número (tem_contexto_comercial), não só a mensagem
+    # atual isoladamente — mudança mínima, mesma condição, um OR a mais.
     _saudacao_com_sinal_comercial = False
     if assistente_comercial is not None:
         try:
-            if assistente_comercial.assistente_comercial_ativo() and assistente_comercial.contem_sinal_comercial(id_recebido):
+            if assistente_comercial.assistente_comercial_ativo() and (
+                assistente_comercial.contem_sinal_comercial(id_recebido)
+                or assistente_comercial.tem_contexto_comercial(numero)
+            ):
                 _saudacao_com_sinal_comercial = True
         except Exception:
             _saudacao_com_sinal_comercial = False

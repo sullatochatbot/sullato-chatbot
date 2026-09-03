@@ -1,4 +1,6 @@
 import os
+import re
+import unicodedata
 from typing import Optional, Dict, Any
 
 # ============================================================
@@ -25,14 +27,58 @@ _SISTEMA_BASE = (
     "Ao mencionar o Instagram de passeio, sempre inclua: https://www.instagram.com/sullato.veiculos. "
     "Ao mencionar o Instagram da oficina ou TS Sullato Auto Service, sempre inclua: https://www.instagram.com/tssullatoautoservice/. "
     "Nunca invente preços, estoque ou condições específicas — oriente o cliente a falar com um consultor ou usar o menu. "
-    "Quando fizer sentido, sugira que o cliente escolha uma opção no menu. "
-    "Se alguém perguntar quem criou este chatbot, quem desenvolveu este sistema de atendimento, "
+    "Quando fizer sentido, sugira que o cliente escolha uma opção no menu."
+)
+
+# Fase 3.1J (item 4 do diagnóstico real): esse bloco institucional (dados do
+# criador do chatbot) morava dentro de _SISTEMA_BASE, ou seja, ia em TODO
+# prompt — inclusive no meio de uma negociação comercial — dependendo só de
+# instrução em linguagem natural para não ser usado fora de contexto. Isolado
+# aqui: só é anexado por _montar_system_prompt() quando (a) NÃO há contexto
+# comercial ativo nesta conversa E (b) a mensagem atual traz intenção
+# explícita de perguntar quem criou/desenvolveu o sistema — nunca durante
+# compra/venda/financiamento/veículo/vendedor/visita/estoque. Texto da
+# resposta institucional em si preservado literalmente, sem alteração.
+_BLOCO_INSTITUCIONAL_CRIADOR = (
+    " Se alguém perguntar quem criou este chatbot, quem desenvolveu este sistema de atendimento, "
     "como ter um sistema igual, como contratar o desenvolvedor ou qualquer variação com essa intenção, "
     "informe que foi desenvolvido por Anderson R. Sullato e forneça os contatos abaixo. "
     "Não invente preços, condições comerciais, funcionalidades ou outros detalhes — apenas encaminhe: "
     "📱 WhatsApp: (11) 98878-0161 | https://wa.me/5511988780161 "
     "📧 anderson@sullato.com.br | andersonsullato@gmail.com"
 )
+
+# Reconhecimento conservador (mesmo estilo das heurísticas de
+# assistente_comercial.py: normaliza acentos/caixa, exige combinação de
+# palavras específica do domínio) de intenção explícita de perguntar sobre o
+# criador/desenvolvedor do chatbot, ou de contratar algo semelhante — único
+# gatilho que libera _BLOCO_INSTITUCIONAL_CRIADOR no prompt.
+_PADROES_PERGUNTA_CRIADOR = (
+    r"quem (criou|desenvolveu|fez|programou|construiu) (esse|este|essa|esta) (chatbot|sistema|robo|bot|inteligencia|ia)\b",
+    r"quem (criou|desenvolveu|fez|programou) (voce|voces)\b",
+    r"quem (te |lhe )?(criou|desenvolveu|programou|fez)\b.{0,20}\b(chatbot|sistema|robo|bot|inteligencia|ia)\b",
+    r"quem (te )?desenvolveu\b",
+    r"quem esta por tras (desse|deste) (chatbot|sistema|projeto|atendimento)\b",
+    r"quem (e|eh) o (desenvolvedor|criador|programador)\b",
+    r"como (eu )?(faco|posso) (para |pra )?(ter|conseguir|contratar) um (chatbot|sistema|robo|atendimento) (assim|parecido|semelhante|igual)\b",
+    r"quero (contratar|desenvolver|criar|ter) um (chatbot|sistema|robo|atendimento) (assim|parecido|semelhante|igual)\b",
+)
+
+
+def _normalizar_texto(texto: Optional[str]) -> str:
+    if not texto:
+        return ""
+    t = texto.strip().lower()
+    t = unicodedata.normalize("NFKD", t)
+    t = "".join(c for c in t if not unicodedata.combining(c))
+    return re.sub(r"\s+", " ", t)
+
+
+def _eh_pergunta_sobre_criador(mensagem: Optional[str]) -> bool:
+    t = _normalizar_texto(mensagem)
+    if not t:
+        return False
+    return any(re.search(p, t) for p in _PADROES_PERGUNTA_CRIADOR)
 
 
 # ============================================================
@@ -207,14 +253,27 @@ Instruções para esta conversa:
 """
 
 
-def _montar_system_prompt(contexto_comercial: Optional[Dict[str, Any]] = None) -> str:
+def _montar_system_prompt(
+    contexto_comercial: Optional[Dict[str, Any]] = None, mensagem: Optional[str] = None
+) -> str:
     """
     Monta o system prompt enviado ao Claude. O prompt-base acima é sempre
     incluído sem nenhuma alteração. O bloco comercial (Fase 3.1C) só é
     anexado quando existe contexto comercial ativo.
+
+    Fase 3.1J (item 4 do diagnóstico real): o bloco institucional (dados do
+    criador do chatbot) NUNCA é anexado quando há contexto comercial ativo
+    — negociação de compra/venda/financiamento/veículo/vendedor/visita/
+    estoque nunca deve ter acesso a esses dados, mesmo que o cliente pergunte
+    por eles no meio da conversa. Fora de contexto comercial, só é anexado
+    quando a mensagem atual traz intenção explícita de perguntar sobre o
+    criador/desenvolvedor do sistema (_eh_pergunta_sobre_criador).
     """
     if not contexto_comercial or not contexto_comercial.get("ativo"):
-        return _SISTEMA_BASE
+        sistema = _SISTEMA_BASE
+        if _eh_pergunta_sobre_criador(mensagem):
+            sistema += _BLOCO_INSTITUCIONAL_CRIADOR
+        return sistema
 
     origem_label = _origem_label(contexto_comercial.get("origem"))
     linha_origem = f"- Origem do contato: {origem_label}" if origem_label else ""
@@ -285,7 +344,7 @@ def responder_com_ia(
         import anthropic
         client = anthropic.Anthropic(api_key=api_key)
 
-        sistema = _montar_system_prompt(contexto_comercial)
+        sistema = _montar_system_prompt(contexto_comercial, mensagem)
 
         usuario = mensagem if not nome else f"[Cliente: {nome}]\n{mensagem}"
 

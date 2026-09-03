@@ -102,10 +102,22 @@ def _tem_negacao_antes(texto_norm: str, gatilho: str) -> bool:
     return any(p in _NEGACOES for p in palavras_antes)
 
 
+# Fase 3.1J: variação tolerante de "tenho interesse" com 1-2 palavras entre
+# "tenho" e "interesse" (ex.: "tenho MUITO interesse", "tenho GRANDE
+# interesse") — a lista literal acima exige a substring exata "tenho
+# interesse" e não reconhecia essas variações comuns, deixando a mensagem de
+# abertura de uma conversa real inteira fora do assistente comercial (nada
+# do que vinha depois — inclusive o veículo — era processado).
+_PADRAO_TENHO_INTERESSE = re.compile(r"\btenho\b(?:\s+\w+){0,2}\s+interesse\b")
+
+
 def _eh_interesse_generico(texto_norm: str) -> bool:
     for gatilho in _GATILHOS_INTERESSE_GENERICO:
         if gatilho in texto_norm and not _tem_negacao_antes(texto_norm, gatilho):
             return True
+    m = _PADRAO_TENHO_INTERESSE.search(texto_norm)
+    if m and not _tem_negacao_antes(texto_norm, m.group(0)):
+        return True
     return False
 
 
@@ -237,7 +249,10 @@ _PADROES_TRANSFERENCIA = (
     # "me" antes do verbo agora é opcional (ex.: real "...e passar o contato
     # dele", sem "me" imediatamente antes de "passar") — Fase 3.1I, item 2/4
     # do diagnóstico: essa frase real não disparava a troca de categoria.
-    r"(me\s+)?(passa|passar|passe|manda|indica)\s+(o |um |seu |meu )?(vendedor|consultor|contato|telefone|numero)",
+    # Fase 3.1J: "pra"/"para" opcional entre o verbo e o artigo/objeto (ex.:
+    # real "me passe PRA um vendedor") — antes exigia o objeto logo em
+    # seguida do verbo, sem preposição no meio, e não reconhecia essa forma.
+    r"(me\s+)?(passa|passar|passe|manda|indica)\s+(pra\s+|para\s+)?(o |um |seu |meu )?(vendedor|consultor|contato|telefone|numero)",
     # "vendedor/consultor ... me chamar/ligar" (ex.: "pedir pra um vendedor
     # me chamar") — mesma correção, cobre a forma verbal "chamar/ligar" que
     # não passava nem por _eh_pedido_falar_com_vendedor_tolerante (exige
@@ -915,6 +930,27 @@ def processar_mensagem(
             estado_existente["ultima_atualizacao"] = time.time()
             _ESTADOS[numero] = estado_existente
             return dict(estado_existente)
+
+        # Fase 3.1J (item 1 do diagnóstico real "Sprinter/Mercedes"): o
+        # cliente já tinha um veículo/categoria capturados (ainda que por um
+        # palpite vago, ex.: "Uma Mercedes" -> passeio por default), mas esta
+        # mensagem NÃO é pedido de visita/vendedor — é só uma descrição mais
+        # específica do veículo (ex.: "Sprinter escolar"). Antes, nada
+        # reavaliava categoria/veiculo depois de "veiculo_identificado", e o
+        # palpite errado ficava travado pelo resto da conversa. Só corrige
+        # quando a PRÓPRIA mensagem atual traz um sinal explícito e diferente
+        # do já registrado (_categoria_com_sinal_no_texto nunca defaulta para
+        # passeio sozinho) — não qualifica nem transfere aqui, só corrige o
+        # dado para quando o pedido de vendedor vier (rota E acima cuida
+        # disso na mesma mensagem, quando aplicável).
+        if estado_existente.get("estagio") == "veiculo_identificado":
+            nova_categoria = _categoria_com_sinal_no_texto(texto_norm)
+            if nova_categoria and nova_categoria != estado_existente.get("categoria"):
+                estado_existente["categoria"] = nova_categoria
+                estado_existente["veiculo"] = texto.strip()[:200]
+                estado_existente["ultima_atualizacao"] = time.time()
+                _ESTADOS[numero] = estado_existente
+                return dict(estado_existente)
 
     # Fase 3.1F — pedido explícito de mudar dia/período de uma visita já
     # qualificada (inclusive após transferência concluída). Atualiza só a
