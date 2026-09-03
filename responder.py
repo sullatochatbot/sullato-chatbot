@@ -986,6 +986,42 @@ def responder(numero: str, mensagem: Any, nome_contato: Optional[str] = None) ->
         enviar_mensagem(numero, BLOCOS["3.2.2"])
         return
 
+    # Fase 3.1L (colisão real: pedido de vendedor pendente vs Oficina/Peças):
+    # "passeio"/"utilitario" isolados são tratados abaixo como clique do
+    # botão de Oficina/Peças (a Meta às vezes manda o TÍTULO do botão em vez
+    # do ID). Mas quando o assistente comercial já tinha perguntado "passeio
+    # ou utilitário?" para completar um pedido de vendedor pendente (ver
+    # Rotas B/E em assistente_comercial.py: estagio "aguardando_veiculo" +
+    # intencao_visita já preenchida — só existe assim quando um sinal de
+    # transferência/visita já foi detectado antes), essa resposta é a
+    # continuação daquele pedido, não uma navegação em Oficina/Peças. Só
+    # desvia da rota de Oficina/Peças NESSE cenário específico — sem pedido
+    # pendente, nada muda (nenhuma regra global para as palavras em si).
+    if id_normalizado in ("passeio", "utilitario", "utilitário") and assistente_comercial is not None:
+        try:
+            if assistente_comercial.assistente_comercial_ativo():
+                estado_pendente = assistente_comercial.obter_estado(numero)
+                if (
+                    estado_pendente
+                    and estado_pendente.get("ativo")
+                    and not estado_pendente.get("qualificado")
+                    and estado_pendente.get("estagio") == "aguardando_veiculo"
+                    and estado_pendente.get("intencao_visita")
+                ):
+                    _hist_atual = _get_hist_ia(numero)
+                    _ultima_ia = next(
+                        (m.get("content") for m in reversed(_hist_atual) if m.get("role") == "assistant"),
+                        None,
+                    )
+                    estado_comercial = assistente_comercial.processar_mensagem(
+                        numero, id_recebido, ultima_mensagem_ia=_ultima_ia
+                    )
+                    if estado_comercial and estado_comercial.get("qualificado") and not estado_comercial.get("vendedor"):
+                        _processar_transferencia_vendedor(numero, nome_final, estado_comercial)
+                    return
+        except Exception as e:
+            print("⚠️ Falha ao verificar pedido de vendedor pendente antes de Oficina/Peças (ignorada, seguindo fluxo padrão):", e)
+
     # Quando a Meta manda o TÍTULO do botão
     if id_normalizado in ("passeio",):
         try:
