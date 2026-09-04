@@ -49,10 +49,10 @@ def _mockar_saidas_externas(monkeypatches):
         "alerta_handoff": 0,         # _enviar_alerta_handoff (numero fixo humano)
     }
 
-    def _fake_enviar_mensagem(numero, texto):
+    def _fake_enviar_mensagem(numero, texto, sender_phone_number_id=None):
         chamadas["enviar_mensagem"].append((numero, texto))
 
-    def _fake_enviar_botoes(numero, texto, botoes):
+    def _fake_enviar_botoes(numero, texto, botoes, sender_phone_number_id=None):
         chamadas["enviar_botoes"].append((numero, texto, botoes))
 
     def _fake_enviar_mensagem_com_status(numero, texto):

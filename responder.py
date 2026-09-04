@@ -179,9 +179,14 @@ def enviar_email(assunto: str, corpo: str, destinatario: Optional[str] = None) -
         print("❌ Falha ao enviar e-mail:", e)
         return False
 
-def enviar_mensagem(numero: str, texto: str) -> None:
+def enviar_mensagem(
+    numero: str,
+    texto: str,
+    sender_phone_number_id: Optional[str] = None
+) -> None:
     try:
-        url = f"https://graph.facebook.com/v19.0/{PHONE_NUMBER_ID}/messages"
+        sender_id = sender_phone_number_id or PHONE_NUMBER_ID
+        url = f"https://graph.facebook.com/v19.0/{sender_id}/messages"
         headers = {"Authorization": f"Bearer {ACCESS_TOKEN}", "Content-Type": "application/json"}
         payload = {"messaging_product": "whatsapp", "to": numero, "text": {"preview_url": True, "body": texto}}
         r = requests.post(url, headers=headers, json=payload)
@@ -195,6 +200,19 @@ def _enviar_mensagem_com_status(numero: str, texto: str) -> bool:
     Usada só na notificação de lead ao vendedor (Fase 3.1D) — ali
     precisamos saber se a transferência realmente aconteceu antes de
     confirmar isso ao cliente. enviar_mensagem() não é alterada.
+
+    Fase 3.1O (dois números Meta): decisão consciente de MANTER esta
+    notificação sempre no PHONE_NUMBER_ID padrão, mesmo quando a conversa
+    com o cliente entrou pelo segundo número — não recebe
+    sender_phone_number_id. Motivos: (1) o template "novo_lead_vendedor"
+    usado logo abaixo é aprovado na Meta por WABA/número, e não há
+    confirmação de que está aprovado também no número novo — trocar a
+    origem sem essa garantia arrisca quebrar a notificação real ao
+    vendedor (regressão muito pior do que uma inconsistência de origem);
+    (2) esta é uma notificação interna (loja → vendedor), nunca vista pelo
+    cliente, então a regra "responder pelo mesmo número que recebeu" não
+    se aplica da mesma forma que nas respostas ao cliente. Documentado
+    também na chamada de _processar_transferencia_vendedor().
     """
     try:
         url = f"https://graph.facebook.com/v19.0/{PHONE_NUMBER_ID}/messages"
@@ -246,6 +264,10 @@ def _enviar_template_novo_lead_vendedor(
     completo. Falha aqui NUNCA deve quebrar a transferência — ver
     _processar_transferencia_vendedor(), que só loga e segue com o
     mecanismo de texto livre já existente.
+
+    Fase 3.1O: mantido no PHONE_NUMBER_ID padrão de propósito — mesma
+    explicação de _enviar_mensagem_com_status() (template aprovado por
+    número/WABA, sem confirmação de que vale para o segundo número).
     """
     try:
         url = f"https://graph.facebook.com/v19.0/{PHONE_NUMBER_ID}/messages"
@@ -278,8 +300,14 @@ def _enviar_template_novo_lead_vendedor(
         print("❌ Erro ao enviar template novo_lead_vendedor:", e)
         return False
 
-def enviar_botoes(numero: str, texto: str, botoes: List[Dict[str, Any]]) -> None:
-    url = f"https://graph.facebook.com/v19.0/{PHONE_NUMBER_ID}/messages"
+def enviar_botoes(
+    numero: str,
+    texto: str,
+    botoes: List[Dict[str, Any]],
+    sender_phone_number_id: Optional[str] = None
+) -> None:
+    sender_id = sender_phone_number_id or PHONE_NUMBER_ID
+    url = f"https://graph.facebook.com/v19.0/{sender_id}/messages"
     headers = {"Authorization": f"Bearer {ACCESS_TOKEN}", "Content-Type": "application/json"}
     payload = {
         "messaging_product": "whatsapp",
@@ -353,18 +381,30 @@ def detectar_intencao_basica(txt: str) -> Optional[str]:
 _HIST_IA: dict = {}
 _HIST_TTL = 3600
 
-def _get_hist_ia(numero):
-    h = _HIST_IA.get(numero, {})
+# Fase 3.1O (dois números Meta no mesmo bot): mesma chave composta usada em
+# assistente_comercial._chave_estado — isola o histórico de IA quando o
+# mesmo cliente conversa com os dois números empresariais. Sem
+# sender_phone_number_id (chamadas antigas/testes), chave = só o número do
+# cliente, idêntico ao comportamento anterior.
+def _chave_hist(numero, sender_phone_number_id=None):
+    if sender_phone_number_id:
+        return f"{sender_phone_number_id}:{numero}"
+    return numero
+
+def _get_hist_ia(numero, sender_phone_number_id=None):
+    chave = _chave_hist(numero, sender_phone_number_id)
+    h = _HIST_IA.get(chave, {})
     if time.time() - h.get("ts", 0) > _HIST_TTL:
         return []
     return list(h.get("msgs", []))
 
-def _add_hist_ia(numero, user_msg, assistant_msg):
-    h = _HIST_IA.get(numero, {})
+def _add_hist_ia(numero, user_msg, assistant_msg, sender_phone_number_id=None):
+    chave = _chave_hist(numero, sender_phone_number_id)
+    h = _HIST_IA.get(chave, {})
     msgs = list(h.get("msgs", []))
     msgs.append({"role": "user", "content": user_msg})
     msgs.append({"role": "assistant", "content": assistant_msg})
-    _HIST_IA[numero] = {"msgs": msgs[-10:], "ts": time.time()}
+    _HIST_IA[chave] = {"msgs": msgs[-10:], "ts": time.time()}
 
 _HANDOFF_NUMERO = "5511988780161"
 # "quero falar com alguem" removida daqui (Item 6, diagnóstico Bloco A):
@@ -377,6 +417,10 @@ _HANDOFF_NUMERO = "5511988780161"
 _GATILHOS_HANDOFF = ["atendente", "falar com humano", "falar com pessoa"]
 
 def _enviar_alerta_handoff(numero_cliente, nome_cliente):
+    # Fase 3.1O: alerta interno para um número humano fixo (_HANDOFF_NUMERO),
+    # nunca visto pelo cliente — mantido no PHONE_NUMBER_ID padrão, mesma
+    # razão de _enviar_mensagem_com_status() (notificação interna, não é
+    # resposta ao cliente na conversa que entrou pelo número receptor).
     try:
         url = f"https://graph.facebook.com/v19.0/{PHONE_NUMBER_ID}/messages"
         msg = (
@@ -471,7 +515,12 @@ def _formatar_periodo_natural(periodo: str) -> str:
     return _PERIODOS_NATURAL.get(periodo, f"às {periodo}")
 
 # ===== Fase 3.1D: fechamento do lead comercial (backend seleciona o vendedor) =====
-def _processar_transferencia_vendedor(numero: str, nome_cliente: str, estado_comercial: Dict[str, Any]) -> None:
+def _processar_transferencia_vendedor(
+    numero: str,
+    nome_cliente: str,
+    estado_comercial: Dict[str, Any],
+    sender_phone_number_id: Optional[str] = None,
+) -> None:
     """
     Quando o cliente sinaliza intenção clara de avançar (assistente_comercial
     já marcou qualificado=True), seleciona UM vendedor pelo rodízio já
@@ -479,6 +528,14 @@ def _processar_transferencia_vendedor(numero: str, nome_cliente: str, estado_com
     vendedor ao cliente. Idempotente por telefone: se já existe vendedor no
     estado, não faz nada; se o envio ao vendedor falhar, não confirma nada
     ao cliente e a próxima mensagem tenta de novo (vendedor continua None).
+
+    sender_phone_number_id (Fase 3.1O): número Meta pelo qual esta conversa
+    entrou — a CONFIRMAÇÃO AO CLIENTE (fim desta função) sai por esse mesmo
+    número, e o estado comercial/histórico consultados usam a mesma chave
+    isolada. A notificação ao VENDEDOR (template + texto livre, logo abaixo)
+    continua propositalmente saindo pelo PHONE_NUMBER_ID padrão — ver
+    explicação nos comentários de _enviar_mensagem_com_status/
+    _enviar_template_novo_lead_vendedor.
     """
     if not estado_comercial or not estado_comercial.get("qualificado"):
         return
@@ -516,7 +573,7 @@ def _processar_transferencia_vendedor(numero: str, nome_cliente: str, estado_com
         resumo = None
         if gerar_resumo_lead:
             try:
-                resumo = gerar_resumo_lead(_get_hist_ia(numero), estado_comercial)
+                resumo = gerar_resumo_lead(_get_hist_ia(numero, sender_phone_number_id), estado_comercial)
             except Exception as e:
                 print("⚠️ Falha ao gerar resumo do lead:", e)
         if not resumo:
@@ -579,8 +636,8 @@ def _processar_transferencia_vendedor(numero: str, nome_cliente: str, estado_com
             print(f"⚠️ Falha ao notificar vendedor {vendedor_nome} — transferência NÃO concluída, tentará de novo na próxima mensagem.")
             return
 
-        assistente_comercial.definir_vendedor(numero, vendedor_nome, vendedor_link)
-        assistente_comercial.marcar_transferencia_concluida(numero)
+        assistente_comercial.definir_vendedor(numero, vendedor_nome, vendedor_link, sender_phone_number_id)
+        assistente_comercial.marcar_transferencia_concluida(numero, sender_phone_number_id)
         _avancar_rodizio(categoria)  # só avança o índice após sucesso confirmado
 
         dia = estado_comercial.get("data_visita")
@@ -599,7 +656,8 @@ def _processar_transferencia_vendedor(numero: str, nome_cliente: str, estado_com
             f"{linha_visita}"
             f"Vou deixar seu atendimento com {vendedor_nome}, da nossa equipe.\n\n"
             f"📱 {vendedor_nome}: {vendedor_link}\n\n"
-            "Já vou passar para ele(a) as informações da nossa conversa, para você não precisar explicar tudo de novo."
+            "Já vou passar para ele(a) as informações da nossa conversa, para você não precisar explicar tudo de novo.",
+            sender_phone_number_id,
         )
     except Exception as e:
         print("⚠️ Falha ao processar transferência de vendedor (ignorada):", e)
@@ -677,7 +735,12 @@ BOTOES_MENU_INICIAL = [
 ]
 
 # ===== Handler principal =====
-def responder(numero: str, mensagem: Any, nome_contato: Optional[str] = None) -> None:
+def responder(
+    numero: str,
+    mensagem: Any,
+    nome_contato: Optional[str] = None,
+    sender_phone_number_id: Optional[str] = None
+) -> None:
     """Handler unificado: rotação 6h e menus completos + IA leve para texto digitado."""
     # Imports tardios
     try:
@@ -757,7 +820,8 @@ def responder(numero: str, mensagem: Any, nome_contato: Optional[str] = None) ->
             f"Entendido, {primeiro_nome}! 👍 Já avisamos nossa equipe.\n\n"
             "Em breve um consultor vai entrar em contato com você.\n\n"
             "Se preferir, pode chamar agora:\n"
-            "👉 https://wa.me/5511988780161"
+            "👉 https://wa.me/5511988780161",
+            sender_phone_number_id
         )
         return
 
@@ -779,7 +843,7 @@ def responder(numero: str, mensagem: Any, nome_contato: Optional[str] = None) ->
         try:
             if assistente_comercial.assistente_comercial_ativo() and (
                 assistente_comercial.contem_sinal_comercial(id_recebido)
-                or assistente_comercial.tem_contexto_comercial(numero)
+                or assistente_comercial.tem_contexto_comercial(numero, sender_phone_number_id)
             ):
                 _saudacao_com_sinal_comercial = True
         except Exception:
@@ -794,7 +858,9 @@ def responder(numero: str, mensagem: Any, nome_contato: Optional[str] = None) ->
                 "💬 Você também pode escrever sua dúvida ou enviar um áudio explicando o que precisa."
             ),
             BOTOES_MENU_INICIAL,
+            sender_phone_number_id
         )
+
         return
 
         # ===== IA RÁPIDA para TEXTO digitado (antes dos menus) =====
@@ -819,13 +885,14 @@ def responder(numero: str, mensagem: Any, nome_contato: Optional[str] = None) ->
         if assistente_comercial is not None:
             try:
                 if assistente_comercial.assistente_comercial_ativo():
-                    _hist_atual = _get_hist_ia(numero)
+                    _hist_atual = _get_hist_ia(numero, sender_phone_number_id)
                     _ultima_ia = next(
                         (m.get("content") for m in reversed(_hist_atual) if m.get("role") == "assistant"),
                         None,
                     )
                     estado_comercial = assistente_comercial.processar_mensagem(
-                        numero, id_recebido, ultima_mensagem_ia=_ultima_ia
+                        numero, id_recebido, ultima_mensagem_ia=_ultima_ia,
+                        sender_phone_number_id=sender_phone_number_id
                     )
             except Exception as e:
                 print("⚠️ Falha no assistente comercial (ignorada):", e)
@@ -843,7 +910,7 @@ def responder(numero: str, mensagem: Any, nome_contato: Optional[str] = None) ->
             and estado_comercial.get("qualificado")
             and not estado_comercial.get("vendedor")
         ):
-            _processar_transferencia_vendedor(numero, nome_final, estado_comercial)
+            _processar_transferencia_vendedor(numero, nome_final, estado_comercial, sender_phone_number_id)
             return
 
         # ===== Fase 3.1N: barreira de CÓDIGO contra vendedor incorreto =====
@@ -868,13 +935,14 @@ def responder(numero: str, mensagem: Any, nome_contato: Optional[str] = None) ->
                 enviar_mensagem(
                     numero,
                     f"Seu atendimento está com {vendedor_determinado.get('nome', '')}, da nossa equipe.\n\n"
-                    f"📱 {vendedor_determinado.get('nome', '')}: {vendedor_determinado.get('link', '')}"
+                    f"📱 {vendedor_determinado.get('nome', '')}: {vendedor_determinado.get('link', '')}",
+                    sender_phone_number_id
                 )
                 return
 
         resposta_ia = None
         try:
-            hist = _get_hist_ia(numero)
+            hist = _get_hist_ia(numero, sender_phone_number_id)
             resposta_ia = responder_com_ia(
                 id_recebido,
                 primeiro_nome,
@@ -885,16 +953,17 @@ def responder(numero: str, mensagem: Any, nome_contato: Optional[str] = None) ->
             pass
 
         if resposta_ia:
-            _add_hist_ia(numero, id_recebido, resposta_ia)
-            enviar_mensagem(numero, resposta_ia)
+            _add_hist_ia(numero, id_recebido, resposta_ia, sender_phone_number_id)
+            enviar_mensagem(numero, resposta_ia, sender_phone_number_id)
             if not contexto_comercial_ativo:
-                enviar_botoes(numero, "Posso ajudar com algo mais?", BOTOES_MENU_INICIAL)
+                enviar_botoes(numero, "Posso ajudar com algo mais?", BOTOES_MENU_INICIAL, sender_phone_number_id)
         else:
             enviar_mensagem(
                 numero,
-                f"Não entendi sua mensagem, {primeiro_nome}. Posso te ajudar por aqui 👇"
+                f"Não entendi sua mensagem, {primeiro_nome}. Posso te ajudar por aqui 👇",
+                sender_phone_number_id
             )
-            enviar_botoes(numero, "Escolha uma opção:", BOTOES_MENU_INICIAL)
+            enviar_botoes(numero, "Escolha uma opção:", BOTOES_MENU_INICIAL, sender_phone_number_id)
         return
 
     # ===== Menus topo (cliques de botões) =====
@@ -908,7 +977,7 @@ def responder(numero: str, mensagem: Any, nome_contato: Optional[str] = None) ->
             {"type": "reply", "reply": {"id": "1.1", "title": "Passeio"}},
             {"type": "reply", "reply": {"id": "1.2", "title": "Utilitário"}},
             {"type": "reply", "reply": {"id": "1.3", "title": "Endereço"}},
-        ])
+        ], sender_phone_number_id)
         return
 
     if id_normalizado == "2" or id_normalizado == "btn-oficina":
@@ -921,7 +990,7 @@ def responder(numero: str, mensagem: Any, nome_contato: Optional[str] = None) ->
             {"type": "reply", "reply": {"id": "3.2.1", "title": "Passeio"}},
             {"type": "reply", "reply": {"id": "3.2.2", "title": "Utilitário"}},
             {"type": "reply", "reply": {"id": "2.2",   "title": "Endereço Oficina"}},
-        ])
+        ], sender_phone_number_id)
         return
 
     if id_normalizado in ("mais1",):
@@ -934,7 +1003,7 @@ def responder(numero: str, mensagem: Any, nome_contato: Optional[str] = None) ->
             {"type": "reply", "reply": {"id": "3",             "title": "Crédito"}},
             {"type": "reply", "reply": {"id": "btn-pos-venda", "title": "Pós-venda"}},
             {"type": "reply", "reply": {"id": "mais2",         "title": "Mais opções ▶"}},
-        ])
+        ], sender_phone_number_id)
         return
 
     if id_normalizado in ("mais2", "btn-mais2"):
@@ -947,7 +1016,7 @@ def responder(numero: str, mensagem: Any, nome_contato: Optional[str] = None) ->
             {"type": "reply", "reply": {"id": "4.1",  "title": "Governamentais"}},
             {"type": "reply", "reply": {"id": "4.2",  "title": "Assinatura"}},
             {"type": "reply", "reply": {"id": "mais3", "title": "Mais opções ▶"}},
-        ])
+        ], sender_phone_number_id)
         return
 
     if id_normalizado == "mais3":
@@ -959,7 +1028,7 @@ def responder(numero: str, mensagem: Any, nome_contato: Optional[str] = None) ->
         enviar_botoes(numero, "Mais opções:", [
             {"type": "reply", "reply": {"id": "btn-trabalhe", "title": "Trabalhe conosco"}},
             {"type": "reply", "reply": {"id": "menu",         "title": "Voltar ao início"}},
-        ])
+        ], sender_phone_number_id)
         return
 
     if id_normalizado == "btn-pos-venda":
@@ -972,7 +1041,7 @@ def responder(numero: str, mensagem: Any, nome_contato: Optional[str] = None) ->
             {"type": "reply", "reply": {"id": "3.2.1", "title": "Passeio"}},
             {"type": "reply", "reply": {"id": "3.2.2", "title": "Utilitário"}},
             {"type": "reply", "reply": {"id": "menu",  "title": "Voltar ao início"}},
-        ])
+        ], sender_phone_number_id)
         return
     # ===== Folhas / Blocos =====
     if id_normalizado == "2.1":
@@ -981,7 +1050,7 @@ def responder(numero: str, mensagem: Any, nome_contato: Optional[str] = None) ->
             registrar_interacao(numero, nome_final, "Interesse - Oficina e Peças")
         except Exception as e:
             print("⚠️ registro 2.1 falhou:", e)
-        enviar_mensagem(numero, BLOCOS["2.1"])
+        enviar_mensagem(numero, BLOCOS["2.1"], sender_phone_number_id)
         return
 
     if id_normalizado in ("2.2", "endereco oficina", "endereço oficina"):
@@ -990,7 +1059,7 @@ def responder(numero: str, mensagem: Any, nome_contato: Optional[str] = None) ->
             registrar_interacao(numero, nome_final, "Interesse - Endereço Oficina")
         except Exception as e:
             print("⚠️ registro 2.2 falhou:", e)
-        enviar_mensagem(numero, BLOCOS["2.2"])
+        enviar_mensagem(numero, BLOCOS["2.2"], sender_phone_number_id)
         return
 
     # IDs literais dos sub-botões (Oficina/Peças e Pós-venda)
@@ -1000,7 +1069,7 @@ def responder(numero: str, mensagem: Any, nome_contato: Optional[str] = None) ->
             registrar_interacao(numero, nome_final, "Interesse - Oficina/Peças - Passeio (ID)")
         except Exception as e:
             print("⚠️ registro passeio(ID) falhou:", e)
-        enviar_mensagem(numero, BLOCOS["3.2.1"])
+        enviar_mensagem(numero, BLOCOS["3.2.1"], sender_phone_number_id)
         return
 
     if id_normalizado in ("3.2.2", "3,2,2", "32.2", "32,2", "oficina-utilitario", "p-venda-utilitario"):
@@ -1009,7 +1078,7 @@ def responder(numero: str, mensagem: Any, nome_contato: Optional[str] = None) ->
             registrar_interacao(numero, nome_final, "Interesse - Oficina/Peças - Utilitário (ID)")
         except Exception as e:
             print("⚠️ registro utilitario(ID) falhou:", e)
-        enviar_mensagem(numero, BLOCOS["3.2.2"])
+        enviar_mensagem(numero, BLOCOS["3.2.2"], sender_phone_number_id)
         return
 
     # Fase 3.1L (colisão real: pedido de vendedor pendente vs Oficina/Peças):
@@ -1026,7 +1095,7 @@ def responder(numero: str, mensagem: Any, nome_contato: Optional[str] = None) ->
     if id_normalizado in ("passeio", "utilitario", "utilitário") and assistente_comercial is not None:
         try:
             if assistente_comercial.assistente_comercial_ativo():
-                estado_pendente = assistente_comercial.obter_estado(numero)
+                estado_pendente = assistente_comercial.obter_estado(numero, sender_phone_number_id)
                 if (
                     estado_pendente
                     and estado_pendente.get("ativo")
@@ -1034,16 +1103,17 @@ def responder(numero: str, mensagem: Any, nome_contato: Optional[str] = None) ->
                     and estado_pendente.get("estagio") == "aguardando_veiculo"
                     and estado_pendente.get("intencao_visita")
                 ):
-                    _hist_atual = _get_hist_ia(numero)
+                    _hist_atual = _get_hist_ia(numero, sender_phone_number_id)
                     _ultima_ia = next(
                         (m.get("content") for m in reversed(_hist_atual) if m.get("role") == "assistant"),
                         None,
                     )
                     estado_comercial = assistente_comercial.processar_mensagem(
-                        numero, id_recebido, ultima_mensagem_ia=_ultima_ia
+                        numero, id_recebido, ultima_mensagem_ia=_ultima_ia,
+                        sender_phone_number_id=sender_phone_number_id
                     )
                     if estado_comercial and estado_comercial.get("qualificado") and not estado_comercial.get("vendedor"):
-                        _processar_transferencia_vendedor(numero, nome_final, estado_comercial)
+                        _processar_transferencia_vendedor(numero, nome_final, estado_comercial, sender_phone_number_id)
                     return
         except Exception as e:
             print("⚠️ Falha ao verificar pedido de vendedor pendente antes de Oficina/Peças (ignorada, seguindo fluxo padrão):", e)
@@ -1055,7 +1125,7 @@ def responder(numero: str, mensagem: Any, nome_contato: Optional[str] = None) ->
             registrar_interacao(numero, nome_final, "Interesse - Oficina/Peças - Passeio")
         except Exception as e:
             print("⚠️ registro passeio peças falhou:", e)
-        enviar_mensagem(numero, BLOCOS["3.2.1"])
+        enviar_mensagem(numero, BLOCOS["3.2.1"], sender_phone_number_id)
         return
 
     if id_normalizado in ("utilitario", "utilitário"):
@@ -1064,7 +1134,7 @@ def responder(numero: str, mensagem: Any, nome_contato: Optional[str] = None) ->
             registrar_interacao(numero, nome_final, "Interesse - Oficina/Peças - Utilitário")
         except Exception as e:
             print("⚠️ registro utilitário peças falhou:", e)
-        enviar_mensagem(numero, BLOCOS["3.2.2"])
+        enviar_mensagem(numero, BLOCOS["3.2.2"], sender_phone_number_id)
         return
 
     # Comprar/Vender (rodízio)
@@ -1074,7 +1144,7 @@ def responder(numero: str, mensagem: Any, nome_contato: Optional[str] = None) ->
             registrar_interacao(numero, nome_final, "Interesse - Passeio")
         except Exception as e:
             print("⚠️ registro passeio falhou:", e)
-        enviar_mensagem(numero, "*Veículos de Passeio*\n\n" + _bloco_vendedores(vendedores_passeio()))
+        enviar_mensagem(numero, "*Veículos de Passeio*\n\n" + _bloco_vendedores(vendedores_passeio()), sender_phone_number_id)
         return
 
     if id_normalizado == "1.2":
@@ -1083,7 +1153,7 @@ def responder(numero: str, mensagem: Any, nome_contato: Optional[str] = None) ->
             registrar_interacao(numero, nome_final, "Interesse - Utilitário")
         except Exception as e:
             print("⚠️ registro utilitario falhou:", e)
-        enviar_mensagem(numero, "*Veículos Utilitários*\n\n" + _bloco_vendedores(vendedores_util()))
+        enviar_mensagem(numero, "*Veículos Utilitários*\n\n" + _bloco_vendedores(vendedores_util()), sender_phone_number_id)
         return
 
     if id_normalizado in ("1.3", "btn-endereco"):
@@ -1092,7 +1162,7 @@ def responder(numero: str, mensagem: Any, nome_contato: Optional[str] = None) ->
             registrar_interacao(numero, nome_final, "Interesse - Endereço Loja")
         except Exception as e:
             print("⚠️ registro endereco falhou:", e)
-        enviar_mensagem(numero, BLOCOS["1.3"])
+        enviar_mensagem(numero, BLOCOS["1.3"], sender_phone_number_id)
         return
 
     if id_normalizado == "3":
@@ -1101,7 +1171,7 @@ def responder(numero: str, mensagem: Any, nome_contato: Optional[str] = None) ->
             registrar_interacao(numero, nome_final, "Interesse - Crédito")
         except Exception as e:
             print("⚠️ registro credito falhou:", e)
-        enviar_mensagem(numero, BLOCOS["3"])
+        enviar_mensagem(numero, BLOCOS["3"], sender_phone_number_id)
         return
 
     if id_normalizado == "4.1":
@@ -1110,7 +1180,7 @@ def responder(numero: str, mensagem: Any, nome_contato: Optional[str] = None) ->
             registrar_interacao(numero, nome_final, "Interesse - Governamentais")
         except Exception as e:
             print("⚠️ registro gov falhou:", e)
-        enviar_mensagem(numero, BLOCOS["4.1"])
+        enviar_mensagem(numero, BLOCOS["4.1"], sender_phone_number_id)
         return
 
     if id_normalizado == "4.2":
@@ -1119,7 +1189,7 @@ def responder(numero: str, mensagem: Any, nome_contato: Optional[str] = None) ->
             registrar_interacao(numero, nome_final, "Interesse - Assinatura")
         except Exception as e:
             print("⚠️ registro assinatura falhou:", e)
-        enviar_mensagem(numero, BLOCOS["4.2"])
+        enviar_mensagem(numero, BLOCOS["4.2"], sender_phone_number_id)
         return
 
     # Aliases
@@ -1129,7 +1199,7 @@ def responder(numero: str, mensagem: Any, nome_contato: Optional[str] = None) ->
             registrar_interacao(numero, nome_final, "Interesse - Governamentais (alias)")
         except Exception as e:
             print("⚠️ registro gov alias falhou:", e)
-        enviar_mensagem(numero, BLOCOS["4.1"])
+        enviar_mensagem(numero, BLOCOS["4.1"], sender_phone_number_id)
         return
 
     if id_normalizado in ("garantia", "btn-garantia"):
@@ -1142,7 +1212,7 @@ def responder(numero: str, mensagem: Any, nome_contato: Optional[str] = None) ->
             {"type": "reply", "reply": {"id": "3.2.1", "title": "Passeio"}},
             {"type": "reply", "reply": {"id": "3.2.2", "title": "Utilitário"}},
             {"type": "reply", "reply": {"id": "menu",  "title": "Voltar ao início"}},
-        ])
+        ], sender_phone_number_id)
         return
 
     # Trabalhe Conosco (links wa.me + e-mails)
@@ -1159,7 +1229,8 @@ def responder(numero: str, mensagem: Any, nome_contato: Optional[str] = None) ->
             "Sullato Veículos – Alex: https://wa.me/5511996371559 | alex@sullato.com.br\n"
             "Peças e Oficina – Érico: https://wa.me/5511940497678 | erico@sullato.com.br\n\n"
             "Envie seu nome completo, e-mail e um breve resumo da sua experiência.\n"
-            "Se preferir, cole seu currículo (texto)."
+            "Se preferir, cole seu currículo (texto).",
+            sender_phone_number_id
         )
         return
 
@@ -1182,7 +1253,7 @@ def responder(numero: str, mensagem: Any, nome_contato: Optional[str] = None) ->
         }
         if intencao in mapa:
             texto, label = mapa[intencao]
-            enviar_mensagem(numero, texto)
+            enviar_mensagem(numero, texto, sender_phone_number_id)
             try:
                 atualizar_interesse(numero, label)
                 registrar_interacao(numero, nome_final, f"IA/Heurística - {label}")
@@ -1201,5 +1272,5 @@ def responder(numero: str, mensagem: Any, nome_contato: Optional[str] = None) ->
         {"type": "reply", "reply": {"id": "1", "title": "Comprar/Vender"}},
         {"type": "reply", "reply": {"id": "2", "title": "Oficina/Peças"}},
         {"type": "reply", "reply": {"id": "mais1", "title": "Mais opções"}},
-    ])
+    ], sender_phone_number_id)
     return

@@ -724,9 +724,23 @@ def _expirado(estado: Dict[str, Any]) -> bool:
     return (time.time() - estado.get("ultima_atualizacao", 0)) > _ESTADO_TTL
 
 
-def _novo_estado(numero: str) -> Dict[str, Any]:
+# Fase 3.1O (dois números Meta no mesmo bot — PHONE_NUMBER_ID e
+# PHONE_NUMBER_ID_2030): chave composta (sender_phone_number_id, numero)
+# para o estado comercial de um mesmo cliente NUNCA se misturar quando ele
+# conversa com os dois números empresariais ao mesmo tempo. Quando
+# sender_phone_number_id não é informado (chamadas antigas/testes já
+# existentes, que não conhecem o segundo número), a chave continua sendo
+# só `numero` — idêntico ao comportamento anterior, sem quebrar nada.
+def _chave_estado(numero: str, sender_phone_number_id: Optional[str] = None) -> str:
+    if sender_phone_number_id:
+        return f"{sender_phone_number_id}:{numero}"
+    return numero
+
+
+def _novo_estado(numero: str, sender_phone_number_id: Optional[str] = None) -> Dict[str, Any]:
     return {
         "numero": numero,
+        "sender_phone_number_id": sender_phone_number_id,  # qual número empresarial recebeu esta conversa
         "ativo": False,
         "origem": None,             # "site" | "social" | None
         "veiculo": None,
@@ -822,24 +836,30 @@ def extrair_veiculo(texto: str, url: Optional[str] = None) -> Optional[str]:
     return escolhida[:200]
 
 
-def obter_estado(numero: str) -> Optional[Dict[str, Any]]:
+def obter_estado(numero: str, sender_phone_number_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
     """
     Consulta o estado comercial atual do telefone. Expira e remove
     automaticamente se o TTL tiver vencido. Retorna sempre uma cópia
     (nunca a referência interna).
+
+    sender_phone_number_id (Fase 3.1O): identifica qual dos números Meta
+    recebeu a conversa, para isolar o estado quando o mesmo cliente fala
+    com os dois números empresariais. Omitido = comportamento anterior
+    (chave só pelo número do cliente).
     """
-    estado = _ESTADOS.get(numero)
+    chave = _chave_estado(numero, sender_phone_number_id)
+    estado = _ESTADOS.get(chave)
     if not estado:
         return None
     if _expirado(estado):
-        del _ESTADOS[numero]
+        del _ESTADOS[chave]
         return None
     return dict(estado)
 
 
-def tem_contexto_comercial(numero: str) -> bool:
+def tem_contexto_comercial(numero: str, sender_phone_number_id: Optional[str] = None) -> bool:
     """Atalho: existe sessão comercial ativa e não expirada para o telefone?"""
-    estado = obter_estado(numero)
+    estado = obter_estado(numero, sender_phone_number_id)
     return bool(estado and estado.get("ativo"))
 
 
@@ -906,18 +926,20 @@ def resposta_vendedor_determinada(estado: Optional[Dict[str, Any]], texto: str) 
     return None
 
 
-def limpar_estado(numero: str) -> None:
+def limpar_estado(numero: str, sender_phone_number_id: Optional[str] = None) -> None:
     """Remove o estado comercial do telefone, se existir."""
-    _ESTADOS.pop(numero, None)
+    _ESTADOS.pop(_chave_estado(numero, sender_phone_number_id), None)
 
 
-def definir_vendedor(numero: str, nome: str, link: str) -> bool:
+def definir_vendedor(
+    numero: str, nome: str, link: str, sender_phone_number_id: Optional[str] = None
+) -> bool:
     """
     Grava, no estado do telefone, o vendedor selecionado pelo BACKEND
     (nunca pela IA). Idempotência é responsabilidade de quem chama: só deve
     ser invocada quando estado["vendedor"] ainda estiver None.
     """
-    estado = _ESTADOS.get(numero)
+    estado = _ESTADOS.get(_chave_estado(numero, sender_phone_number_id))
     if not estado or _expirado(estado):
         return False
     estado["vendedor"] = {"nome": nome, "link": link}
@@ -925,10 +947,10 @@ def definir_vendedor(numero: str, nome: str, link: str) -> bool:
     return True
 
 
-def marcar_transferencia_concluida(numero: str) -> bool:
+def marcar_transferencia_concluida(numero: str, sender_phone_number_id: Optional[str] = None) -> bool:
     """Marca a transferência como concluída — só deve ser chamada após o
     envio ao vendedor ter sido confirmado com sucesso."""
-    estado = _ESTADOS.get(numero)
+    estado = _ESTADOS.get(_chave_estado(numero, sender_phone_number_id))
     if not estado or _expirado(estado):
         return False
     estado["transferencia_concluida"] = True
@@ -937,7 +959,10 @@ def marcar_transferencia_concluida(numero: str) -> bool:
 
 
 def processar_mensagem(
-    numero: str, texto: str, ultima_mensagem_ia: Optional[str] = None
+    numero: str,
+    texto: str,
+    ultima_mensagem_ia: Optional[str] = None,
+    sender_phone_number_id: Optional[str] = None,
 ) -> Optional[Dict[str, Any]]:
     """
     Processa uma mensagem recebida e cria/atualiza o estado comercial do
@@ -950,11 +975,17 @@ def processar_mensagem(
     interpretar uma resposta afirmativa curta ("sim") como aceite de
     visita quando a IA acabou de convidar o cliente a conhecer o veículo
     na loja — nunca presumido de um "sim" isolado sem esse contexto.
+
+    sender_phone_number_id (Fase 3.1O, opcional): número Meta que recebeu
+    esta mensagem — usado só para isolar o estado (_chave_estado) quando o
+    mesmo cliente conversa com os dois números empresariais. Omitido =
+    comportamento anterior.
     """
     texto = texto or ""
     texto_norm = _normalizar(texto)
+    chave = _chave_estado(numero, sender_phone_number_id)
 
-    estado_existente = obter_estado(numero)  # já expira/limpa sozinho se vencido
+    estado_existente = obter_estado(numero, sender_phone_number_id)  # já expira/limpa sozinho se vencido
 
     # Fase 3.1E — fluxo de VISITA (rota D): dia + período antes de transferir.
     # Continuação de uma coleta já em andamento tem prioridade sobre qualquer
@@ -972,7 +1003,7 @@ def processar_mensagem(
             estado_existente["horario_visita"] = periodo
         _finalizar_estagio_visita(estado_existente, texto)
         estado_existente["ultima_atualizacao"] = time.time()
-        _ESTADOS[numero] = estado_existente
+        _ESTADOS[chave] = estado_existente
         return dict(estado_existente)
 
     # Sinal inequívoco de avançar para atendimento humano (aprovado por
@@ -993,7 +1024,7 @@ def processar_mensagem(
             estado_existente["intencao_visita"] = texto.strip()[:200]
             _finalizar_estagio_visita(estado_existente, texto)
             estado_existente["ultima_atualizacao"] = time.time()
-            _ESTADOS[numero] = estado_existente
+            _ESTADOS[chave] = estado_existente
             return dict(estado_existente)
 
         # Rota E (contato humano direto): transfere imediatamente, sem
@@ -1022,7 +1053,7 @@ def processar_mensagem(
             else:
                 estado_existente["estagio"] = "aguardando_veiculo"
             estado_existente["ultima_atualizacao"] = time.time()
-            _ESTADOS[numero] = estado_existente
+            _ESTADOS[chave] = estado_existente
             return dict(estado_existente)
 
         # Fase 3.1J (item 1 do diagnóstico real "Sprinter/Mercedes"): o
@@ -1043,7 +1074,7 @@ def processar_mensagem(
                 estado_existente["categoria"] = nova_categoria
                 estado_existente["veiculo"] = texto.strip()[:200]
                 estado_existente["ultima_atualizacao"] = time.time()
-                _ESTADOS[numero] = estado_existente
+                _ESTADOS[chave] = estado_existente
                 return dict(estado_existente)
 
     # Fase 3.1F — pedido explícito de mudar dia/período de uma visita já
@@ -1070,7 +1101,7 @@ def processar_mensagem(
             _trocar_categoria_ativa(estado_existente, categoria_mencionada)
             estado_existente["intencao_visita"] = texto.strip()[:200]
             estado_existente["ultima_atualizacao"] = time.time()
-            _ESTADOS[numero] = estado_existente
+            _ESTADOS[chave] = estado_existente
             return dict(estado_existente)
 
         dia_novo = _extrair_dia(texto_norm)
@@ -1094,7 +1125,7 @@ def processar_mensagem(
                 else:
                     estado_existente["aviso_horario"] = validacao.get("horario_operacao")
             estado_existente["ultima_atualizacao"] = time.time()
-            _ESTADOS[numero] = estado_existente
+            _ESTADOS[chave] = estado_existente
             return dict(estado_existente)
 
     # Continuação de uma sessão que está aguardando o veículo (cenário D)
@@ -1126,14 +1157,14 @@ def processar_mensagem(
         # resposta indefinida/negativa: mantém estagio "aguardando_veiculo"
 
         estado_existente["ultima_atualizacao"] = time.time()
-        _ESTADOS[numero] = estado_existente
+        _ESTADOS[chave] = estado_existente
         return dict(estado_existente)
 
     # Entrada comercial vinda de site/anúncio, com URL ou sinal forte de
     # veículo mesmo sem URL reconhecida (cenário A)
     url = detectar_url(texto)
     if url or _eh_entrada_forte_veiculo(texto_norm):
-        estado = estado_existente or _novo_estado(numero)
+        estado = estado_existente or _novo_estado(numero, sender_phone_number_id)
         estado["ativo"] = True
         estado["origem"] = "site"
         if url:
@@ -1146,18 +1177,18 @@ def processar_mensagem(
         else:
             estado["estagio"] = "aguardando_veiculo"
         estado["ultima_atualizacao"] = time.time()
-        _ESTADOS[numero] = estado
+        _ESTADOS[chave] = estado
         return dict(estado)
 
     # Entrada comercial genérica, sem veículo identificado ainda (cenário B)
     if _eh_interesse_generico(texto_norm):
-        estado = estado_existente or _novo_estado(numero)
+        estado = estado_existente or _novo_estado(numero, sender_phone_number_id)
         estado["ativo"] = True
         if not estado.get("origem"):
             estado["origem"] = "social"
         estado["estagio"] = "aguardando_veiculo"
         estado["ultima_atualizacao"] = time.time()
-        _ESTADOS[numero] = estado
+        _ESTADOS[chave] = estado
         return dict(estado)
 
     # Correção B (Bloco A comercial): pedido explícito de vendedor/contato
@@ -1169,7 +1200,7 @@ def processar_mensagem(
     # que a categoria for conhecida (cenário D), qualifica direto, sem
     # pedir de novo. Nunca usa vendedor de categoria errada.
     if estado_existente is None and _eh_sinal_transferencia(texto_norm):
-        estado = _novo_estado(numero)
+        estado = _novo_estado(numero, sender_phone_number_id)
         estado["ativo"] = True
         estado["origem"] = "social"
         estado["intencao_visita"] = texto.strip()[:200]
@@ -1189,7 +1220,7 @@ def processar_mensagem(
             estado["estagio"] = "aguardando_veiculo"
 
         estado["ultima_atualizacao"] = time.time()
-        _ESTADOS[numero] = estado
+        _ESTADOS[chave] = estado
         return dict(estado)
 
     # Nenhum sinal comercial nesta mensagem
@@ -1201,7 +1232,7 @@ def processar_mensagem(
         # o estado (inclusive o vendedor já atribuído) com a conversa real
         # ainda em andamento.
         estado_existente["ultima_atualizacao"] = time.time()
-        _ESTADOS[numero] = estado_existente
+        _ESTADOS[chave] = estado_existente
         return dict(estado_existente)
 
     # Sem sessão e sem sinal comercial (ex.: "Olá" isolado) — cenário C

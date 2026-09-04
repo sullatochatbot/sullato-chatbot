@@ -9,14 +9,16 @@ import responder  # seu módulo principal de respostas
 VERIFY_TOKEN = os.getenv("VERIFY_TOKEN", "sullato_token_verificacao")
 ACCESS_TOKEN = os.getenv("ACCESS_TOKEN")
 PHONE_NUMBER_ID = os.getenv("PHONE_NUMBER_ID")
+PHONE_NUMBER_ID_2030 = os.getenv("PHONE_NUMBER_ID_2030")
 ADS_API_KEY = os.getenv("ADS_API_KEY")  # ✅ novo: chave para autorizar /ads-broadcast
 
 app = Flask(__name__)
 
-def _send_text(phone_number: str, message: str) -> None:
+def _send_text(phone_number: str, message: str, sender_phone_number_id: str = None) -> None:
     """Fallback: envia texto direto pela API da Meta."""
     try:
-        url = f"https://graph.facebook.com/v19.0/{PHONE_NUMBER_ID}/messages"
+        sender_id = sender_phone_number_id or PHONE_NUMBER_ID
+        url = f"https://graph.facebook.com/v19.0/{sender_id}/messages"
         headers = {"Authorization": f"Bearer {ACCESS_TOKEN}", "Content-Type": "application/json"}
         payload = {
             "messaging_product": "whatsapp",
@@ -140,6 +142,10 @@ def webhook():
         changes = (entry.get("changes") or [{}])[0]
         value = changes.get("value") or {}
 
+        metadata = value.get("metadata") or {}
+        incoming_phone_number_id = metadata.get("phone_number_id") or PHONE_NUMBER_ID
+        print(f"📞 Número receptor (phone_number_id): {incoming_phone_number_id}")
+
         messages = value.get("messages") or []
         if not messages:
             print("ℹ️  Evento sem 'messages' (status/ack).")
@@ -169,22 +175,30 @@ def webhook():
 
         # Imagem — resposta direta, sem passar pelo motor
         if msg.get("type") == "image":
-            _send_text(phone,
+            _send_text(
+                phone,
                 "Recebemos sua imagem! 📸\n\n"
                 "Infelizmente não consigo visualizar fotos por aqui.\n\n"
-                "Pode descrever em texto o que você procura? Será um prazer ajudar! 😊"
+                "Pode descrever em texto o que você procura? Será um prazer ajudar! 😊",
+                incoming_phone_number_id
             )
             return jsonify({"status": "ok"}), 200
 
         # Chama seu motor de respostas (duas assinaturas possíveis)
         try:
-            if hasattr(responder, "gerar_resposta"):
-                responder.gerar_resposta(msg, phone, name)
-            else:
-                responder.responder(phone, {"text": {"body": text}}, name)
+            responder.responder(
+                phone,
+                {"text": {"body": text}},
+                name,
+                incoming_phone_number_id
+            )
         except Exception as e:
             print("❌ CRASH dentro do responder:", e)
-            _send_text(phone, "Tive um erro momentâneo, mas estou online. Digite *menu*.")
+            _send_text(
+                phone,
+                "Tive um erro momentâneo, mas estou online. Digite *menu*.",
+                incoming_phone_number_id
+            )
 
         return jsonify({"status": "ok"}), 200
 

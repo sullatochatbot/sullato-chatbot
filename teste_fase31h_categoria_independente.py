@@ -35,7 +35,7 @@ def _stub_envio(monkeypatches, sucesso=True, chamadas=None):
         chamadas["template"] += 1
         return sucesso
 
-    def _fake_enviar_mensagem(numero, texto):
+    def _fake_enviar_mensagem(numero, texto, sender_phone_number_id=None):
         chamadas["mensagem_cliente"] = chamadas.get("mensagem_cliente", 0) + 1
 
     original_msg = responder._enviar_mensagem_com_status

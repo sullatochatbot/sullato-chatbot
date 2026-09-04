@@ -68,8 +68,8 @@ def _mockar_saidas_externas(monkeypatches):
         chamadas["alerta_handoff"] += 1
 
     alvos = [
-        ("enviar_mensagem", lambda n, t: None),
-        ("enviar_botoes", lambda n, t, b: None),
+        ("enviar_mensagem", lambda n, t, s=None: None),
+        ("enviar_botoes", lambda n, t, b, s=None: None),
         ("_enviar_mensagem_com_status", _fake_mensagem_status),
         ("_enviar_template_novo_lead_vendedor", _fake_template),
         ("enviar_para_google_sheets", _fake_sheets),
@@ -122,9 +122,9 @@ def teste_pergunta_institucional_no_meio_da_negociacao_nao_troca_vendedor():
         chamadas = _mockar_saidas_externas(monkeypatches)
         enviados = []
         original_enviar_mensagem = responder.enviar_mensagem
-        responder.enviar_mensagem = lambda n, t: enviados.append(t)
+        responder.enviar_mensagem = lambda n, t, s=None: enviados.append(t)
         monkeypatches.append((responder, "enviar_mensagem", original_enviar_mensagem))
-        responder.enviar_botoes = lambda n, t, b: None
+        responder.enviar_botoes = lambda n, t, b, s=None: None
 
         vendedor_u, vendedor_p = _fluxo_ate_dois_vendedores(numero, "Master", "carro de passeio")
         assert vendedor_u in [n for n, _ in responder.VENDEDORES_UTIL_BASE]
@@ -308,9 +308,9 @@ def teste_sem_vendedor_atribuido_nao_inventa():
         chamadas = _mockar_saidas_externas(monkeypatches)
         enviados = []
         original_enviar_mensagem = responder.enviar_mensagem
-        responder.enviar_mensagem = lambda n, t: enviados.append(t)
+        responder.enviar_mensagem = lambda n, t, s=None: enviados.append(t)
         monkeypatches.append((responder, "enviar_mensagem", original_enviar_mensagem))
-        responder.enviar_botoes = lambda n, t, b: None
+        responder.enviar_botoes = lambda n, t, b, s=None: None
 
         # Nenhuma mensagem anterior -- nenhum vendedor atribuido ainda.
         assert ac.obter_estado(numero) is None
