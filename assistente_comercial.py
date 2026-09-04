@@ -843,6 +843,69 @@ def tem_contexto_comercial(numero: str) -> bool:
     return bool(estado and estado.get("ativo"))
 
 
+# Fase 3.1N: gatilhos de "quem é o vendedor/responsável ATUAL" usados
+# exclusivamente por resposta_vendedor_determinada() — deliberadamente
+# SEPARADOS de _GATILHOS_QUEM_ATENDE (usado por _eh_sinal_transferencia,
+# que também decide troca de categoria ativa em conversas já qualificadas).
+# Testado e confirmado: reaproveitar _GATILHOS_QUEM_ATENDE aqui direto fazia
+# uma pergunta puramente informativa como "quem está cuidando da minha
+# van?" TAMBÉM contar como sinal de transferência dentro de
+# processar_mensagem, trocando a categoria ativa como efeito colateral
+# indesejado (o cliente só queria saber quem é o vendedor, não mudar de
+# assunto). Esta lista soma _GATILHOS_QUEM_ATENDE (mesma cobertura de
+# perguntas já reconhecidas) com as variações adicionais pedidas, sem
+# alterar em nada o comportamento de _eh_sinal_transferencia/troca de
+# categoria já homologado.
+_GATILHOS_PERGUNTA_VENDEDOR_ATUAL = _GATILHOS_QUEM_ATENDE + (
+    "quem esta cuidando", "quem ta cuidando", "quem cuida",
+    "com quem estou falando", "quem e meu vendedor", "quem e o meu vendedor",
+    "qual e meu vendedor",
+)
+
+
+def resposta_vendedor_determinada(estado: Optional[Dict[str, Any]], texto: str) -> Optional[Dict[str, str]]:
+    """
+    Fase 3.1N — barreira de CÓDIGO (não de prompt) contra vendedor incorreto:
+    quando a mensagem pergunta quem é o vendedor/responsável atual
+    (_GATILHOS_PERGUNTA_VENDEDOR_ATUAL), responde exclusivamente a partir do
+    estado determinístico — sem passar pela IA — para essa pergunta
+    específica não depender de o modelo citar o nome certo (nem de
+    histórico antigo, nem de invenção). Nunca inventa: se não houver
+    vendedor real determinado para a categoria perguntada (ou para a
+    categoria ativa, quando nenhuma for mencionada explicitamente), retorna
+    None e o chamador segue o fluxo normal (que, por sua vez, também não
+    deve inventar vendedor). Não muda categoria ativa nem nenhum outro
+    campo do estado — só LÊ.
+
+    Retorna o dict {"nome", "link"} do vendedor a citar, ou None quando:
+    - a mensagem não é esse tipo de pergunta; ou
+    - é esse tipo de pergunta, mas ainda não há vendedor real para
+      responder (categoria perguntada sem atendimento ainda, ou nenhuma
+      transferência concluída na categoria ativa).
+    """
+    if not estado or not estado.get("ativo"):
+        return None
+    texto_norm = _normalizar(texto or "")
+    if not any(g in texto_norm for g in _GATILHOS_PERGUNTA_VENDEDOR_ATUAL):
+        return None
+
+    categoria_perguntada = _detectar_categoria_mencionada(texto_norm)
+    if categoria_perguntada and categoria_perguntada != estado.get("categoria"):
+        # Pergunta explicitamente sobre a OUTRA categoria (ex.: já está no
+        # atendimento de passeio e pergunta "quem cuida da minha van?") —
+        # só o atendimento independente já registrado responde por ela.
+        dados = (estado.get("atendimentos") or {}).get(categoria_perguntada)
+        if dados and dados.get("vendedor"):
+            return dados["vendedor"]
+        return None
+
+    # Sem categoria diferente mencionada: responde pela categoria ATIVA
+    # atual, só se já houver transferência de fato concluída para ela.
+    if estado.get("vendedor") and estado.get("transferencia_concluida"):
+        return estado["vendedor"]
+    return None
+
+
 def limpar_estado(numero: str) -> None:
     """Remove o estado comercial do telefone, se existir."""
     _ESTADOS.pop(numero, None)

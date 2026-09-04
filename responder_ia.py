@@ -223,8 +223,22 @@ Instruções:
 # já haver transferência concluída — a fonte de verdade é sempre o estado
 # determinístico (categoria/vendedor atribuídos pelo backend), nunca uma
 # suposição da IA.
+#
+# Fase 3.1M (diagnóstico real "Jeferson"): reforço explícito contra dois
+# vazamentos comprovados por reprodução — (1) um nome de vendedor mencionado
+# em alguma troca ANTERIOR desta mesma conversa (guardado em _HIST_IA,
+# responder.py) pode divergir do vendedor real atual, porque a confirmação
+# determinística do handoff nunca é adicionada a esse histórico — só o texto
+# livre da IA é. Isso significa que um nome já dito antes (certo ou uma
+# alucinação antiga) continua chegando ao modelo em turnos seguintes, mesmo
+# depois do backend já ter atribuído (ou trocado) o vendedor de verdade.
+# (2) dados institucionais do criador do sistema (quando presentes neste
+# mesmo prompt, ver _BLOCO_INSTITUCIONAL_CRIADOR) NUNCA podem ser
+# confundidos com o vendedor comercial desta conversa, nos dois sentidos.
 _REGRA_VENDEDOR_SEM_INVENCAO = """
 - NUNCA afirme ou sugira que um vendedor atende uma categoria de veículo diferente da que está realmente atribuída a ele nesta conversa (ex.: não diga que um vendedor de passeio também atende vans/utilitários, nem o contrário) — cada vendedor atende só a categoria correta, sem exceção. NUNCA diga que um vendedor já recebeu as informações do cliente ou que uma transferência foi concluída se isso não estiver confirmado neste contexto. Não invente atribuições, funções ou especialidades de nenhum vendedor — na dúvida, simplesmente não mencione isso.
+- A ÚNICA fonte de verdade sobre qual vendedor está cuidando deste cliente é o que está definido nestas instruções do sistema (o bloco de transferência concluída, quando existir, mais abaixo). Se em qualquer mensagem ANTERIOR desta conversa (no histórico) aparecer o nome de um vendedor diferente do informado aqui — ou se nenhum vendedor tiver sido informado aqui —, esse nome do histórico está desatualizado ou incorreto: ignore-o completamente. NUNCA repita, confirme ou reafirme um nome de vendedor só porque ele já apareceu antes na conversa — confirme sempre com o vendedor definido aqui agora, ou diga que isso ainda será confirmado pela equipe se nenhum vendedor estiver definido.
+- Se este prompt também contiver informações sobre quem criou/desenvolveu o sistema (perguntas institucionais), essas informações são de uma pessoa completamente diferente do vendedor comercial desta negociação — nunca apresente o criador/desenvolvedor do sistema como se fosse o vendedor comercial, nem o vendedor comercial como se fosse o criador/desenvolvedor do sistema.
 """
 
 _BLOCO_COMERCIAL_SEM_VEICULO = """
@@ -261,15 +275,22 @@ def _montar_system_prompt(
     incluído sem nenhuma alteração. O bloco comercial (Fase 3.1C) só é
     anexado quando existe contexto comercial ativo.
 
-    Fase 3.1J (item 4 do diagnóstico real): o bloco institucional (dados do
-    criador do chatbot) NUNCA é anexado quando há contexto comercial ativo
-    — negociação de compra/venda/financiamento/veículo/vendedor/visita/
-    estoque nunca deve ter acesso a esses dados, mesmo que o cliente pergunte
-    por eles no meio da conversa. Fora de contexto comercial, só é anexado
-    quando a mensagem atual traz intenção explícita de perguntar sobre o
-    criador/desenvolvedor do sistema (_eh_pergunta_sobre_criador).
+    Fase 3.1J/3.1M (diagnóstico real): o bloco institucional (dados do
+    criador do chatbot) só é anexado quando a mensagem atual traz intenção
+    explícita de perguntar sobre o criador/desenvolvedor do sistema
+    (_eh_pergunta_sobre_criador) — nunca por padrão. A Fase 3.1J chegou a
+    bloquear esse bloco por completo sempre que havia contexto comercial
+    ativo; a Fase 3.1M relaxou essa restrição (confirmado explicitamente:
+    a pergunta institucional deve continuar funcionando mesmo no meio de
+    uma negociação comercial, sem interferir em categoria/vendedor/
+    transferencia_concluida) — ela só depende da intenção detectada na
+    mensagem, em qualquer um dos dois modos (com ou sem contexto
+    comercial). _REGRA_VENDEDOR_SEM_INVENCAO garante que os dois blocos,
+    quando presentes juntos, nunca se confundam.
     """
-    if not contexto_comercial or not contexto_comercial.get("ativo"):
+    contexto_ativo = bool(contexto_comercial and contexto_comercial.get("ativo"))
+
+    if not contexto_ativo:
         sistema = _SISTEMA_BASE
         if _eh_pergunta_sobre_criador(mensagem):
             sistema += _BLOCO_INSTITUCIONAL_CRIADOR
@@ -326,6 +347,13 @@ def _montar_system_prompt(
         bloco += _BLOCO_TRANSFERENCIA_CONCLUIDA.format(
             vendedor_nome=vendedor.get("nome", ""), vendedor_link=vendedor.get("link", "")
         )
+
+    # Fase 3.1M: intenção institucional explícita libera o bloco do criador
+    # mesmo com contexto comercial ativo — a negociação continua normalmente
+    # depois (nada aqui mexe em categoria/vendedor/transferencia_concluida,
+    # que vivem só no estado determinístico de assistente_comercial.py).
+    if _eh_pergunta_sobre_criador(mensagem):
+        bloco += _BLOCO_INSTITUCIONAL_CRIADOR
 
     return _SISTEMA_BASE + bloco
 

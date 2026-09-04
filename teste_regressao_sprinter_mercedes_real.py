@@ -233,8 +233,13 @@ def teste_menu_nao_sequestra_contexto_comercial_ativo():
 
 
 def teste_dados_institucionais_isolados():
-    """Fase 3.1J (item 4): dados do Anderson so aparecem com intencao
-    explicita de perguntar sobre o criador, e NUNCA em contexto comercial."""
+    """Fase 3.1J (item 4) + Fase 3.1M (confirmado por Anderson): dados do
+    Anderson so aparecem com intencao explicita de perguntar sobre o
+    criador — independente de haver ou nao contexto comercial ativo (a
+    Fase 3.1J chegou a bloquear isso por completo durante negociacao
+    comercial; a Fase 3.1M relaxou essa restricao a pedido explicito,
+    confirmando que a resposta institucional deve continuar funcionando no
+    meio de uma negociacao, sem interferir em categoria/vendedor)."""
     # Sem contexto comercial, sem intencao de perguntar sobre o criador.
     prompt = responder_ia._montar_system_prompt(None, "quero comprar um carro")
     assert "98878" not in prompt and "anderson@sullato.com.br" not in prompt
@@ -253,17 +258,25 @@ def teste_dados_institucionais_isolados():
         p = responder_ia._montar_system_prompt(None, pergunta)
         assert "anderson@sullato.com.br" in p, f"deveria reconhecer intencao institucional em: {pergunta!r}"
 
-    # COM contexto comercial ativo, mesmo perguntando sobre o criador -> NUNCA aparece.
+    # COM contexto comercial ativo, SEM intencao institucional -> nao aparece.
     contexto_comercial_ativo = {
         "ativo": True, "categoria": "utilitario", "veiculo": "Sprinter",
-        "vendedor": None, "transferencia_concluida": False,
+        "vendedor": {"nome": "Vendedor Teste U", "link": "https://wa.me/5511900000000"},
+        "transferencia_concluida": True,
     }
-    prompt = responder_ia._montar_system_prompt(contexto_comercial_ativo, "quem criou esse chatbot?")
-    assert "98878" not in prompt and "anderson@sullato.com.br" not in prompt, (
-        "dados institucionais NUNCA podem aparecer durante negociacao comercial ativa"
-    )
+    prompt = responder_ia._montar_system_prompt(contexto_comercial_ativo, "quero saber mais sobre a sprinter")
+    assert "98878" not in prompt and "anderson@sullato.com.br" not in prompt
 
-    print("OK  Dados institucionais do Anderson isolados (so aparecem com intencao explicita e fora de contexto comercial)")
+    # COM contexto comercial ativo, COM intencao institucional explicita ->
+    # DEVE aparecer (Fase 3.1M), e o vendedor comercial continua presente e
+    # intacto — os dois contextos coexistem sem se contaminar.
+    prompt = responder_ia._montar_system_prompt(contexto_comercial_ativo, "quem criou esse chatbot?")
+    assert "98878" in prompt and "anderson@sullato.com.br" in prompt, (
+        "resposta institucional deve continuar funcionando mesmo com negociacao comercial ativa (Fase 3.1M)"
+    )
+    assert "Vendedor Teste U" in prompt, "vendedor comercial nao pode sumir do prompt so por causa da pergunta institucional"
+
+    print("OK  Dados institucionais do Anderson: aparecem so com intencao explicita, com ou sem contexto comercial ativo (Fase 3.1M)")
 
 
 if __name__ == "__main__":

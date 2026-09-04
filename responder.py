@@ -846,6 +846,32 @@ def responder(numero: str, mensagem: Any, nome_contato: Optional[str] = None) ->
             _processar_transferencia_vendedor(numero, nome_final, estado_comercial)
             return
 
+        # ===== Fase 3.1N: barreira de CÓDIGO contra vendedor incorreto =====
+        # Quando o cliente pergunta quem é o vendedor/responsável atual
+        # ("quem está cuidando da minha van?", "com quem estou falando?",
+        # etc.) e já existe um vendedor real determinado no estado (da
+        # categoria ativa ou de um atendimento independente já concluído
+        # para a categoria mencionada), responde direto por aqui — sem
+        # passar pela IA — para essa pergunta nunca depender do modelo citar
+        # o nome certo (nem de histórico antigo, nem de invenção). Se não
+        # houver vendedor determinado ainda, retorna None e cai no fluxo
+        # normal (IA), que também é instruída a não inventar vendedor.
+        if contexto_comercial_ativo:
+            try:
+                vendedor_determinado = assistente_comercial.resposta_vendedor_determinada(
+                    estado_comercial, id_recebido
+                )
+            except Exception as e:
+                vendedor_determinado = None
+                print("⚠️ Falha ao verificar pergunta determinística de vendedor (ignorada):", e)
+            if vendedor_determinado:
+                enviar_mensagem(
+                    numero,
+                    f"Seu atendimento está com {vendedor_determinado.get('nome', '')}, da nossa equipe.\n\n"
+                    f"📱 {vendedor_determinado.get('nome', '')}: {vendedor_determinado.get('link', '')}"
+                )
+                return
+
         resposta_ia = None
         try:
             hist = _get_hist_ia(numero)
