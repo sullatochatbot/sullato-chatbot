@@ -2,7 +2,9 @@
 
 > Para retomar em uma nova sessão: **"Leia FASE_3_1_STATUS.md e continue a Fase 3.1 do ponto onde paramos."**
 
-Última atualização: 2026-09-01. HEAD em produção/homologação: commit `58d6687`.
+Última atualização: 2026-09-04. HEAD em produção/homologação: commit `09b5f4c` (ver seção 9 — Multi-número Meta).
+
+> **Entre 2026-09-01 (commit `58d6687`) e 2026-09-04 houve uma sequência extensa de correções críticas no assistente comercial (Fases 3.1H a 3.1N — categoria por posição/contraste, vendedor determinístico, isolamento do bloco institucional, colisão com Oficina/Peças, barreira de código contra vendedor inventado) e, na sequência, a Fase 3.1O/3.1P (suporte a múltiplos números Meta no mesmo chatbot). Essas fases não têm seção própria detalhada neste arquivo (ver histórico de commits e memória do projeto) — a seção 9 abaixo documenta o estado mais recente, já homologado em produção.
 
 ---
 
@@ -145,6 +147,102 @@ Itens de backlog mais antigos, ainda válidos:
 - Menu, áudio, templates Meta (demais), janela de 24h
 - Identificação atual do veículo, fluxo de troca, fluxo de financiamento, endereço por categoria
 - Qualquer outro fluxo homologado fora do escopo desta fase
+- **(novo, ver seção 9)** Roteamento por `sender_phone_number_id` (`webhook.py`: extração de `metadata.phone_number_id`; `responder.py`: propagação em todos os envios ao cliente; `assistente_comercial.py`: `_chave_estado()`/`_chave_hist()`) — não alterar sem evidência real de problema.
+
+---
+
+## 9. Multi-número Meta (94054 / 2030 / 2542) — Homologação 04/09/2026
+
+### 9.1 Estado operacional
+
+O chatbot do Grupo Sullato está atualmente operando com **3 números de produção na mesma estrutura Meta/WABA** ("Grupo Sullato Chatbot's"), todos apontando para o **mesmo serviço Render, o mesmo webhook e a mesma base de código** — não são três chatbots, são três portas de entrada para o mesmo chatbot:
+
+| Número | Variável de ambiente |
+|---|---|
+| 94054 (original) | `PHONE_NUMBER_ID` |
+| 2030 | `PHONE_NUMBER_ID_2030` |
+| 2542 | `PHONE_NUMBER_ID_2542` |
+
+- Os três números executam **exatamente a mesma lógica**: menus e botões, IA, identificação de categoria (passeio/utilitário) pelo conteúdo da conversa, assistente comercial, seleção/rodízio de vendedor, oficina/peças, visita/agendamento, financiamento/troca e informações institucionais (endereços, horários, redes sociais, site, Maps, "quem criou o chatbot").
+- **Roteamento de saída é dinâmico**, baseado em `metadata.phone_number_id` recebido no webhook da Meta (`webhook.py`) — não há nenhuma lista/comparação fixa de números no código de produção. Cada número responde sempre por si mesmo (nunca por outro).
+- **Isolamento de sessão**: a chave de estado/histórico passou a ser composta por `(sender_phone_number_id, numero_do_cliente)` (`assistente_comercial._chave_estado()`, `responder._chave_hist()`). O mesmo telefone de cliente pode conversar simultaneamente com os três números sobre assuntos diferentes sem misturar categoria, vendedor, handoff, contexto de IA ou histórico.
+- **`PHONE_NUMBER_ID` (94054) continua como fallback** para qualquer chamada antiga que não informe `sender_phone_number_id` — compatibilidade total mantida.
+- **Notificações a vendedor/atendente permanecem na regra já existente** (saem pelo `PHONE_NUMBER_ID` padrão, decisão consciente documentada no código — template `novo_lead_vendedor` aprovado por número/WABA, sem confirmação de que vale para os números novos) — **não alterada** só por existirem múltiplos números.
+- O número empresarial receptor determina **somente** (1) por qual número a resposta sai e (2) a chave de isolamento — nunca influencia categoria, seleção de vendedor ou conteúdo da IA (auditado exaustivamente: nenhuma função de decisão comercial recebe `sender_phone_number_id`/`numero` como parâmetro).
+
+### 9.2 Testes automatizados de regressão (todos passando)
+
+```
+teste_assistente_comercial.py                    11/11 OK
+teste_fase31h_categoria_independente.py           7/7 OK
+teste_regressao_van_passeio_real.py               3/3 OK
+teste_regressao_sprinter_mercedes_real.py         5/5 OK
+teste_regressao_utilitario_para_passeio_real.py   4/4 OK
+teste_regressao_oficina_vendedor_pendente.py      7/7 OK
+teste_regressao_vendedor_vs_institucional.py      5/5 OK
+teste_regressao_multiplos_numeros_meta.py         6/6 OK na rodada inicial (94054+2030),
+                                                   ampliado depois com o terceiro número (2542)
+                                                   e os casos de ciclo comercial/paridade funcional
+```
+
+Testes específicos de múltiplos números comprovaram (100% mockado — zero mensagens reais durante os testes):
+- número A (94054) recebe → responde pelo 94054;
+- número B (2030) recebe → responde pelo 2030;
+- número C (2542) recebe → responde pelo 2542;
+- mesmo cliente conversando simultaneamente nos três números → estados completamente independentes (categoria, vendedor, histórico);
+- chamada antiga sem `sender_phone_number_id` → cai no `PHONE_NUMBER_ID` padrão (fallback preservado);
+- categoria PASSEIO seleciona vendedor corretamente (lista/rodízio de passeio) nos três números;
+- categoria UTILITÁRIO seleciona vendedor corretamente (lista/rodízio de utilitários) nos três números;
+- **vendedor informado ao cliente é sempre o mesmo que recebe o lead/resumo** (verificado nos três números, inclusive com conversas entrelaçadas/concorrentes);
+- resumo/lead é gerado e enviado corretamente nos três números;
+- conversas simultâneas mantêm categoria, vendedor e estado isolados mesmo quando duas delas são da mesma categoria em números diferentes (rodízio real, sem duplicar vendedor);
+- menus e respostas institucionais determinísticas (oficina/peças, endereços, crédito, governamentais, assinatura, trabalhe conosco, listas de veículos por categoria) são **idênticas byte a byte** nos três números;
+- "Quem criou o chatbot?" chega à IA com a mesma mensagem/histórico/contexto nos três números — resposta institucional não varia por número;
+- endereços, horários, redes sociais, site, Maps, oficina/peças e demais informações institucionais são compartilhados igualmente entre os três;
+- a IA em texto livre recebe o mesmo contexto e regras nos três números (nenhuma diferença de conhecimento/instrução por número receptor).
+
+### 9.3 Testes reais em produção (pós-deploy manual)
+
+Deploy feito **manualmente por Anderson no Render** — ficou **Live**. Testes reais realizados nos três números confirmaram:
+- os três números responderam corretamente;
+- mesma saudação/menu inicial nos três;
+- IA funcionando;
+- fluxo de passeio e de utilitário funcionando;
+- oficina/peças funcionando;
+- informações institucionais funcionando;
+- registro de contatos na planilha (Google Sheets) funcionando;
+- fluxo comercial de utilitário testado com uma van escolar — categoria identificada corretamente;
+- vendedor **Silvano** foi selecionado pelo rodízio real em um dos testes e informado corretamente ao cliente;
+- em outro teste, **Magali** foi selecionada conforme o estado/fluxo daquela conversa;
+- "Quem criou esse chatbot?" continuou respondendo corretamente;
+- endereço da **Sullato Micros e Vans** e horário de sábado foram respondidos corretamente quando perguntados explicitamente;
+- **nenhuma regressão identificada** que justifique nova alteração de produção neste momento.
+
+### 9.4 Decisão operacional atual (04/09/2026)
+
+**Não alterar mais o código agora.** Os três números ficarão em produção para observação de conversas reais.
+
+Próxima etapa, ao retomar:
+1. Analisar o comportamento real dos três números em uso contínuo.
+2. Confirmar, em leads reais (não só em teste), que o vendedor informado ao cliente é exatamente o vendedor que recebe o resumo/lead.
+3. Observar a distribuição do rodízio real entre vendedores de passeio e de utilitários ao longo do tempo.
+4. Verificar se surge qualquer mistura de sessão/estado entre os três números em uso real.
+5. **Só depois disso**, revisar/refinar respostas da IA.
+6. Evitar alterações preventivas sem evidência de problema real observado.
+
+### 9.5 Commits desta etapa (mais recente primeiro)
+
+| Commit | Mensagem |
+|---|---|
+| `09b5f4c` | Fase 3.1P: testes de terceiro numero Meta (2542) e paridade funcional |
+| `f34606e` | Fase 3.1O: suporte a multiplos Phone Number IDs Meta no mesmo chatbot |
+| `779ad97` | Fase 3.1M/3.1N: vendedor deterministico + resposta institucional preservada |
+| `6d1364b` | Fase 3.1L: prioriza pedido comercial de vendedor pendente sobre Oficina/Pecas |
+| `5d83d08` | Fase 3.1K: corrige handoff entre categorias em linguagem natural do mundo real |
+| `891423f` | Fase 3.1J: corrige travamento de categoria, pedido de vendedor, menu e vazamento institucional |
+| `f2c36e5` | Fase 3.1I: corrige classificacao van/utilitario e fallback perigoso de categoria |
+
+**HEAD atual: `09b5f4c`** (main, sincronizada com `origin/main`).
 
 ---
 
