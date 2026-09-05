@@ -706,7 +706,9 @@ BLOCOS = {
 
 📲 Atendimento centralizado pelo WhatsApp oficial da Oficina Sullato:
 
+👉 https://wa.me/551120922304
 👉 https://wa.me/5511917027705
+
 
 Por aqui conseguimos registrar sua solicitação
 e direcionar corretamente para o setor responsável.""",
@@ -880,7 +882,7 @@ def responder(
             (
                 f"Olá, {primeiro_nome}! 😃 Seja bem-vindo ao atendimento virtual do Grupo Sullato.\n\n"
                 "Como posso te ajudar?\n\n"
-                "💬 Você também pode escrever sua dúvida ou enviar um áudio explicando o que precisa."
+                "💬 Pode falar comigo normalmente ou mandar um áudio 🎙️: tiro suas dúvidas, ajudo na escolha do veículo 🚗🚐 e, se precisar, te conecto com a pessoa certa. 👤"
             ),
             BOTOES_MENU_INICIAL,
             sender_phone_number_id
