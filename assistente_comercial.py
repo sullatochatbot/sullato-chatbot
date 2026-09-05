@@ -580,6 +580,13 @@ _PALAVRAS_UTILITARIO = (
     "van", "kombi", "jumper", "jumpy", "boxer", "ducato", "sprinter", "master",
     "furgao", "utilitario", "micro-onibus", "micro onibus", "minibus",
     "micros e vans", "transit", "bongo", "fiorino", "effa",
+    # Fase 3.1Q (diagnóstico real: IA confundindo vendedor de passeio com
+    # utilitário) — sinais de USO/finalidade que indicam utilitário mesmo
+    # sem citar um modelo específico, além dos modelos/marcas já cobertos
+    # acima. Termos escolhidos por serem específicos do domínio (baixo risco
+    # de falso positivo em conversa de concessionária).
+    "carga", "escolar", "executivo", "executiva", "ambulancia", "cadeirante",
+    "veiculo adaptado", "veiculo comercial", "caminhao leve", "passageiros",
 )
 
 # Sinal explícito de PASSEIO dentro do próprio texto (Fase 3.1I) — "carro"
@@ -587,7 +594,14 @@ _PALAVRAS_UTILITARIO = (
 # reforço conservador quando o cliente descreve o veículo com essa palavra
 # (ex.: "um carro pequeno"), nunca como fallback de mensagem sem nenhuma
 # palavra de veículo.
-_PALAVRAS_PASSEIO_EXPLICITA = ("carro", "carros")
+# Fase 3.1Q: somados modelo/carroceria de passeio (sedan/hatch/suv/crossover)
+# e moto/motocicleta/scooter (a mesma categoria PASSEIO já usada para
+# veículos de passeio, sem lista de vendedor própria para motos) — mesmo
+# critério conservador, nunca usados como fallback de mensagem ambígua.
+_PALAVRAS_PASSEIO_EXPLICITA = (
+    "carro", "carros", "automovel", "sedan", "hatch", "suv", "crossover",
+    "moto", "scooter",
+)
 
 
 def _classificar_categoria(

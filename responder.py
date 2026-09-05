@@ -228,14 +228,24 @@ def _enviar_mensagem_com_status(numero: str, texto: str) -> bool:
 def _telefone_para_template(numero: str) -> str:
     """
     Formata o telefone do cliente para a variável {{2}} do template
-    novo_lead_vendedor, no padrão do exemplo aprovado na Meta (sem "+" e
-    sem o código do país "55"). Não altera o número usado internamente
-    pelo restante do sistema — só o valor enviado nessa variável.
+    novo_lead_vendedor.
+
+    Fase 3.1Q (diagnóstico real: contato do cliente não aparecia como link
+    clicável para o vendedor em alguns atendimentos): fora da janela de 24h
+    de atendimento ao cliente, a Meta bloqueia o texto livre enviado logo
+    depois (_enviar_mensagem_com_status) — só o template aprovado chega ao
+    vendedor. Antes, essa variável trazia só os dígitos crus (ex.:
+    "11987654321"), que o WhatsApp não reconhece como link. Agora traz o
+    link completo "https://wa.me/55..." (mesmo formato já usado em
+    texto_lead), clicável mesmo quando só o template é entregue. Não altera
+    estrutura, quantidade nem ordem das variáveis do template aprovado — só
+    o CONTEÚDO desta variável — nem o número usado internamente pelo
+    restante do sistema.
     """
-    n = (numero or "").strip()
-    if n.startswith("55") and len(n) > 11:
-        return n[2:]
-    return n
+    digitos = re.sub(r"\D", "", numero or "")
+    if not digitos:
+        return ""
+    return f"https://wa.me/{digitos}"
 
 def _sanitizar_parametro_template(texto: str) -> str:
     """
@@ -361,6 +371,19 @@ def detectar_intencao_basica(txt: str) -> Optional[str]:
         return None
     t = txt.lower()
     grupos = [
+        # Fase 3.1Q: checada ANTES de credito/comprar/vender — frases
+        # governamentais reais colidem com palavras genéricas dessas outras
+        # intenções (ex.: "venda publica"/"venda direta" contêm "venda", que
+        # também é gatilho de "vender"; "quero comprar para uma prefeitura"
+        # contém "comprar"). Intenção mais específica vence.
+        ("governamentais",    [
+            "governamental", "governamentais", "venda direta", "venda-direta",
+            "vendas publicas", "vendas públicas", "venda publica", "venda pública",
+            "governo", "prefeitura", "orgao publico", "órgão público",
+            "orgaos publicos", "órgãos públicos", "licitacao", "licitação",
+            "pregao", "pregão", "compra publica", "compra pública",
+            "frota publica", "frota pública",
+        ]),
         ("credito",      ["credito", "financi", "parcel", "banco", "consorcio", "consórcio"]),
         ("endereco",     ["endereco", "endereço", "loja", "onde fica", "mapa"]),
         ("comprar",      ["comprar", "compra", "quero comprar"]),
@@ -368,7 +391,6 @@ def detectar_intencao_basica(txt: str) -> Optional[str]:
         ("pos_venda",    ["pos venda", "pós-venda", "garantia", "assistencia", "assistência", "suporte"]),
         ("oficina_passeio",   ["oficina passeio", "passeio oficina"]),
         ("oficina_utilitario",["oficina utilitario", "oficina utilitário", "utilitario oficina", "utilitário oficina"]),
-        ("governamentais",    ["governamental", "governamentais", "venda direta", "venda-direta"]),
         ("assinatura",        ["assinatura", "subscription", "aluguel longo", "longa duracao", "longa duração"]),
         ("trabalhe",          ["trabalhe", "curriculo", "currículo", "emprego", "vaga", "vagas", "rh"]),
     ]
@@ -715,10 +737,13 @@ e direcionar corretamente para o setor responsável.""",
 
     "4.1": """*Vendas Governamentais*
 
-✉️ Consulte nossa consultora.
+✉️ Consulte nossos consultores de vendas governamentais/licitações.
 
 🏛️ Solange: https://wa.me/5511989536141
-📧 E-mail: vendasdireta@sullato.com.br | sol@sullato.com.br""",
+🏛️ Lucas: https://wa.me/5511940457215
+📧 E-mail: vendasdireta@sullato.com.br | sol@sullato.com.br
+
+Atendemos prefeituras, órgãos públicos e processos de licitação/pregão pelas empresas Medeiros e Sullato, Galego e Carloca.""",
 
     "4.2": """*Veículo por Assinatura*
 
@@ -879,6 +904,19 @@ def responder(
             atualizar_interesse(numero, "Texto livre → IA")
         except Exception:
             pass
+
+        # Fase 3.1Q: intenção de Vendas Governamentais/licitação em texto
+        # livre reaproveita o MESMO bloco/fluxo já existente do botão "4.1"
+        # (BLOCOS["4.1"]) — nunca entra no assistente comercial nem no
+        # rodízio de vendedores de passeio/utilitário.
+        if detectar_intencao_basica(id_recebido) == "governamentais":
+            try:
+                atualizar_interesse(numero, "Interesse - Governamentais (texto livre)")
+                registrar_interacao(numero, nome_final, "Interesse - Governamentais (texto livre)")
+            except Exception as e:
+                print("⚠️ registro gov texto livre falhou:", e)
+            enviar_mensagem(numero, BLOCOS["4.1"], sender_phone_number_id)
+            return
 
         # ===== Fase 3.1C: camada comercial (aditiva, controlada por feature flag) =====
         estado_comercial = None
