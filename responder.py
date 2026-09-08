@@ -686,21 +686,52 @@ def _processar_transferencia_vendedor(
 
 # ===== Blocos fixos =====
 BLOCOS = {
-    "1.3": """*Endereço e Site*
+    "1.3": """📍 *Endereços e Contatos Sullato*
 
-🌐 Site: www.sullato.com.br – https://www.sullato.com.br
-📸 Instagram: @sullatomicrosevans – https://www.instagram.com/sullatomicrosevans
-📸 Instagram: @sullato.veiculos – https://www.instagram.com/sullato.veiculos
-📸 Instagram: @tssullatoautoservice – https://www.instagram.com/tssullatoautoservice/
+🚐 *Sullato Micros e Vans*
+Av. São Miguel, 7900 – CEP 08070-001 – São Paulo/SP
 
-🏢 Loja 01: Av. São Miguel, 7900 – cep. 08070-001 - SP
-📞 (11) 2030-5081 | (11) 2031-5081
+☎️ (11) 2030-5081 / (11) 2031-5081
+👉 https://wa.me/5511940545704
+👉 https://wa.me/551120305081
 
-🏢 Loja 02: Av. São Miguel, 4049 – cep. 03871-000 - SP
-📞 (11) 2542-3332 | (11) 2542-3333
+🌐 Site: https://www.sullato.com.br
+📸 Instagram: https://www.instagram.com/sullatomicrosevans
 
-🏢 Loja 03: Av. São Miguel, 4084 – cep. 03871-000 - SP
-📞 (11) 2045-2753""",
+
+🚗 *Sullato Veículos*
+Av. São Miguel, 4049 – CEP 03871-000 – São Paulo/SP
+
+☎️ (11) 2542-3332 / (11) 2542-3333
+👉 https://wa.me/5511940545704
+👉 https://wa.me/551125423330
+
+🌐 Site: https://www.sullato.com.br
+📸 Instagram: https://www.instagram.com/sullato.veiculos
+
+
+🚗 *Sullato Veículos*
+Av. São Miguel, 4084 – CEP 03871-000 – São Paulo/SP
+
+☎️ (11) 2045-2753
+👉 https://wa.me/5511940545704
+👉 https://wa.me/551125423330
+
+🌐 Site: https://www.sullato.com.br
+📸 Instagram: https://www.instagram.com/sullato.veiculos
+
+
+🔧 *Sullato Oficina e Peças*
+Av. Amador Bueno da Veiga, 4222 – CEP 03652-000
+Penha de França – São Paulo/SP
+
+☎️ (11) 2092-2304
+👉 https://wa.me/551120922304
+👉 https://wa.me/5511917027705
+
+🌐 Site: https://www.tssullatoautoservice.com.br
+📸 Instagram: https://www.instagram.com/tssullatoautoservice/""",
+
 
     "2.1": """*Oficina e Peças*
 
@@ -715,8 +746,8 @@ e direcionar corretamente para o setor responsável.""",
 
     "2.2": """*Endereço da Oficina*
 
-🏢 Av. Amador Bueno da Veiga, 4222 – cep. 03652-000 - SP
-📞 (11) 20922304 | (11) 11994081931""",
+🏢 Av. Amador Bueno da Veiga, 4222 – cep. 03652-000 - Penha de França - SP
+📞 (11) 20922304""",
 
     "3": """*Crédito e Financiamento*
 
@@ -729,13 +760,13 @@ e direcionar corretamente para o setor responsável.""",
 
 📲 Atendimento pelo WhatsApp oficial da Oficina Sullato:
 
-👉 https://wa.me/5511917027705""",
+👉 https://wa.me/551120922304""",
 
     "3.2.2": """*Oficina e Peças – Utilitário*
 
 📲 Atendimento pelo WhatsApp oficial da Oficina Sullato:
 
-👉 https://wa.me/5511917027705""",
+👉 https://wa.me/551120922304""",
 
     "4.1": """*Vendas Governamentais*
 
