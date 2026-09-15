@@ -951,6 +951,21 @@ _GATILHOS_PERGUNTA_VENDEDOR_ATUAL = _GATILHOS_QUEM_ATENDE + (
     "quem esta cuidando", "quem ta cuidando", "quem cuida",
     "com quem estou falando", "quem e meu vendedor", "quem e o meu vendedor",
     "qual e meu vendedor",
+    # Fase 3.1S (diagnóstico real "Quem vai entrar em contato"): variações
+    # adicionais de pergunta sobre o vendedor/contato ATUAL já atribuído.
+    # Nenhuma destas frases contém "outro/outra" nem cita o nome do
+    # vendedor com negação — não colidem com _eh_sinal_troca_vendedor
+    # (troca de vendedor), que continua sendo verificado antes disso, em
+    # processar_mensagem(), e tem prioridade sempre que a frase realmente
+    # pedir troca ("quero outro vendedor", "não quero falar com a Magali").
+    "quem vai entrar em contato", "quem vai me chamar",
+    "qual o nome do vendedor", "qual e o nome do vendedor",
+    "quem ficou com meu atendimento", "quem ficou com o meu atendimento",
+    "quem esta me atendendo", "quem ta me atendendo",
+    "contato do vendedor", "numero do vendedor", "telefone do vendedor",
+    "contato dele", "contato dela", "numero dele", "numero dela",
+    "whatsapp dele", "whatsapp dela",
+    "cade o contato", "cade o numero", "cade o whatsapp",
 )
 
 
