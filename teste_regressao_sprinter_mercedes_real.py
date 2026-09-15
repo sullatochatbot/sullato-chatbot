@@ -118,11 +118,11 @@ def teste_conversa_real_mercedes_sprinter_vendedor():
         assert estado["vendedor"] is not None, "handoff deterministico nao executou"
         assert estado["vendedor"]["nome"] in nomes_util, f"vendedor {estado['vendedor']} nao pertence a lista de UTILITARIOS"
         assert estado["vendedor"]["nome"] != "👨🏻‍💼 Jeferson", "Jeferson e exclusivamente PASSEIO"
-        assert chamadas["mensagem"] == 1 and chamadas["template"] == 1, "handoff deveria ocorrer exatamente 1 vez"
+        assert chamadas["template"] == 1 and chamadas["mensagem"] == 0, "handoff deveria ocorrer exatamente 1 vez"
 
         # Repetir a mesma mensagem (idempotencia) nao pode duplicar handoff.
         estado2 = _passo(numero, "Me passe pra um vendedor ou vc mesmo vai me receber")
-        assert chamadas["mensagem"] == 1 and chamadas["template"] == 1, "nao pode duplicar handoff"
+        assert chamadas["template"] == 1 and chamadas["mensagem"] == 0, "nao pode duplicar handoff"
         assert estado2["vendedor"]["nome"] == estado["vendedor"]["nome"]
 
         # Nenhum prompt gerado durante toda a conversa pode conter os dados
@@ -183,7 +183,7 @@ def teste_troca_categoria_independente_preservada():
         estado = _passo(numero, "quero falar com um vendedor")
         assert estado["categoria"] == "utilitario", estado
         vendedor_util = estado["vendedor"]["nome"]
-        assert chamadas["mensagem"] == 1
+        assert chamadas["template"] == 1 and chamadas["mensagem"] == 0
 
         estado = ac.processar_mensagem(numero, "na verdade, sobre veiculo de passeio, me passa um vendedor")
         assert estado["categoria"] == "passeio", estado
@@ -192,12 +192,12 @@ def teste_troca_categoria_independente_preservada():
         estado = ac.obter_estado(numero)
         vendedor_passeio = estado["vendedor"]["nome"]
         assert vendedor_passeio != vendedor_util
-        assert chamadas["mensagem"] == 2
+        assert chamadas["template"] == 2 and chamadas["mensagem"] == 0
 
         estado = ac.processar_mensagem(numero, "voltando pro utilitario, me passa o vendedor de novo")
         assert estado["categoria"] == "utilitario", estado
         assert estado["vendedor"]["nome"] == vendedor_util, "deveria recuperar o vendedor original, sem novo sorteio"
-        assert chamadas["mensagem"] == 2, "nao pode reenviar ao voltar para categoria ja atendida"
+        assert chamadas["template"] == 2 and chamadas["mensagem"] == 0, "nao pode reenviar ao voltar para categoria ja atendida"
 
         print("OK  UTILITARIO -> PASSEIO -> UTILITARIO continua preservado apos Fase 3.1J")
     finally:

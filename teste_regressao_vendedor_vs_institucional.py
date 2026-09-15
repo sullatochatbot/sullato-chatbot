@@ -144,7 +144,7 @@ def teste_pergunta_institucional_no_meio_da_negociacao_nao_troca_vendedor():
         assert estado_depois["categoria"] == estado_antes["categoria"]
         assert estado_depois["vendedor"]["nome"] == estado_antes["vendedor"]["nome"]
         assert estado_depois["transferencia_concluida"] == estado_antes["transferencia_concluida"]
-        assert chamadas["vendedor_mensagem"] == 2 and chamadas["vendedor_template"] == 2, (
+        assert chamadas["vendedor_template"] == 2 and chamadas["vendedor_mensagem"] == 0, (
             "pergunta institucional nao pode disparar nenhum handoff novo"
         )
 
@@ -161,7 +161,7 @@ def teste_pergunta_institucional_no_meio_da_negociacao_nao_troca_vendedor():
         assert estado_apos_van["categoria"] == "passeio", "pergunta informativa nao pode trocar a categoria ativa"
         assert estado_apos_van["vendedor"]["nome"] == vendedor_p
         assert estado_apos_van["atendimentos"]["utilitario"]["vendedor"]["nome"] == vendedor_u
-        assert chamadas["vendedor_mensagem"] == 2 and chamadas["vendedor_template"] == 2, (
+        assert chamadas["vendedor_template"] == 2 and chamadas["vendedor_mensagem"] == 0, (
             "pergunta informativa sobre vendedor nao pode disparar handoff novo"
         )
 
@@ -175,7 +175,7 @@ def teste_pergunta_institucional_no_meio_da_negociacao_nao_troca_vendedor():
         estado_final = ac.obter_estado(numero)
         assert estado_final["categoria"] == "passeio"
         assert estado_final["vendedor"]["nome"] == vendedor_p
-        assert chamadas["vendedor_mensagem"] == 2 and chamadas["vendedor_template"] == 2, (
+        assert chamadas["vendedor_template"] == 2 and chamadas["vendedor_mensagem"] == 0, (
             "nenhum handoff novo deveria ter ocorrido so por perguntar sobre o carro ja atribuido"
         )
 

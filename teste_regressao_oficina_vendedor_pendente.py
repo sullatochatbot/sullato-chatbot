@@ -119,8 +119,8 @@ def teste_pedido_pendente_passeio_vai_para_vendedor_correto():
         textos_cliente = " | ".join(t for _, t in chamadas["enviar_mensagem"])
         assert "Oficina" not in textos_cliente, f"NAO pode ter caido em Oficina/Pecas: {textos_cliente!r}"
         assert "5511917027705" not in textos_cliente, "numero da Oficina nao pode aparecer aqui"
-        assert chamadas["vendedor_mensagem"] == 1 and chamadas["vendedor_template"] == 1, \
-            "handoff de passeio deveria ter notificado o vendedor exatamente 1 vez (mock)"
+        assert chamadas["vendedor_template"] == 1 and chamadas["vendedor_mensagem"] == 0, \
+            "handoff de passeio deveria ter notificado o vendedor exatamente 1 vez (mock), so pelo template"
 
         print("OK  Pedido de vendedor pendente + 'passeio' -> handoff de VENDEDORES_PASSEIO_BASE (nao Oficina/Pecas)")
     finally:

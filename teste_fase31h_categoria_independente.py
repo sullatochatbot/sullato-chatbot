@@ -87,7 +87,7 @@ def teste_utilitario_para_passeio_novo_vendedor():
         estado = ac.obter_estado(numero)
         assert estado["vendedor"]["nome"] == "👩🏻‍💼 Magali", estado
         assert estado["transferencia_concluida"] is True
-        assert chamadas["mensagem"] == 1 and chamadas["template"] == 1
+        assert chamadas["template"] == 1 and chamadas["mensagem"] == 0
 
         # 2) Novo assunto: passeio, carro para a filha — pedido explícito.
         estado = ac.processar_mensagem(
@@ -102,7 +102,7 @@ def teste_utilitario_para_passeio_novo_vendedor():
         estado = ac.obter_estado(numero)
         assert estado["vendedor"]["nome"] == "👨🏻‍💼 Alexandre", estado
         assert estado["transferencia_concluida"] is True
-        assert chamadas["mensagem"] == 2 and chamadas["template"] == 2, "handoff real do passeio nao ocorreu"
+        assert chamadas["template"] == 2 and chamadas["mensagem"] == 0, "handoff real do passeio nao ocorreu"
 
         # 3) Atendimento anterior (utilitario/Magali) deve continuar preservado.
         assert estado["atendimentos"]["utilitario"]["vendedor"]["nome"] == "👩🏻‍💼 Magali"
@@ -131,7 +131,7 @@ def teste_volta_ao_utilitario_mantem_vendedor_original():
         estado = ac.processar_mensagem(numero, "sobre veiculos de passeio, me passe um vendedor")
         responder._processar_transferencia_vendedor(numero, "Cliente Teste", estado)
         estado = ac.obter_estado(numero)
-        assert chamadas["mensagem"] == 2 and chamadas["template"] == 2
+        assert chamadas["template"] == 2 and chamadas["mensagem"] == 0
 
         # Volta a falar do utilitario explicitamente.
         estado = ac.processar_mensagem(numero, "quero falar de novo com o vendedor do utilitario")
@@ -141,7 +141,7 @@ def teste_volta_ao_utilitario_mantem_vendedor_original():
 
         # Idempotencia: chamar de novo NAO deve reenviar nem resortear.
         responder._processar_transferencia_vendedor(numero, "Cliente Teste", estado)
-        assert chamadas["mensagem"] == 2 and chamadas["template"] == 2, "duplicou envio ao voltar para categoria ja atendida"
+        assert chamadas["template"] == 2 and chamadas["mensagem"] == 0, "duplicou envio ao voltar para categoria ja atendida"
         estado_final = ac.obter_estado(numero)
         assert estado_final["vendedor"]["nome"] == vendedor_utilitario_original
 
@@ -174,7 +174,7 @@ def teste_passeio_para_utilitario_ordem_inversa():
         assert estado["vendedor"]["nome"] == "👩🏻‍💼 Magali", estado
 
         assert estado["atendimentos"]["passeio"]["vendedor"]["nome"] == "👨🏻‍💼 Alexandre"
-        assert chamadas["mensagem"] == 2 and chamadas["template"] == 2
+        assert chamadas["template"] == 2 and chamadas["mensagem"] == 0
 
         print("OK  PASSEIO -> UTILITARIO: vendedor correto de cada categoria (ordem inversa)")
     finally:

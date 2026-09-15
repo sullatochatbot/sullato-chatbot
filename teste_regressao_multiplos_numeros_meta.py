@@ -454,8 +454,9 @@ def teste_caso_f_ciclo_comercial_completo_consistente_tres_numeros_concorrente()
                 f"cliente {numero_cliente} nao recebeu o nome do vendedor {vendedor_nome} na resposta: {msgs_ao_cliente}"
             )
 
-            # 3b) lead/resumo (template + texto livre) enviado ao MESMO
-            # número de vendedor informado ao cliente -- nunca a outro.
+            # 3b) lead/resumo (template aceito = única mensagem; texto livre
+            # só entraria como fallback se o template falhasse) enviado ao
+            # MESMO número de vendedor informado ao cliente -- nunca a outro.
             msgs_ao_vendedor = [
                 c for c in chamadas
                 if "graph.facebook.com" in c["url"] and c["to"] == vendedor_numero
@@ -464,7 +465,7 @@ def teste_caso_f_ciclo_comercial_completo_consistente_tres_numeros_concorrente()
                 f"nenhum lead/resumo chegou ao vendedor {vendedor_nome} ({vendedor_numero}) "
                 f"informado ao cliente {numero_cliente} -- possível inconsistência cliente!=lead"
             )
-            assert any("NOVO LEAD QUALIFICADO" in c["body"] for c in msgs_ao_vendedor), (
+            assert any("LEAD QUALIFICADO" in c["body"] for c in msgs_ao_vendedor), (
                 f"nenhuma mensagem de lead completa encontrada para {vendedor_nome}: {msgs_ao_vendedor}"
             )
 

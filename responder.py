@@ -625,9 +625,11 @@ def _processar_transferencia_vendedor(
 
         numero_vendedor = vendedor_link.replace("https://wa.me/", "").strip()
 
-        # Template aprovado na Meta (Utilidade, pt_BR) — abre/reabre a janela
-        # de conversa com o vendedor antes do texto livre com o resumo
-        # completo. Falha aqui é só logada; NUNCA bloqueia a transferência.
+        # Template aprovado na Meta (Utilidade, pt_BR) é a via preferencial —
+        # enviar template NÃO reabre a janela de 24h (só uma mensagem do
+        # PRÓPRIO vendedor abre), então o texto livre só é usado como
+        # fallback quando o template falha (ver bloco abaixo). Falha do
+        # template aqui é só logada; NUNCA bloqueia a transferência.
         dia_tpl = estado_comercial.get("data_visita")
         periodo_tpl = estado_comercial.get("horario_visita")
         if dia_tpl and periodo_tpl:
@@ -639,13 +641,27 @@ def _processar_transferencia_vendedor(
         else:
             visita_texto = "Não informada"
 
+        # Quando o template for a única mensagem enviada (ver gate abaixo),
+        # o campo {{5}} precisa carregar também o que só existia no texto
+        # livre (URL do anúncio/origem/intenção-urgência/status) — sem isso,
+        # esses dados se perderiam para o vendedor sempre que o template
+        # funcionar. Campos curtos primeiro (sobrevivem ao corte de 1024
+        # chars do sanitizador), resumo da IA por último.
+        info_extra_lead = [f"Origem: {estado_comercial.get('origem') or 'não identificada'}"]
+        if estado_comercial.get("url"):
+            info_extra_lead.append(f"Anúncio: {estado_comercial['url']}")
+        info_extra_lead.append(f"Intenção/urgência: {estado_comercial.get('intencao_visita') or 'não especificada'}")
+        info_extra_lead.append("Status: LEAD QUALIFICADO / CONTATO COMERCIAL")
+        resumo_para_template = " | ".join(info_extra_lead) + f" | Resumo: {resumo}"
+
+        template_ok = False
         try:
             template_ok = _enviar_template_novo_lead_vendedor(
                 numero_vendedor,
                 nome_cliente,
                 _telefone_para_template(numero),
                 estado_comercial.get("veiculo") or "não especificado",
-                resumo,
+                resumo_para_template,
                 visita_texto,
             )
             if not template_ok:
@@ -653,10 +669,17 @@ def _processar_transferencia_vendedor(
         except Exception as e:
             print("⚠️ Erro inesperado ao enviar template novo_lead_vendedor (ignorado, seguindo com texto livre):", e)
 
-        enviado_ok = _enviar_mensagem_com_status(numero_vendedor, texto_lead)
-        if not enviado_ok:
-            print(f"⚠️ Falha ao notificar vendedor {vendedor_nome} — transferência NÃO concluída, tentará de novo na próxima mensagem.")
-            return
+        # Template aceito = única mensagem ao vendedor (evita 131047: enviar o
+        # template não reabre a janela de 24h, só uma mensagem do PRÓPRIO
+        # vendedor abre — texto livre em cima de um template já confirmado
+        # está fadado a falhar). Mesma correção aplicada no ChatbotOficinaSullato.
+        if template_ok:
+            enviado_ok = True
+        else:
+            enviado_ok = _enviar_mensagem_com_status(numero_vendedor, texto_lead)
+            if not enviado_ok:
+                print(f"⚠️ Falha ao notificar vendedor {vendedor_nome} — transferência NÃO concluída, tentará de novo na próxima mensagem.")
+                return
 
         assistente_comercial.definir_vendedor(numero, vendedor_nome, vendedor_link, sender_phone_number_id)
         assistente_comercial.marcar_transferencia_concluida(numero, sender_phone_number_id)

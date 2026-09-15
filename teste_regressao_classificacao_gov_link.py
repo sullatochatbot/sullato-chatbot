@@ -306,20 +306,20 @@ def teste_D_link_cliente_no_resumo_vendedor():
         estado = _passo(numero, "quero falar com vendedor de vans")
         assert estado["vendedor"] is not None, estado
 
-        assert len(chamadas["vendedor_mensagem"]) == 1, chamadas["vendedor_mensagem"]
-        _, texto_lead = chamadas["vendedor_mensagem"][0]
-        link_esperado = f"https://wa.me/{numero}"
-        assert link_esperado in texto_lead, texto_lead
-        assert re.search(r"WhatsApp do cliente:\s*\n?\s*" + re.escape(link_esperado), texto_lead), texto_lead
+        # Template aceito = unica mensagem ao vendedor; texto livre nao
+        # dispara em cima de um template ja confirmado.
+        assert chamadas["vendedor_mensagem"] == [], chamadas["vendedor_mensagem"]
 
-        # Variavel de telefone do template aprovado tambem traz o link
-        # clicavel (mesma estrutura/quantidade/ordem de variaveis do
-        # template — so o CONTEUDO da variavel telefone mudou).
+        link_esperado = f"https://wa.me/{numero}"
+
+        # Variavel de telefone do template aprovado traz o link clicavel
+        # (mesma estrutura/quantidade/ordem de variaveis do template — so
+        # o CONTEUDO da variavel telefone mudou).
         assert len(chamadas["vendedor_template"]) == 1, chamadas["vendedor_template"]
         assert chamadas["vendedor_template"][0]["telefone_cliente"] == link_esperado, chamadas["vendedor_template"][0]
     finally:
         _restaurar(monkeypatches)
-    print("OK  D) texto_lead E variavel de telefone do template contem https://wa.me/<numero normalizado do cliente>")
+    print("OK  D) variavel de telefone do template contem https://wa.me/<numero normalizado do cliente>")
 
 
 # ============================================================

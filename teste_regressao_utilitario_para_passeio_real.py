@@ -92,19 +92,19 @@ def teste_conversa_real_utilitario_para_passeio():
         assert estado["categoria"] == "utilitario", estado
         assert estado["vendedor"]["nome"] == "👩🏻‍💼 Magali", estado
         assert estado["transferencia_concluida"] is True
-        assert chamadas["mensagem"] == 1 and chamadas["template"] == 1
+        assert chamadas["template"] == 1 and chamadas["mensagem"] == 0
         vendedor_utilitario = estado["vendedor"]["nome"]
 
         # 2) pergunta sobre passeio, sem pedido de vendedor -> nao pode mudar nada.
         estado = _passo(numero, "outra coisa, se eu precisar de um carro de passeio vc consegue me atender.")
         assert estado["categoria"] == "utilitario", estado
         assert estado["vendedor"]["nome"] == vendedor_utilitario
-        assert chamadas["mensagem"] == 1, "nao pode transferir so por mencionar passeio sem pedir vendedor"
+        assert chamadas["template"] == 1 and chamadas["mensagem"] == 0, "nao pode transferir so por mencionar passeio sem pedir vendedor"
 
         # 3) pergunta sobre outro vendedor "ou e a mesma magali" -> sem sinal de categoria nem transferencia clara.
         estado = _passo(numero, "que bom, e nesta loja, tem outro vendedor ou e a mesma magali.")
         assert estado["categoria"] == "utilitario", estado
-        assert chamadas["mensagem"] == 1
+        assert chamadas["template"] == 1 and chamadas["mensagem"] == 0
 
         # 4) MENSAGEM COM AS DUAS CATEGORIAS ("de van... mas... passeio") -
         # Causa A: deve reconhecer PASSEIO (a mais recente/contextual), mas
@@ -115,7 +115,7 @@ def teste_conversa_real_utilitario_para_passeio():
             "Causa A: deveria reconhecer PASSEIO como categoria mais recente/contextual"
         estado = _passo(numero, "de van, ok, mas nos carros de passeio vai ser ela tambem.")
         assert estado["categoria"] == "utilitario", "sem pedido de vendedor, nao deve trocar sozinho"
-        assert chamadas["mensagem"] == 1
+        assert chamadas["template"] == 1 and chamadas["mensagem"] == 0
 
         # 5) PEDIDO REAL DE VENDEDOR DE PASSEIO (a mensagem que falhava) —
         # deve disparar handoff determinístico para PASSEIO imediatamente.
@@ -124,7 +124,7 @@ def teste_conversa_real_utilitario_para_passeio():
         nomes_passeio = [n for n, _ in responder.VENDEDORES_PASSEIO_BASE]
         assert estado["vendedor"] is not None, "handoff de passeio deveria ter ocorrido"
         assert estado["vendedor"]["nome"] in nomes_passeio, f"vendedor {estado['vendedor']} nao pertence a lista de PASSEIO"
-        assert chamadas["mensagem"] == 2 and chamadas["template"] == 2, "handoff de passeio deveria ter ocorrido exatamente 1 vez a mais"
+        assert chamadas["template"] == 2 and chamadas["mensagem"] == 0, "handoff de passeio deveria ter ocorrido exatamente 1 vez a mais"
 
         # Magali continua preservada no atendimento de utilitario.
         assert estado["atendimentos"]["utilitario"]["vendedor"]["nome"] == vendedor_utilitario
@@ -137,7 +137,7 @@ def teste_conversa_real_utilitario_para_passeio():
         estado = _passo(numero, "me passe o vendedor desta loja.")
         assert estado["categoria"] == "passeio", estado
         assert estado["vendedor"]["nome"] == vendedor_passeio
-        assert chamadas["mensagem"] == 2, "nao pode duplicar handoff"
+        assert chamadas["template"] == 2 and chamadas["mensagem"] == 0, "nao pode duplicar handoff"
 
         # 7) volta a falar de van explicitamente -> recupera Magali, sem sortear outro.
         estado = _passo(numero, "ok, sobre van, mas na loja de passeios, com quem eu falo.")
@@ -147,7 +147,7 @@ def teste_conversa_real_utilitario_para_passeio():
         # sem sortear outro vendedor nem reenviar.
         assert estado["categoria"] == "passeio", estado
         assert estado["vendedor"]["nome"] == vendedor_passeio
-        assert chamadas["mensagem"] == 2, "nao pode reenviar handoff de passeio ja concluido"
+        assert chamadas["template"] == 2 and chamadas["mensagem"] == 0, "nao pode reenviar handoff de passeio ja concluido"
 
         print("OK  Conversa real UTILITARIO -> PASSEIO (Magali -> vendedor de passeio) tratada corretamente")
     finally:
@@ -214,12 +214,12 @@ def teste_troca_categoria_independente_ainda_preservada():
         assert estado["categoria"] == "passeio", estado
         vendedor_passeio = estado["vendedor"]["nome"]
         assert vendedor_passeio != vendedor_util
-        assert chamadas["mensagem"] == 2
+        assert chamadas["template"] == 2 and chamadas["mensagem"] == 0
 
         estado = _passo(numero, "quero falar de novo com o vendedor do utilitario")
         assert estado["categoria"] == "utilitario", estado
         assert estado["vendedor"]["nome"] == vendedor_util
-        assert chamadas["mensagem"] == 2, "nao pode reenviar ao voltar para categoria ja atendida"
+        assert chamadas["template"] == 2 and chamadas["mensagem"] == 0, "nao pode reenviar ao voltar para categoria ja atendida"
 
         print("OK  UTILITARIO <-> PASSEIO independentes continuam preservados apos Causa A/B")
     finally:

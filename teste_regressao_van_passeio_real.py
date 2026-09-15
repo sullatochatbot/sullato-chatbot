@@ -92,14 +92,14 @@ def teste_conversa_real_van_para_passeio_e_volta():
         assert estado["categoria"] == "utilitario", estado
         nomes_util = [n for n, _ in responder.VENDEDORES_UTIL_BASE]
         assert estado["vendedor"]["nome"] in nomes_util, estado
-        assert chamadas["mensagem"] == 1 and chamadas["template"] == 1, "nao pode duplicar handoff so por reforcar o mesmo pedido"
+        assert chamadas["template"] == 1 and chamadas["mensagem"] == 0, "nao pode duplicar handoff so por reforcar o mesmo pedido"
 
         # 3) agradecimento — NAO pode reabrir qualificacao nem resetar nada.
         estado = _passo(numero, "otimo, obg")
         assert estado["categoria"] == "utilitario", estado
         assert estado["vendedor"]["nome"] in nomes_util, estado
         assert estado["qualificado"] is True and estado["transferencia_concluida"] is True
-        assert chamadas["mensagem"] == 1 and chamadas["template"] == 1, "agradecimento nao pode gerar novo handoff"
+        assert chamadas["template"] == 1 and chamadas["mensagem"] == 0, "agradecimento nao pode gerar novo handoff"
         prompt_pos_obrigado = responder_ia._montar_system_prompt(estado)
         assert "NÃO faça nenhuma pergunta de qualificação" in prompt_pos_obrigado, \
             "prompt deveria instruir a IA a nao reabrir qualificacao apos agradecimento"
@@ -113,20 +113,20 @@ def teste_conversa_real_van_para_passeio_e_volta():
         assert estado["categoria"] == "passeio", estado
         nomes_passeio = [n for n, _ in responder.VENDEDORES_PASSEIO_BASE]
         assert estado["vendedor"]["nome"] in nomes_passeio, estado
-        assert chamadas["mensagem"] == 2 and chamadas["template"] == 2, "handoff do passeio nao ocorreu"
+        assert chamadas["template"] == 2 and chamadas["mensagem"] == 0, "handoff do passeio nao ocorreu"
         vendedor_passeio_1 = estado["vendedor"]["nome"]
 
         # 5) segue no passeio — mantem o MESMO vendedor, sem duplicar.
         estado = _passo(numero, "um carro pequeno, mas me passe um vendedor pra eu falar com ele ou ele me chamar.")
         assert estado["categoria"] == "passeio", estado
         assert estado["vendedor"]["nome"] == vendedor_passeio_1, "nao pode trocar de vendedor de passeio sem pedido de categoria diferente"
-        assert chamadas["mensagem"] == 2 and chamadas["template"] == 2, "nao pode duplicar handoff do passeio"
+        assert chamadas["template"] == 2 and chamadas["mensagem"] == 0, "nao pode duplicar handoff do passeio"
 
         # 6) volta a falar da van — recupera o vendedor original, sem sortear outro.
         estado = _passo(numero, "voltando a falar da van, pode me passar o vendedor de novo?")
         assert estado["categoria"] == "utilitario", estado
         assert estado["vendedor"]["nome"] in nomes_util, estado
-        assert chamadas["mensagem"] == 2 and chamadas["template"] == 2, "volta a categoria ja atendida nao pode reenviar"
+        assert chamadas["template"] == 2 and chamadas["mensagem"] == 0, "volta a categoria ja atendida nao pode reenviar"
 
         # prompt final: regra anti-invencao de atribuicao de vendedor deve estar presente.
         prompt_final = responder_ia._montar_system_prompt(estado)
