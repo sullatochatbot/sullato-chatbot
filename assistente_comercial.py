@@ -280,6 +280,55 @@ def _eh_sinal_transferencia_regex(texto_norm: str) -> bool:
     return any(re.search(p, texto_norm) for p in _PADROES_TRANSFERENCIA)
 
 
+# Fase 3.1R (diagnóstico real "me passa o dado de outro"): pedido EXPLÍCITO
+# de trocar o vendedor JÁ atribuído por outro da MESMA categoria — distinto
+# de _PADROES_TRANSFERENCIA (primeiro pedido de vendedor) e de
+# _detectar_categoria_mencionada (troca de CATEGORIA). Conservador por
+# desenho: exige "outro/outra" + palavra do domínio (vendedor/consultor/
+# contato/número/telefone) em qualquer ordem, a frase específica "o dado/os
+# dados ... de outro" (evita casar com "dado" como particípio de "dar", ex.:
+# "dado de entrada"), ou "quero outro"/"tem outro vendedor" isoladas.
+_PADROES_TROCA_VENDEDOR = (
+    r"\b(outro|outra)\b.{0,25}\b(vendedor|consultor|contato|numero|telefone)\w*",
+    r"\b(vendedor|consultor|contato|numero|telefone)\w*\b.{0,25}\b(outro|outra)\b",
+    r"\bo\s+dado\b.{0,20}\bde\s+outro\b",
+    r"\bos\s+dados\b.{0,20}\bde\s+outro\b",
+    r"\bquero\s+outro\b",
+    r"\btem\s+outro\s+(vendedor|consultor)\b",
+)
+
+
+def _eh_sinal_troca_vendedor(texto_norm: str, vendedor_atual_nome: Optional[str]) -> bool:
+    """
+    True quando a mensagem pede EXPLICITAMENTE para trocar o vendedor já
+    atribuído por outro da mesma categoria (ex.: "quero outro vendedor",
+    "me passa o dado de outro", "não quero falar com a Magali"). Decisão
+    100% determinística — nunca delegada à IA (ver _BLOCO_TRANSFERENCIA_
+    CONCLUIDA em responder_ia.py, que agora só reforça isso em texto).
+
+    A rejeição nominal ("não quero falar com <nome>") só é reconhecida
+    quando o PRIMEIRO NOME do vendedor realmente atribuído nesta conversa
+    (nunca uma lista fixa/hardcoded) aparece junto de uma negação explícita.
+    Quando o nome do vendedor atual aparece SEM essa negação (ex.: "tem
+    outro vendedor ou é a mesma Magali?" — conversa real que expôs esse
+    caso), a mensagem é tratada como pergunta de CONFIRMAÇÃO, não como
+    pedido de troca — não decide sozinho, cai no fluxo normal
+    (resposta_vendedor_determinada / IA), sem alterar o estado.
+    """
+    primeiro_nome_norm = None
+    if vendedor_atual_nome:
+        primeiro_nome = next(
+            (p for p in vendedor_atual_nome.split() if any(ch.isalpha() for ch in p)), None
+        )
+        if primeiro_nome:
+            primeiro_nome_norm = _normalizar(primeiro_nome)
+
+    if primeiro_nome_norm and primeiro_nome_norm in texto_norm:
+        return bool(re.search(r"\bnao\s+(quero|gostaria)\b", texto_norm))
+
+    return any(re.search(p, texto_norm) for p in _PADROES_TROCA_VENDEDOR)
+
+
 # Sinais especificamente de VISITA (rota D) — precisam de dia+período antes
 # de transferir. Distinto de contato humano direto (rota E: "quero falar com
 # vendedor", "me passa o contato" etc.), que continua transferindo na hora,
@@ -719,6 +768,12 @@ def _trocar_categoria_ativa(estado: Dict[str, Any], nova_categoria: str) -> None
         estado["qualificado"] = True
         estado["transferencia_concluida"] = False
 
+    # Fase 3.1R: um pedido de troca de vendedor pendente pertence só à
+    # categoria onde foi pedido — trocar de categoria no meio disso invalida
+    # o pedido (o assunto mudou), nunca deve "vazar" para a categoria nova.
+    estado["troca_vendedor_pendente"] = False
+    estado["vendedor_excluido_na_troca"] = None
+
 
 def _eh_resposta_indefinida(texto_norm: str) -> bool:
     """
@@ -771,6 +826,8 @@ def _novo_estado(numero: str, sender_phone_number_id: Optional[str] = None) -> D
         "vendedor": None,           # {"nome":..., "link":...} quando selecionado pelo backend
         "transferencia_concluida": False,
         "atendimentos": {},         # Fase 3.1H: histórico por categoria — {categoria: {"vendedor", "qualificado", "transferencia_concluida"}}
+        "troca_vendedor_pendente": False,   # Fase 3.1R: cliente pediu explicitamente outro vendedor — aguardando nova seleção do backend
+        "vendedor_excluido_na_troca": None,  # {"nome":..., "link":...} do vendedor recém-recusado — excluído da próxima seleção
         "ultima_atualizacao": time.time(),
     }
 
@@ -972,6 +1029,23 @@ def marcar_transferencia_concluida(numero: str, sender_phone_number_id: Optional
     return True
 
 
+def limpar_sinal_troca_vendedor(numero: str, sender_phone_number_id: Optional[str] = None) -> bool:
+    """
+    Fase 3.1R: limpa o sinal temporário de troca de vendedor
+    (troca_vendedor_pendente/vendedor_excluido_na_troca) — chamar depois
+    que responder.py já resolveu o pedido (nova seleção concluída, OU
+    decisão de preservar o vendedor atual por não haver alternativa real
+    na categoria).
+    """
+    estado = _ESTADOS.get(_chave_estado(numero, sender_phone_number_id))
+    if not estado or _expirado(estado):
+        return False
+    estado["troca_vendedor_pendente"] = False
+    estado["vendedor_excluido_na_troca"] = None
+    estado["ultima_atualizacao"] = time.time()
+    return True
+
+
 def processar_mensagem(
     numero: str,
     texto: str,
@@ -1114,6 +1188,31 @@ def processar_mensagem(
         ):
             _trocar_categoria_ativa(estado_existente, categoria_mencionada)
             estado_existente["intencao_visita"] = texto.strip()[:200]
+            estado_existente["ultima_atualizacao"] = time.time()
+            _ESTADOS[chave] = estado_existente
+            return dict(estado_existente)
+
+        # Fase 3.1R (diagnóstico real "me passa o dado de outro"): pedido
+        # EXPLÍCITO de trocar o vendedor já atribuído por outro da MESMA
+        # categoria — decisão 100% determinística do backend, a IA nunca
+        # escolhe/sugere vendedor (reforçado em _BLOCO_TRANSFERENCIA_
+        # CONCLUIDA, responder_ia.py). Só dispara quando NÃO é troca de
+        # categoria (bloco acima) e já existe vendedor real + transferência
+        # concluída para a categoria ativa. Preserva categoria/veículo/
+        # visita/todo o resto — só marca a intenção pendente e registra QUEM
+        # deve ser excluído da próxima seleção; responder.py (dono da lista
+        # real de vendedores e do rodízio) decide se há alternativa.
+        vendedor_atual = estado_existente.get("vendedor")
+        if (
+            (not categoria_mencionada or categoria_mencionada == estado_existente.get("categoria"))
+            and vendedor_atual
+            and estado_existente.get("transferencia_concluida")
+            and _eh_sinal_troca_vendedor(texto_norm, vendedor_atual.get("nome"))
+        ):
+            estado_existente["vendedor"] = None
+            estado_existente["transferencia_concluida"] = False
+            estado_existente["troca_vendedor_pendente"] = True
+            estado_existente["vendedor_excluido_na_troca"] = vendedor_atual
             estado_existente["ultima_atualizacao"] = time.time()
             _ESTADOS[chave] = estado_existente
             return dict(estado_existente)

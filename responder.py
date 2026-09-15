@@ -504,13 +504,26 @@ def _bloco_vendedores(lista):
 # continuam completamente separadas.
 _RODIZIO_INDICE_CATEGORIA = {"utilitario": 0, "passeio": 0}
 
-def _vendedor_da_vez(categoria: str):
-    """Vendedor que receberia o próximo lead desta categoria, sem avançar o índice."""
+def _vendedor_da_vez(categoria: str, excluir_nome: Optional[str] = None):
+    """
+    Vendedor que receberia o próximo lead desta categoria, sem avançar o
+    índice. `excluir_nome` (Fase 3.1R, troca de vendedor pedida pelo
+    cliente) é opcional e só pula o vendedor da vez para o próximo da MESMA
+    lista quando ele bate com esse nome — comportamento do rodízio normal
+    (novos leads, sem exclusão) permanece idêntico ao de sempre. Se a lista
+    tiver só 1 vendedor, não há para onde pular: retorna o próprio
+    `excluir_nome` mesmo assim — quem chama decide o que fazer (não inventa
+    outro vendedor que não existe).
+    """
     lista = VENDEDORES_UTIL_BASE if categoria == "utilitario" else VENDEDORES_PASSEIO_BASE
     if not lista:
         return None
     idx = _RODIZIO_INDICE_CATEGORIA.get(categoria, 0) % len(lista)
-    return lista[idx]
+    candidato = lista[idx]
+    if excluir_nome and candidato[0] == excluir_nome and len(lista) > 1:
+        idx = (idx + 1) % len(lista)
+        candidato = lista[idx]
+    return candidato
 
 def _avancar_rodizio(categoria: str) -> None:
     """Avança o índice de rodízio da categoria — chamar só após transferência confirmada."""
@@ -551,6 +564,14 @@ def _processar_transferencia_vendedor(
     estado, não faz nada; se o envio ao vendedor falhar, não confirma nada
     ao cliente e a próxima mensagem tenta de novo (vendedor continua None).
 
+    Fase 3.1R (troca de vendedor pedida pelo cliente): quando
+    estado_comercial trouxer "vendedor_excluido_na_troca" (setado por
+    assistente_comercial.py ao detectar um pedido explícito de outro
+    vendedor), essa função também cuida disso — reaproveitando o MESMO
+    rodízio/lista, só excluindo o vendedor recém-recusado da seleção. Se não
+    houver outro elegível na categoria, preserva o vendedor atual e informa
+    isso ao cliente, sem inventar ninguém.
+
     sender_phone_number_id (Fase 3.1O): número Meta pelo qual esta conversa
     entrou — a CONFIRMAÇÃO AO CLIENTE (fim desta função) sai por esse mesmo
     número, e o estado comercial/histórico consultados usam a mesma chave
@@ -582,9 +603,36 @@ def _processar_transferencia_vendedor(
             # é só a rede de segurança final.
             print(f"⚠️ Transferência abortada: categoria comercial ainda não determinada para {numero}.")
             return
-        vendedor_selecionado = _vendedor_da_vez(categoria)
+        # Fase 3.1R: cliente pediu explicitamente outro vendedor
+        # (assistente_comercial.py já detectou isso de forma determinística
+        # e limpou estado["vendedor"] para chegar até aqui) — exclui só o
+        # vendedor recém-recusado da seleção, nunca mais que isso.
+        vendedor_excluido = estado_comercial.get("vendedor_excluido_na_troca")
+        nome_excluir = vendedor_excluido.get("nome") if vendedor_excluido else None
+
+        vendedor_selecionado = _vendedor_da_vez(categoria, excluir_nome=nome_excluir)
         if not vendedor_selecionado:
             return
+
+        # Troca pedida mas a categoria só tem esse único vendedor elegível —
+        # não há para onde trocar. Nunca inventa outro nem entra em loop:
+        # preserva o mesmo vendedor, sem reenviar nada a ele (já está
+        # cuidando do cliente), e responde ao cliente de forma determinística.
+        if nome_excluir and vendedor_selecionado[0] == nome_excluir:
+            assistente_comercial.definir_vendedor(
+                numero, vendedor_excluido["nome"], vendedor_excluido["link"], sender_phone_number_id
+            )
+            assistente_comercial.marcar_transferencia_concluida(numero, sender_phone_number_id)
+            assistente_comercial.limpar_sinal_troca_vendedor(numero, sender_phone_number_id)
+            enviar_mensagem(
+                numero,
+                f"No momento {vendedor_excluido['nome']} é o único disponível para esse tipo de veículo — "
+                f"seu atendimento continua com ele(a).\n\n"
+                f"📱 {vendedor_excluido['nome']}: {vendedor_excluido['link']}",
+                sender_phone_number_id,
+            )
+            return
+
         vendedor_nome, vendedor_link = vendedor_selecionado
 
         try:
@@ -683,6 +731,7 @@ def _processar_transferencia_vendedor(
 
         assistente_comercial.definir_vendedor(numero, vendedor_nome, vendedor_link, sender_phone_number_id)
         assistente_comercial.marcar_transferencia_concluida(numero, sender_phone_number_id)
+        assistente_comercial.limpar_sinal_troca_vendedor(numero, sender_phone_number_id)
         _avancar_rodizio(categoria)  # só avança o índice após sucesso confirmado
 
         dia = estado_comercial.get("data_visita")
