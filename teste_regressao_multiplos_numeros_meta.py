@@ -559,52 +559,74 @@ def teste_caso_g_paridade_deterministica_tres_numeros():
           "(byte a byte) nos três números")
 
 
-def teste_caso_h_ia_recebe_mesmo_contexto_tres_numeros():
+def teste_caso_h_institucional_deterministica_identica_tres_numeros():
     """
-    Para uma pergunta institucional livre ("Quem criou esse chatbot?"),
-    numa conversa fresca (sem contexto comercial prévio) em cada número,
-    confirma que responder_ia.responder_com_ia() é chamado com EXATAMENTE
-    os mesmos argumentos (mensagem, histórico vazio, contexto_comercial
-    None) independente do número empresarial receptor — ou seja, a IA
-    recebe o mesmo conhecimento/instruções nos três números. Não chama a
-    API real da Anthropic — responder_com_ia é mockado.
+    Fase 3.1T (diagnóstico real: IA alucinou "Yuri Pascon" como autor do
+    sistema): pergunta institucional livre ("Quem criou esse chatbot?")
+    passou a ser respondida deterministicamente por código
+    (responder._eh_pergunta_institucional_criador), NUNCA mais pela IA.
+
+    Este teste substitui o cenário antigo (que esperava a IA ser chamada)
+    preservando a MESMA finalidade original: provar que os três números
+    empresariais do Grupo Sullato continuam isolados e consistentes — cada
+    conversa fresca, em cada número, recebe a mesma resposta institucional
+    determinística (mensagem/link do Anderson idênticos, byte a byte) e
+    sai pelo número empresarial CORRETO (isolamento de phone_number_id),
+    sem NUNCA delegar a decisão à IA (responder_ia.responder_com_ia).
     """
     import responder_ia
 
     chamadas_ia = []
 
     def _fake_responder_com_ia(mensagem, nome=None, historico=None, contexto_comercial=None):
-        chamadas_ia.append({
-            "mensagem": mensagem,
-            "historico": historico,
-            "contexto_comercial": contexto_comercial,
-        })
-        return "resposta simulada da IA (nao e chamada real)"
+        chamadas_ia.append({"mensagem": mensagem, "historico": historico, "contexto_comercial": contexto_comercial})
+        return "resposta simulada da IA (nao deveria ser chamada neste cenario)"
 
     original_ia = responder_ia.responder_com_ia
     responder_ia.responder_com_ia = _fake_responder_com_ia
     monkeypatches = [(responder_ia, "responder_com_ia", original_ia)]
     try:
-        _mockar_requests_post(monkeypatches)
+        chamadas = _mockar_requests_post(monkeypatches)
         _mockar_mala_direta(monkeypatches)
 
         pergunta = "Quem criou esse chatbot?"
+        respostas_por_numero = {}
         for numero_empresarial, apelido in ((NUM_1, "94054"), (NUM_2, "2030"), (NUM_3, "2542")):
             numero_cliente = f"5511900003{apelido}"
             _limpar(numero_cliente, numero_empresarial)
             chamadas_ia.clear()
+            chamadas.clear()
 
             responder.responder(numero_cliente, pergunta, nome_contato="Cliente Teste", sender_phone_number_id=numero_empresarial)
 
-            assert len(chamadas_ia) == 1, f"[{apelido}] esperava 1 chamada a IA, veio {chamadas_ia}"
-            assert chamadas_ia[0]["mensagem"] == pergunta, chamadas_ia[0]
-            assert chamadas_ia[0]["historico"] == [], f"[{apelido}] historico deveria ser vazio numa conversa fresca: {chamadas_ia[0]}"
-            assert chamadas_ia[0]["contexto_comercial"] is None, f"[{apelido}] sem sinal comercial, contexto deveria ser None: {chamadas_ia[0]}"
+            # 1) NUNCA delega para a IA -- decisão é 100% determinística.
+            assert chamadas_ia == [], f"[{apelido}] resposta institucional não pode chamar a IA: {chamadas_ia}"
+
+            # 2) a resposta saiu para o CLIENTE certo, pelo número empresarial CORRETO
+            # (isolamento de phone_number_id -- finalidade original do teste).
+            msgs_ao_cliente = [
+                c for c in chamadas
+                if "graph.facebook.com" in c["url"] and c["to"] == numero_cliente
+            ]
+            assert msgs_ao_cliente, f"[{apelido}] nenhuma mensagem enviada ao cliente {numero_cliente}"
+            assert all(f"/{numero_empresarial}/messages" in c["url"] for c in msgs_ao_cliente), (
+                f"[{apelido}] resposta institucional não saiu pelo número empresarial correto: {msgs_ao_cliente}"
+            )
+
+            corpo = msgs_ao_cliente[-1]["body"]
+            assert "Anderson R. Sullato" in corpo, f"[{apelido}] resposta institucional sem o nome correto: {corpo!r}"
+            assert "5511988780161" in corpo.replace(" ", "").replace("-", ""), corpo
+            respostas_por_numero[apelido] = corpo
 
             _limpar(numero_cliente, numero_empresarial)
 
-        print("OK  CASO H: pergunta institucional livre chega com mensagem/histórico/contexto "
-              "IDÊNTICOS à IA nos três números (mesmo conhecimento/instruções)")
+        # 3) os três números recebem EXATAMENTE a mesma resposta institucional
+        # (mesmo texto, byte a byte) -- mesmo conhecimento/instruções nos três.
+        textos = list(respostas_por_numero.values())
+        assert len(set(textos)) == 1, f"resposta institucional divergiu entre números: {respostas_por_numero}"
+
+        print("OK  CASO H: pergunta institucional livre é respondida deterministicamente (Anderson R. Sullato), "
+              "IDÊNTICA e isolada corretamente nos três números, sem nunca chamar a IA")
     finally:
         _restaurar(monkeypatches)
 
@@ -618,5 +640,5 @@ if __name__ == "__main__":
     teste_ponta_a_ponta_via_webhook_flask_tres_numeros()
     teste_caso_f_ciclo_comercial_completo_consistente_tres_numeros_concorrente()
     teste_caso_g_paridade_deterministica_tres_numeros()
-    teste_caso_h_ia_recebe_mesmo_contexto_tres_numeros()
+    teste_caso_h_institucional_deterministica_identica_tres_numeros()
     print("\nTODOS OS TESTES DE REGRESSAO (FASE 3.1P - TRES NUMEROS META) PASSARAM. ZERO mensagens reais enviadas.")

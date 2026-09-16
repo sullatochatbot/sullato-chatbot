@@ -459,6 +459,65 @@ def _enviar_alerta_handoff(numero_cliente, nome_cliente):
     except Exception as e:
         print("❌ Erro alerta handoff:", e)
 
+# ============================================================
+# INSTITUCIONAL — "quem criou/desenvolveu este sistema?" (Fase 3.1T,
+# diagnóstico real: a IA alucinou "Yuri Pascon" como autor). Resposta
+# determinística por CÓDIGO, nunca decidida pela IA — mesmo padrão já
+# usado no ChatbotOficinaSullato (_eh_pergunta_institucional_criador).
+# Checado com prioridade máxima em texto livre, antes do assistente
+# comercial e da IA; não toca em nenhum estado comercial, não reinicia
+# nem encerra sessão — a conversa segue normalmente depois.
+# ============================================================
+_PADROES_INSTITUCIONAL_CRIADOR = (
+    r"\bquem\s+(criou|fez|desenvolveu|programou|construiu)\s+(esse|este|essa|esta)?\s*(chatbot|sistema|robo|bot|inteligencia|ia|atendimento)\b",
+    r"\bquem\s+(criou|fez|desenvolveu|programou|construiu)\s+(ele|isso|voce|voces)\b",
+    r"\bquem\s+(e|eh)\s+o\s+(desenvolvedor|criador|programador)\b",
+    r"\bquem\s+esta\s+por\s+tras\s+(desse|deste)\s+(chatbot|sistema|projeto|atendimento)\b",
+    r"^quem\s+(criou|fez|desenvolveu|programou|construiu)\s*[\?\.!]*$",
+    r"\b(desenvolvido|criado|feito|programado)\s+por\s+quem\b",
+    r"\b(esse|este|essa|esta)\s+(chatbot|sistema|bot|robo|ia|atendimento)\s+foi\s+(feito|criado|desenvolvido|programado)\s+por\s+quem\b",
+)
+
+def _eh_pergunta_institucional_criador(texto_norm: str) -> bool:
+    return any(re.search(p, texto_norm) for p in _PADROES_INSTITUCIONAL_CRIADOR)
+
+
+# Perguntas de CONTINUIDADE ("tem certeza?", "qual o contato dele?") só
+# contam quando o assunto imediatamente anterior foi este mesmo texto
+# institucional — checado pela última resposta em _HIST_IA (sem nenhum
+# campo de estado novo).
+_PADROES_CONTINUIDADE_CRIADOR = (
+    r"\btem\s+certeza\b", r"\bcerteza\s+(que|disso)\b",
+    r"\be\s+ele\s+mesmo\b", r"\be\s+ela\s+mesma\b",
+    r"\bqual\s+(o\s+)?contato\s+dele\b", r"\bqual\s+(o\s+)?contato\s+dela\b",
+    r"\bcomo\s+(eu\s+)?falo\s+com\s+ele\b", r"\bcomo\s+(eu\s+)?falo\s+com\s+ela\b",
+    r"\bqual\s+(o\s+)?(numero|telefone|whatsapp)\s+dele\b",
+    r"\bqual\s+(o\s+)?(numero|telefone|whatsapp)\s+dela\b",
+    r"\bcontato\s+dele\b", r"\bcontato\s+dela\b",
+)
+
+def _eh_continuidade_institucional_criador(texto_norm: str) -> bool:
+    return any(re.search(p, texto_norm) for p in _PADROES_CONTINUIDADE_CRIADOR)
+
+
+def _pede_contato_institucional_criador(texto_norm: str) -> bool:
+    """Dentro de uma continuidade sobre o criador, decide se a pergunta
+    pede especificamente o CONTATO (retorna WhatsApp/e-mails) ou é só
+    confirmação (retorna só o nome, sem repetir contato à toa)."""
+    gatilhos_contato = ("contato", "numero", "telefone", "whatsapp", "email", "e-mail", "falo com")
+    return any(g in texto_norm for g in gatilhos_contato)
+
+
+def _texto_institucional_criador(completo: bool = True) -> str:
+    """Texto fixo — determinístico, nunca gerado pela IA."""
+    if not completo:
+        return "Sim, foi o Anderson R. Sullato mesmo quem desenvolveu este sistema! 😊"
+    return (
+        "Este assistente foi desenvolvido por *Anderson R. Sullato*.\n\n"
+        "📱 WhatsApp: (11) 98878-0161 | https://wa.me/5511988780161\n"
+        "📧 anderson@sullato.com.br | andersonsullato@gmail.com"
+    )
+
 VENDEDORES_PASSEIO_BASE = [
     ("👨🏻‍💼 Alexandre", "https://wa.me/5511988628961"),
     ("👨🏻‍💼 Jeferson",  "https://wa.me/5511941006862"),
@@ -954,6 +1013,28 @@ def responder(
             sender_phone_number_id
         )
         return
+
+    # INSTITUCIONAL "quem criou/desenvolveu" — determinístico, nunca a IA.
+    # Cobre também a pergunta de continuidade (só quando a última resposta
+    # já foi este mesmo texto — verificado sem nenhum campo de estado novo).
+    if _is_text_payload(mensagem):
+        _hist_criador = _get_hist_ia(numero, sender_phone_number_id)
+        _ultima_resposta_ia = next(
+            (m.get("content") for m in reversed(_hist_criador) if m.get("role") == "assistant"), None
+        )
+        _assunto_anterior_era_criador = bool(
+            _ultima_resposta_ia and "anderson r. sullato" in normalizar_id(_ultima_resposta_ia)
+        )
+        _eh_pergunta_criador = _eh_pergunta_institucional_criador(id_normalizado)
+        _eh_continuidade_criador = (
+            _assunto_anterior_era_criador and _eh_continuidade_institucional_criador(id_normalizado)
+        )
+        if _eh_pergunta_criador or _eh_continuidade_criador:
+            completo = (not _eh_continuidade_criador) or _pede_contato_institucional_criador(id_normalizado)
+            resposta_institucional = _texto_institucional_criador(completo=completo)
+            enviar_mensagem(numero, resposta_institucional, sender_phone_number_id)
+            _add_hist_ia(numero, id_recebido, resposta_institucional, sender_phone_number_id)
+            return
 
     # Menu gatilho — Correção A (Bloco A comercial): uma saudação embutida
     # numa mensagem que já carrega sinal comercial estruturado ("Olá, quero
