@@ -38,8 +38,10 @@ import responder_ia
 
 def _preparar_ambiente():
     os.environ["ASSISTENTE_COMERCIAL_ATIVO"] = "1"
-    responder._RODIZIO_INDICE_CATEGORIA["utilitario"] = 0
-    responder._RODIZIO_INDICE_CATEGORIA["passeio"] = 0
+    # Fase 3.1V: seleção agora é random.choice() puro, sem índice/rodízio.
+    # Mock determinístico (sempre o 1º elegível) só para este teste poder
+    # afirmar QUAL vendedor foi escolhido.
+    responder.random.choice = lambda seq: seq[0]
 
 
 def _mockar_saidas_externas(monkeypatches):

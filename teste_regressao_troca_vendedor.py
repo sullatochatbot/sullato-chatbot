@@ -23,8 +23,11 @@ import responder
 
 def _preparar_ambiente():
     os.environ["ASSISTENTE_COMERCIAL_ATIVO"] = "1"
-    responder._RODIZIO_INDICE_CATEGORIA["utilitario"] = 0
-    responder._RODIZIO_INDICE_CATEGORIA["passeio"] = 0
+    # Fase 3.1V: seleção agora é random.choice() puro, sem índice/rodízio.
+    # Mock determinístico (sempre o 1º elegível) só para este teste poder
+    # afirmar QUAL vendedor foi escolhido — o sorteio real de produção é
+    # coberto por teste_regressao_selecao_randomica_vendedor.py.
+    responder.random.choice = lambda seq: seq[0]
 
 
 def _stub_envio(monkeypatches):
@@ -82,7 +85,7 @@ def teste_A_rodizio_normal_sem_regressao():
         estado = ac.obter_estado(numero)
         assert estado["vendedor"]["nome"] == "👩🏻‍💼 Magali", estado
         assert chamadas["template"] == 1 and chamadas["mensagem"] == 0
-        print("OK  A) Lead novo -> rodízio normal (Magali, índice 0) continua igual, sem exclusão")
+        print("OK  A) Lead novo -> seleção normal (Magali, via mock determinístico) continua igual, sem exclusão")
     finally:
         _restaurar(monkeypatches)
         ac.limpar_estado(numero)
@@ -190,9 +193,19 @@ def teste_E_preserva_veiculo_visita_apos_troca():
 
 
 # ============================================================
-# F) Trocas sucessivas nunca repetem vendedor já recusado
+# F) Trocas sucessivas nunca repetem o vendedor IMEDIATAMENTE anterior
 # ============================================================
-def teste_F_troca_nunca_repete_vendedor_anterior_sequencial():
+def teste_F_troca_nunca_repete_vendedor_imediatamente_anterior():
+    """
+    Fase 3.1V (seleção randômica pura): a garantia oficial é só "nunca
+    devolver IMEDIATAMENTE quem acabou de ser recusado" (exclusão de um
+    único nome por vez, ver _vendedor_da_vez). Isso é diferente da garantia
+    mais forte que o antigo rodízio sequencial dava de graça (nunca repetir
+    NENHUM vendedor já visto na conversa inteira) — com sorteio aleatório
+    real, voltar a um vendedor de 2+ trocas atrás é possível e correto (só
+    o passo IMEDIATO é protegido). Este teste prova exatamente essa garantia
+    real, passo a passo, em duas trocas sucessivas.
+    """
     numero = "5511900001006"
     ac.limpar_estado(numero)
     _preparar_ambiente()
@@ -202,21 +215,18 @@ def teste_F_troca_nunca_repete_vendedor_anterior_sequencial():
         estado = _qualificar_utilitario(numero)
         responder._processar_transferencia_vendedor(numero, "Cliente Teste", estado)
         estado = ac.obter_estado(numero)
-        vistos = [estado["vendedor"]["nome"]]
+        vendedor_anterior = estado["vendedor"]["nome"]
 
-        # VENDEDORES_UTIL_BASE tem 3 -- 2 trocas sucessivas cobrem os outros 2
-        # sem nunca repetir nenhum dos já vistos.
         for _ in range(2):
             estado = ac.processar_mensagem(numero, "quero outro vendedor")
             responder._processar_transferencia_vendedor(numero, "Cliente Teste", estado)
             estado = ac.obter_estado(numero)
-            assert estado["vendedor"]["nome"] not in vistos, (
-                f"repetiu vendedor já oferecido: {vistos} -> {estado['vendedor']['nome']}"
+            assert estado["vendedor"]["nome"] != vendedor_anterior, (
+                f"troca devolveu imediatamente o vendedor recusado: {vendedor_anterior}"
             )
-            vistos.append(estado["vendedor"]["nome"])
+            vendedor_anterior = estado["vendedor"]["nome"]
 
-        assert len(set(vistos)) == 3, vistos
-        print(f"OK  F) 2 trocas sucessivas passam pelos 3 vendedores de utilitário sem repetir: {vistos}")
+        print("OK  F) Cada troca sucessiva nunca devolve imediatamente o vendedor recém-recusado")
     finally:
         _restaurar(monkeypatches)
         ac.limpar_estado(numero)
@@ -358,7 +368,7 @@ if __name__ == "__main__":
     teste_C_me_passa_o_dado_de_outro()
     teste_D_nao_quero_falar_com_a_magali()
     teste_E_preserva_veiculo_visita_apos_troca()
-    teste_F_troca_nunca_repete_vendedor_anterior_sequencial()
+    teste_F_troca_nunca_repete_vendedor_imediatamente_anterior()
     teste_I_unico_vendedor_elegivel_nao_troca_nao_inventa()
     teste_J_troca_categoria_ainda_funciona_com_novos_campos()
     teste_K_mudanca_visita_ainda_funciona()

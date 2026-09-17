@@ -44,8 +44,11 @@ import responder_ia
 
 def _preparar_ambiente():
     os.environ["ASSISTENTE_COMERCIAL_ATIVO"] = "1"
-    responder._RODIZIO_INDICE_CATEGORIA["utilitario"] = 0
-    responder._RODIZIO_INDICE_CATEGORIA["passeio"] = 0
+    # Fase 3.1V: seleção agora é random.choice() puro, sem índice/rodízio.
+    # Este arquivo captura o vendedor sorteado dinamicamente (vendedor_u/
+    # vendedor_p) em vez de assumir um nome fixo, então nem precisa de
+    # mock aqui — a aleatoriedade real de responder.py já é suficiente.
+    pass
 
 
 def _mockar_saidas_externas(monkeypatches):
@@ -194,11 +197,14 @@ def teste_com_outro_par_de_vendedores_prova_ausencia_de_hardcode():
     ac.limpar_estado(numero)
     responder._HIST_IA.pop(numero, None)
     _preparar_ambiente()
-    # Forca indices diferentes dos do teste anterior.
-    responder._RODIZIO_INDICE_CATEGORIA["utilitario"] = 1
-    responder._RODIZIO_INDICE_CATEGORIA["passeio"] = 2
+    # Fase 3.1V: força o sorteio a NUNCA cair no 1º vendedor da lista
+    # (equivalente ao antigo "força índices diferentes"), para provar que
+    # a barreira de código funciona com QUALQUER vendedor, não só o índice 0.
+    original_choice = responder.random.choice
+    responder.random.choice = lambda seq: seq[1] if len(seq) > 1 else seq[0]
     monkeypatches = []
     try:
+        monkeypatches.append((responder.random, "choice", original_choice))
         _mockar_saidas_externas(monkeypatches)
 
         vendedor_u, vendedor_p = _fluxo_ate_dois_vendedores(numero, "Sprinter", "carro de passeio")
@@ -280,11 +286,25 @@ def teste_historico_poluido_fim_a_fim_via_HIST_IA():
         estado = ac.obter_estado(numero)
         assert estado["vendedor"]["nome"] == vendedor_p
         assert estado["atendimentos"]["utilitario"]["vendedor"]["nome"] == vendedor_u
-        assert "Jeferson" not in (vendedor_u, vendedor_p), "coincidencia improvavel, mas confirma que nao e o vendedor real"
 
         prompt = responder_ia._montar_system_prompt(estado, "quem esta cuidando da minha van?")
         assert vendedor_p in prompt
-        assert "Jeferson" not in prompt and "Magali esta cuidando" not in prompt
+        # Fase 3.1V (seleção randômica pura): vendedor_u/vendedor_p já não
+        # são mais previsíveis por um índice fixo, então não dá mais para
+        # hardcodar "Jeferson"/"Magali" como nomes proibidos no prompt (por
+        # coincidência, o sorteio real pode legitimamente escolher qualquer
+        # um dos dois para esta conversa). O que a poluição do histórico
+        # realmente testa é: (1) nenhum vendedor FORA dos dois reais desta
+        # conversa aparece no prompt, e (2) a frase literal do histórico
+        # poluído não é copiada para o prompt do sistema (que é montado só
+        # a partir do estado determinístico, nunca de _HIST_IA).
+        todos_nomes = [n for n, _ in responder.VENDEDORES_UTIL_BASE] + [n for n, _ in responder.VENDEDORES_PASSEIO_BASE]
+        outros_nomes = [n for n in todos_nomes if n not in (vendedor_u, vendedor_p)]
+        vazados = [n for n in outros_nomes if n in prompt]
+        assert not vazados, f"nome de vendedor que nao e desta conversa vazou no prompt: {vazados}"
+        assert "esta cuidando do seu atendimento tambem" not in prompt, (
+            "frase literal do historico poluido (_HIST_IA) nao pode aparecer no prompt do sistema"
+        )
 
         print("OK  Estado determinístico permanece correto mesmo com _HIST_IA poluido; prompt aponta pro vendedor real")
     finally:

@@ -44,8 +44,11 @@ NUM_3 = "1259771500558028"     # PHONE_NUMBER_ID_2542 (2542 — terceiro número
 def _preparar_ambiente():
     os.environ["ASSISTENTE_COMERCIAL_ATIVO"] = "1"
     responder.PHONE_NUMBER_ID = NUM_1  # simula o valor real vindo do .env/Render
-    responder._RODIZIO_INDICE_CATEGORIA["utilitario"] = 0
-    responder._RODIZIO_INDICE_CATEGORIA["passeio"] = 0
+    # Fase 3.1V: seleção agora é random.choice() puro, sem índice/rodízio.
+    # Mock determinístico (sempre o 1º elegível) — usado também para provar
+    # que o número empresarial NÃO influencia a escolha (mesmo mock, mesmo
+    # resultado, em qualquer sender_phone_number_id).
+    responder.random.choice = lambda seq: seq[0]
 
 
 class _FakeResponse:
@@ -389,6 +392,25 @@ def teste_caso_f_ciclo_comercial_completo_consistente_tres_numeros_concorrente()
         chamadas = _mockar_requests_post(monkeypatches)
         _mockar_mala_direta(monkeypatches)
 
+        # Fase 3.1V: mock com contador (em vez do "sempre o 1º elegível" de
+        # _preparar_ambiente) -- só para ESTE teste, que precisa que os 3
+        # handoffs do Passo 3 (A=utilitário, B=passeio, C=utilitário, nessa
+        # ordem exata) produzam vendedores DIFERENTES entre A e C, para
+        # provar isolamento cruzado (item 4 abaixo) mesmo com sorteio
+        # determinístico. random.choice() aqui não recebe nem enxerga
+        # sender_phone_number_id -- o número empresarial estruturalmente
+        # não pode influenciar qual índice é usado.
+        _contador_sorteio = {"n": 0}
+
+        def _fake_choice_contador(seq):
+            idx = _contador_sorteio["n"] % len(seq)
+            _contador_sorteio["n"] += 1
+            return seq[idx]
+
+        original_choice = responder.random.choice
+        responder.random.choice = _fake_choice_contador
+        monkeypatches.append((responder.random, "choice", original_choice))
+
         # Passo 1 dos três (entrelaçado, não sequencial por cliente).
         responder.responder(numero_a, "tenho interesse", nome_contato="Cliente A", sender_phone_number_id=NUM_1)
         responder.responder(numero_b, "tenho interesse", nome_contato="Cliente B", sender_phone_number_id=NUM_2)
@@ -423,12 +445,20 @@ def teste_caso_f_ciclo_comercial_completo_consistente_tres_numeros_concorrente()
         assert estado_c["vendedor"] is not None and estado_c["vendedor"]["nome"] in nomes_util, estado_c.get("vendedor")
 
         # Mesma categoria (utilitário) em dois números diferentes (A e C) ->
-        # o rodízio real (compartilhado, único, como já era antes dos múltiplos
-        # números) deve ter avançado normalmente e dado vendedores DIFERENTES,
-        # provando que não há sorteio duplicado nem número influenciando a escolha.
+        # Fase 3.1V: seleção é random.choice() puro, que nem recebe
+        # sender_phone_number_id como parâmetro — estruturalmente não há
+        # como o número influenciar a escolha (nem para bem, nem para mal).
+        # O mock com contador acima é só para que A e C, aqui, recebam
+        # vendedores DIFERENTES de forma reprodutível — necessário para o
+        # item 4 (isolamento cruzado) abaixo poder provar que o nome de A
+        # não vaza na mensagem de C. Em produção, com sorteio real, A e C
+        # PODEM coincidir ou divergir por acaso — as duas coisas são
+        # corretas; a garantia real não é "devem diferir", é "o número não
+        # influencia a escolha", o que já é verdade pela própria assinatura
+        # de _vendedor_da_vez(categoria, excluir_nome=None).
         assert estado_a["vendedor"]["nome"] != estado_c["vendedor"]["nome"], (
-            "A e C sao ambos utilitario -- deveriam ter recebido vendedores "
-            f"diferentes pelo rodizio real: A={estado_a['vendedor']} C={estado_c['vendedor']}"
+            "A e C sao ambos utilitario -- com o mock desta suite deveriam ter "
+            f"recebido vendedores diferentes: A={estado_a['vendedor']} C={estado_c['vendedor']}"
         )
 
         # 3) Consistência cliente<->vendedor<->lead, para os TRÊS números.

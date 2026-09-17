@@ -549,48 +549,44 @@ def vendedores_util(dt=None):
 def _bloco_vendedores(lista):
     return "\n".join([f"{nome}: {link}" for nome, link in lista])
 
-# ===== Fase 3.1G: rodízio real por lead (Item 1 do diagnóstico Bloco A) =====
+# ===== Fase 3.1V: seleção randômica pura por categoria =====
 # _embaralhar_por_janela()/vendedores_util()/vendedores_passeio() NÃO são
 # alteradas — continuam servindo o menu manual "1.1"/"1.2" (mostra a lista
 # inteira para o cliente escolher) exatamente como antes.
 #
-# Para a transferência automática (_processar_transferencia_vendedor), o
-# problema era pegar lista[0] de uma lista reembaralhada por janela de 6h:
-# todo lead da mesma categoria na mesma janela caía no mesmo vendedor. Aqui
-# usamos um índice round-robin real, em memória, avançado só quando um lead
-# é efetivamente transferido com sucesso — sem depender de hora/data e sem
-# nova dependência externa (Redis/DB/Sheets). Listas de utilitário/passeio
-# continuam completamente separadas.
-_RODIZIO_INDICE_CATEGORIA = {"utilitario": 0, "passeio": 0}
-
+# Para a transferência automática (_processar_transferencia_vendedor):
+# regra oficial do Grupo Sullato é sorteio aleatório puro entre os
+# vendedores elegíveis da categoria — não rodízio sequencial. Já existiu
+# rodízio sequencial em memória (Fase 3.1G) para corrigir um bug do
+# mecanismo aleatório-por-janela-de-6h de então (_embaralhar_por_janela
+# só reembaralhava a cada 6h e sempre pegava o índice [0], então todo lead
+# dentro da mesma janela caía no mesmo vendedor — um bug de "empacamento
+# por janela", não de aleatoriedade em si). A tentativa seguinte de tornar
+# esse rodízio sequencial persistente entre restarts (Fase 3.1U) foi
+# descartada — não faz sentido persistir um índice que não existe mais.
+# random.choice() puro, sem estado nenhum entre chamadas: não depende de
+# índice, não depende de deploy/restart, não favorece nenhuma posição da
+# lista. Repetir o mesmo vendedor em leads consecutivos É esperado e
+# correto (não deve ser artificialmente evitado) — só a troca EXPLÍCITA
+# pedida pelo cliente exclui o vendedor atual do sorteio (ver excluir_nome
+# abaixo, Fase 3.1R, inalterada).
 def _vendedor_da_vez(categoria: str, excluir_nome: Optional[str] = None):
     """
-    Vendedor que receberia o próximo lead desta categoria, sem avançar o
-    índice. `excluir_nome` (Fase 3.1R, troca de vendedor pedida pelo
-    cliente) é opcional e só pula o vendedor da vez para o próximo da MESMA
-    lista quando ele bate com esse nome — comportamento do rodízio normal
-    (novos leads, sem exclusão) permanece idêntico ao de sempre. Se a lista
-    tiver só 1 vendedor, não há para onde pular: retorna o próprio
-    `excluir_nome` mesmo assim — quem chama decide o que fazer (não inventa
-    outro vendedor que não existe).
+    Sorteia aleatoriamente um vendedor ELEGÍVEL da categoria informada
+    (nunca mistura utilitário com passeio). `excluir_nome` (Fase 3.1R,
+    troca de vendedor pedida pelo cliente) remove esse nome do sorteio,
+    garantindo que a troca nunca devolva imediatamente quem acabou de ser
+    recusado. Se a lista tiver só 1 vendedor, não há para onde excluir:
+    sorteia entre a lista inteira mesmo assim — quem chama decide o que
+    fazer (não inventa outro vendedor que não existe).
     """
     lista = VENDEDORES_UTIL_BASE if categoria == "utilitario" else VENDEDORES_PASSEIO_BASE
     if not lista:
         return None
-    idx = _RODIZIO_INDICE_CATEGORIA.get(categoria, 0) % len(lista)
-    candidato = lista[idx]
-    if excluir_nome and candidato[0] == excluir_nome and len(lista) > 1:
-        idx = (idx + 1) % len(lista)
-        candidato = lista[idx]
-    return candidato
-
-def _avancar_rodizio(categoria: str) -> None:
-    """Avança o índice de rodízio da categoria — chamar só após transferência confirmada."""
-    lista = VENDEDORES_UTIL_BASE if categoria == "utilitario" else VENDEDORES_PASSEIO_BASE
-    if not lista:
-        return
-    idx = _RODIZIO_INDICE_CATEGORIA.get(categoria, 0) % len(lista)
-    _RODIZIO_INDICE_CATEGORIA[categoria] = (idx + 1) % len(lista)
+    elegiveis = [v for v in lista if v[0] != excluir_nome] if excluir_nome else lista
+    if not elegiveis:
+        elegiveis = lista
+    return random.choice(elegiveis)
 
 # Formatação em linguagem natural do dia/período coletados, usada só na
 # confirmação ao CLIENTE (o valor bruto gravado no estado e enviado ao
@@ -791,7 +787,8 @@ def _processar_transferencia_vendedor(
         assistente_comercial.definir_vendedor(numero, vendedor_nome, vendedor_link, sender_phone_number_id)
         assistente_comercial.marcar_transferencia_concluida(numero, sender_phone_number_id)
         assistente_comercial.limpar_sinal_troca_vendedor(numero, sender_phone_number_id)
-        _avancar_rodizio(categoria)  # só avança o índice após sucesso confirmado
+        # Seleção randômica pura (Fase 3.1V) não tem índice/rodízio para
+        # avançar — nada a fazer aqui além do que já foi feito acima.
 
         dia = estado_comercial.get("data_visita")
         periodo = estado_comercial.get("horario_visita")

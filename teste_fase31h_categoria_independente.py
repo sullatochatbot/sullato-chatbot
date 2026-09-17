@@ -16,9 +16,11 @@ import responder
 
 def _preparar_ambiente():
     os.environ["ASSISTENTE_COMERCIAL_ATIVO"] = "1"
-    # Rodízio determinístico: sempre começa do índice 0 em cada categoria.
-    responder._RODIZIO_INDICE_CATEGORIA["utilitario"] = 0
-    responder._RODIZIO_INDICE_CATEGORIA["passeio"] = 0
+    # Fase 3.1V: seleção agora é random.choice() puro, sem índice/rodízio.
+    # Mock determinístico (sempre o 1º elegível) só para este arquivo de
+    # teste poder afirmar QUAL vendedor foi escolhido — produção usa a
+    # aleatoriedade real (ver teste_regressao_selecao_randomica_vendedor.py).
+    responder.random.choice = lambda seq: seq[0]
 
 
 def _stub_envio(monkeypatches, sucesso=True, chamadas=None):
