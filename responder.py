@@ -522,7 +522,7 @@ VENDEDORES_PASSEIO_BASE = [
     ("👨🏻‍💼 Alexandre", "https://wa.me/5511988628961"),
     ("👨🏻‍💼 Jeferson",  "https://wa.me/5511941006862"),
     ("👨🏻‍💼 Pedro",     "https://wa.me/5511996564815"),
-    ("👨🏻‍💼 Thiago",    "https://wa.me/5511986122905"),
+    ("👨🏻‍💼 Thiago",    "https://wa.me/5511988616531"),
     ("👨🏻‍💼 Vinicius",  "https://wa.me/5511911260469"),
 ]
 VENDEDORES_UTIL_BASE = [
